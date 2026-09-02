@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+mobile/node_modules/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+backend/google_client_secret.json
+
+# Python virtual environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.pyre/
+
+# Frontend build and tool caches
+.next/
+out/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+
+# Expo and React Native generated files
+.expo/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/.expo-export-test/
+mobile/.metro-health-check*
+mobile/ios/
+mobile/android/
+
+# Local databases and runtime uploads
+backend/*.db
+backend/instance/uploads/*
+backend/uploads/*
+!backend/instance/uploads/.gitkeep
+!backend/uploads/.gitkeep
+
+# Logs and debug output
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Certificates and private keys
+*.pem
+*.key
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+
+# Keep source assets tracked:
+# frontend/public/
+# mobile/assets/
