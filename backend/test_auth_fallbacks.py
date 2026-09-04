@@ -55,8 +55,8 @@ def test_google_login_accepts_valid_token_and_returns_user_and_token(monkeypatch
         def fake_verify(token, request):
             assert token == 'valid-google-token'
             return {
-                'aud': '1090175283717-cldfrqf1vn6d5ol837muh4hv4kdl69sh.apps.googleusercontent.com',
-                'azp': '1090175283717-cldfrqf1vn6d5ol837muh4hv4kdl69sh.apps.googleusercontent.com',
+                'aud': '791879447167-1055uv7mmrsbe9do1b79in7lt3l208eo.apps.googleusercontent.com',
+                'azp': '791879447167-1055uv7mmrsbe9do1b79in7lt3l208eo.apps.googleusercontent.com',
                 'email_verified': True,
                 'email': email,
                 'sub': google_sub,

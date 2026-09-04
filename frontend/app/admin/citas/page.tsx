@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarCheck2, CalendarClock, Check, PencilLine, Search, X } from 'lucide-react'
 import { getApiUrl } from '@/lib/config'
+import AdminBackLink from '@/components/admin-back-link'
 
 const apiUrl = getApiUrl('')
 
@@ -119,9 +120,7 @@ export default function AdminCitas() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#f87171]">Administración</p>
             <h1 className="mt-3 font-serif text-4xl text-white md:text-5xl">Citas</h1>
           </div>
-          <a href="/admin/dashboard" className="inline-flex items-center gap-2 rounded-full border border-[#f87171]/50 bg-[#f87171]/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f87171]">
-            Dashboard
-          </a>
+          <AdminBackLink />
         </header>
 
         {message && (

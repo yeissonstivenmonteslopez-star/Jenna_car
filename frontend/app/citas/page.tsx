@@ -49,14 +49,6 @@ export default function CitasPage() {
   const [success, setSuccess] = useState(false)
   const [showNewVehicleForm, setShowNewVehicleForm] = useState(false)
 
-  const visibleServices = useMemo(
-    () => servicesList.filter((service) => {
-      const normalized = service.name.toLowerCase()
-      return normalized.includes('mantenimiento') || normalized.includes('diagnostico')
-    }),
-    [servicesList],
-  )
-
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => String(vehicle.id) === selectedVehicleId) || null,
     [vehicles, selectedVehicleId],
@@ -87,16 +79,11 @@ export default function CitasPage() {
         const vehicleList = vehiclesData.data || []
         const serviceList = servicesData.data || []
 
-        const filteredServices = serviceList.filter((service: ServiceOption) => {
-          const normalized = service.name.toLowerCase()
-          return normalized.includes('mantenimiento') || normalized.includes('diagnostico')
-        })
-
         setVehicles(vehicleList)
-        setServicesList(filteredServices)
+        setServicesList(serviceList)
 
         if (vehicleList.length > 0) setSelectedVehicleId(String(vehicleList[0].id))
-        if (filteredServices.length > 0) setSelectedServiceId(String(filteredServices[0].id))
+        if (serviceList.length > 0) setSelectedServiceId(String(serviceList[0].id))
       } catch {
         setVehicles([])
         setServicesList([])
@@ -291,7 +278,7 @@ export default function CitasPage() {
               <div className="grid gap-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Servicio</p>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {visibleServices.map((service) => {
+                  {servicesList.map((service) => {
                     const Icon = getServiceBadge(service.name)
                     const isSelected = String(service.id) === selectedServiceId
                     return (

@@ -214,9 +214,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => {
-                localStorage.removeItem('jenna_car_token')
-                localStorage.removeItem('jenna_car_user')
-                window.location.replace('/sign-in')
+                window.location.replace('/')
               }}
               className="flex items-center gap-2 rounded-xl border border-red-600/40 bg-red-950/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-red-300 transition hover:border-red-500 hover:bg-red-900/50 hover:text-white"
             >

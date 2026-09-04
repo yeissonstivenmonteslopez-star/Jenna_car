@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { getApiUrl } from '@/lib/config'
+import AdminBackLink from '@/components/admin-back-link'
 
 const apiUrl = getApiUrl('')
 
@@ -99,7 +100,7 @@ export default function AdminOrdersPage() {
   return (
     <main className="min-h-screen bg-secondary px-6 py-10 text-secondary-foreground lg:px-10">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6"><div><a href="/admin" className="text-xs text-muted-foreground">Panel admin</a><h1 className="mt-3 font-serif text-5xl">Órdenes de trabajo.</h1></div><a href="/admin/search" className="text-xs text-accent">Búsqueda avanzada</a></div>
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6"><div><AdminBackLink /><h1 className="mt-3 font-serif text-5xl">Órdenes de trabajo.</h1></div><a href="/admin/search" className="text-xs text-accent">Búsqueda avanzada</a></div>
         {message && <p className="mt-6 border border-accent/30 p-4 text-sm text-accent">{message}</p>}
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_0.6fr]">
           <section className="border border-border bg-secondary"><div className="border-b border-border p-6"><h2 className="font-serif text-2xl">Órdenes registradas</h2></div>{loading ? <p className="p-6 text-sm text-muted-foreground">Cargando órdenes...</p> : orders.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No hay órdenes registradas.</p> : <div className="divide-y divide-border">{orders.map((order) => <article key={order.id} className="flex flex-wrap items-center justify-between gap-4 p-6"><div><p className="font-medium">Orden #{order.id} · {order.cliente.nombre} {order.cliente.apellido}</p><p className="mt-1 text-sm text-muted-foreground">{order.vehiculo.marca} {order.vehiculo.modelo} · {order.vehiculo.placa}</p><p className="mt-1 text-xs text-muted-foreground">{order.estado} · {order.kilometraje} km · €{order.total.toFixed(2)}</p></div><div className="flex gap-3"><button type="button" onClick={() => selectOrder(order)} className="border border-accent px-3 py-2 text-xs text-accent">Editar</button>{order.recibo?.id && (<a href={`${apiUrl}/api/recibos/${order.recibo.id}/pdf?token=${token}`} target="_blank" rel="noopener noreferrer" className="border border-accent/50 bg-accent/10 px-3 py-2 text-xs text-accent">PDF</a>)}<button type="button" onClick={() => remove(order.id)} className="border border-red-300 px-3 py-2 text-xs text-red-700">Eliminar</button></div></article>)}</div>}</section>
