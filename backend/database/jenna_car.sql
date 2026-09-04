@@ -1,4 +1,4 @@
-CREATE DATABASE jenna_car
+CREATE DATABASE IF NOT EXISTS jenna_car
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
@@ -236,7 +236,9 @@ CREATE TABLE pagos (
         'transferencia',
         'nequi',
         'otro'
-    ) NOT NULL DEFAULT 'nequi',
+    ) NOT NULL,
+    fecha_pago DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     numero_nequi VARCHAR(20) NULL,
     referencia VARCHAR(100) UNIQUE,
     estado ENUM(
@@ -244,8 +246,6 @@ CREATE TABLE pagos (
         'pendiente',
         'anulado'
     ) NOT NULL DEFAULT 'completado',
-    fecha_pago DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_pagos_recibo
         FOREIGN KEY (recibo_id)
@@ -265,16 +265,12 @@ CREATE TABLE notificaciones (
     usuario_id INT UNSIGNED NOT NULL,
     titulo VARCHAR(150) NOT NULL,
     mensaje TEXT NOT NULL,
-    tipo VARCHAR(50) NOT NULL DEFAULT 'sistema', -- Ej: 'cita', 'orden', 'pago'
-    leida BOOLEAN NOT NULL DEFAULT FALSE, -- Sin ancho explícito (evita Warning 1681)
-    link VARCHAR(255) NULL, -- URL opcional para redirigir al hacer clic
+    tipo VARCHAR(50) NOT NULL DEFAULT 'sistema',
+    leida BOOLEAN NOT NULL DEFAULT FALSE,
+    link VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
     INDEX idx_usuario_estado (usuario_id, leida),
-
     CONSTRAINT fk_notificaciones_usuario
-        FOREIGN KEY (usuario_id)
-        REFERENCES usuarios(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );

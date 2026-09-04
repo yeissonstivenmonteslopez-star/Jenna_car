@@ -30,12 +30,11 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edita `.env.example` y guárdalo como `.env`. Configura principalmente:
+Edita el archivo `.env` recién copiado. Configura principalmente `DATABASE_URL`
+(o las variables `DB_*`) y una clave segura:
 
 ```env
-DB_NAME=jenna_sql
-DB_USER=root
-DB_PASSWORD=tu_clave_mysql
+DATABASE_URL=mysql+pymysql://root:tu_clave_mysql@127.0.0.1:3306/jenna_sql?charset=utf8mb4
 SECRET_KEY=una-clave-segura
 ```
 
@@ -51,20 +50,34 @@ Quedará disponible en:
 http://localhost:5000
 ```
 
-5. En otra terminal configura el frontend:
+Para aplicar o crear migraciones de la base de datos desde `backend`:
 
 ```powershell
-cd frontend
+flask --app run:app db upgrade
+```
+
+Para generar una nueva revisión después de cambiar modelos:
+
+```powershell
+$env:SKIP_DB_INIT="1"
+flask --app run:app db migrate -m "describe el cambio"
+Remove-Item Env:SKIP_DB_INIT
+```
+
+5. En otra terminal configura el frontend migrado (Vite):
+
+```powershell
+cd frontend/jenna_car
 npm install
 ```
 
-Crea `.env.local`:
+Crea `.env`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5000
 ```
 
-Inicia Next.js:
+Inicia Vite:
 
 ```powershell
 npm run dev

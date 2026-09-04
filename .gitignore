@@ -38,10 +38,11 @@ mobile/android/
 
 # Local databases and runtime uploads
 backend/*.db
-backend/instance/uploads/*
-backend/uploads/*
-!backend/instance/uploads/.gitkeep
-!backend/uploads/.gitkeep
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
+!backend/app/uploads/profile-photos/
+backend/app/uploads/profile-photos/*
+!backend/app/uploads/profile-photos/.gitkeep
 
 # Logs and debug output
 *.log
