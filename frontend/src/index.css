@@ -57,6 +57,17 @@ select {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  color: #fff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 button,
 a {
   cursor: pointer;

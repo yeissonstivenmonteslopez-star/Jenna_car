@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify  # type: ignore[import-not-found]
 from ..extensions import db
 from ..models import Vehiculo, Cliente, Cita, Servicio
 from ..utils.notifications import notificacion_por_usuario

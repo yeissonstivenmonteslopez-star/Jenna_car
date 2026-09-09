@@ -26,13 +26,13 @@ export default function ForgotPasswordPage() {
     <main className="min-h-screen bg-primary px-6 text-primary-foreground">
       <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center">
         <a href="/sign-in" className="mb-12 text-xs text-primary-foreground/60">← Volver al acceso</a>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Recuperar acceso</p>
-        <h1 className="mt-4 font-serif text-5xl">Restablece tu contraseña.</h1>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white">Recuperar acceso</p>
+        <h1 className="mt-4 font-serif text-5xl text-white">Restablece tu contraseña.</h1>
         <p className="mt-4 text-sm text-primary-foreground/60">
           Puedes recibir el enlace por correo o usar el código de recuperación generado en este entorno.
         </p>
         <form onSubmit={submit} className="mt-8 grid gap-5">
-          <input name="email" required type="email" placeholder="tu@email.com" className="bg-field p-4 text-primary" />
+          <input name="email" required type="email" placeholder="tu@email.com" className="bg-field p-4 text-white placeholder:text-white" />
           <button className="bg-accent p-4 text-xs font-semibold tracking-[0.18em] text-accent-foreground">
             ENVIAR INSTRUCCIONES
           </button>
