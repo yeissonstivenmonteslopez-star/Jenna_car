@@ -1,15 +1,16 @@
 
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, CalendarDays, ChevronDown, Menu, ShieldCheck, Sparkles, Wrench, X, MapPin } from 'lucide-react'
+import { ArrowUpRight, CalendarDays, ChevronDown, Menu, ShieldCheck, Wrench, X, MapPin } from 'lucide-react'
 import { Gallery } from '@/components/gallery'
-import { getApiUrl } from '@/lib/config'
+import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
+import { getServices } from '@/features/servicios/services/serviciosService'
+import { checkDisponibilidad, createCita } from '@/features/citas/services/citasService'
 
 const services = [
   { icon: Wrench, title: 'Mantenimiento', text: 'Revisiones precisas para que tu vehículo siempre esté a punto.', backTitle: 'Diagnóstico', backText: 'Tecnología avanzada para anticiparnos a cada problema.' },
   { icon: ShieldCheck, title: 'Scanner y electricidad', text: 'Detectamos fallas electrónicas y cuidamos cada componente eléctrico de tu vehículo.', backTitle: 'Alineación y balanceo', backText: 'Mejoramos la estabilidad, el desgaste de las llantas y la precisión de tu conducción.' },
 ]
 
-const apiUrl = getApiUrl('')
 const formatCop = (amount?: number) => `COP $${Number(amount || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`
 
 type VehicleOption = {
@@ -52,13 +53,10 @@ export default function Page() {
     if (!token) return
 
     try {
-      const [vehiclesRes, servicesRes] = await Promise.all([
-        fetch(`${apiUrl}/api/vehiculos`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${apiUrl}/api/services`),
+      const [vehiclesData, servicesData] = await Promise.all([
+        getVehiculos(token).catch(() => ({ data: [] })),
+        getServices().catch(() => ({ data: [] })),
       ])
-
-      const vehiclesData = vehiclesRes.ok ? await vehiclesRes.json() : { data: [] }
-      const servicesData = servicesRes.ok ? await servicesRes.json() : { data: [] }
       setVehicles(vehiclesData.data || [])
       setServicesList(servicesData.data || [])
       if ((vehiclesData.data || []).length > 0) {
@@ -101,15 +99,9 @@ export default function Page() {
       return
     }
     if (token) {
-      fetch(`${apiUrl}/api/citas/disponibilidad`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, hora })
-      }).then(async r => {
-        const data = await r.json()
-        if (!r.ok) setMessageBooking(data.error || 'Horario no disponible')
-        else setMessageBooking(data.data ? 'Horario disponible' : 'Horario no disponible')
-      }).catch(() => setMessageBooking('Error al verificar disponibilidad'))
+      checkDisponibilidad({ fecha, hora }, token).then((data) => {
+        setMessageBooking(data.data ? 'Horario disponible' : 'Horario no disponible')
+      }).catch((error: unknown) => setMessageBooking(error instanceof Error ? error.message : 'Horario no disponible'))
     } else {
       setMessageBooking('Debes iniciar sesión')
     }
@@ -163,30 +155,12 @@ export default function Page() {
           return
         }
 
-        const vehicleResponse = await fetch(`${apiUrl}/api/vehiculos`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(newVehicle),
-        })
-        const vehicleData = await vehicleResponse.json().catch(() => ({}))
-        if (!vehicleResponse.ok) throw new Error(vehicleData.error || 'No fue posible guardar el vehículo.')
+        const vehicleData = await createVehiculo(newVehicle as Record<string, unknown>, token)
         vehicleId = Number(vehicleData.data?.id || 0)
       }
 
       setBookingSaving(true)
-      const response = await fetch(`${apiUrl}/api/citas`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vehiculo_id: vehicleId,
-          servicio_id: Number(selectedServiceId),
-          fecha,
-          hora,
-          motivo,
-        }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'No fue posible agendar la cita.')
+      await createCita({ vehiculo_id: vehicleId, servicio_id: Number(selectedServiceId), fecha, hora, motivo }, token)
 
       setMessageBooking('Cita agendada correctamente.')
       setBookingOpen(false)

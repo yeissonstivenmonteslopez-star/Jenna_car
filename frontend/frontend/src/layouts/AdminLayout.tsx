@@ -1,9 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { getApiUrl } from '@/lib/config'
-
-const apiUrl = getApiUrl('')
+import { getMe } from '@/features/auth/services/authService'
 
 export default function AdminLayout() {
   const navigate = useNavigate()
@@ -18,11 +16,7 @@ export default function AdminLayout() {
         return
       }
 
-      fetch(`${apiUrl}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(async (response) => {
-          if (!response.ok) throw new Error()
-          return response.json()
-        })
+      getMe(token)
         .then((data) => {
           if (data.user?.rol !== 'admin') {
             setAuthorized(false)

@@ -4,7 +4,7 @@
 
 import { useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
-import { getApiUrl } from '@/lib/config'
+import { buildAssetUrl } from '@/services/apiClient'
 import NotificationBell from './notification-bell'
 
 export default function SiteShell({ children }: { children: React.ReactNode }) {
@@ -42,8 +42,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/sign-in'
   }
 
-  const apiUrl = getApiUrl('')
-  const avatar = user?.foto_perfil ? `${apiUrl}${user.foto_perfil}` : ''
+  const avatar = buildAssetUrl(user?.foto_perfil)
 
   return (
     <>

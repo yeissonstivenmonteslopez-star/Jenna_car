@@ -17,11 +17,52 @@
   --font-serif: 'DM Serif Display', 'Georgia', serif;
 }
 
-:root { color-scheme: dark; --background: #0b0b0b; --foreground: #f5f5f5; --primary: #171717; --primary-foreground: #f3f0eb; --secondary: #e6dccd; --secondary-foreground: #171717; --accent: #b52d2d; --accent-foreground: #fff8f3; --muted: #d8cab5; --muted-foreground: #5a514d; --field: #3d3b38; --border: #c9b39a; }
+:root {
+  color-scheme: dark;
+  --background: #0b0b0b;
+  --foreground: #f5f5f5;
+  --primary: #171717;
+  --primary-foreground: #f3f0eb;
+  --secondary: #e6dccd;
+  --secondary-foreground: #171717;
+  --accent: #b52d2d;
+  --accent-foreground: #fff8f3;
+  --muted: #d8cab5;
+  --muted-foreground: #5a514d;
+  --field: #3d3b38;
+  --border: #c9b39a;
+}
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; background: var(--background); }
-body { margin: 0; min-height: 100vh; background: var(--background); color: var(--foreground); font-family: Arial, sans-serif; }
-button, a, input, select { font: inherit; }
-button, a { cursor: pointer; }
-::selection { background: var(--accent); color: var(--accent-foreground); }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, sans-serif;
+}
+
+button,
+a,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}

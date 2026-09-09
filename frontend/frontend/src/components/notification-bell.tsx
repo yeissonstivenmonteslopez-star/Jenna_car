@@ -3,10 +3,8 @@
 
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Bell, CheckCheck, X, ChevronDown } from 'lucide-react'
-import { getApiUrl } from '@/lib/config'
-
-const apiUrl = getApiUrl('')
+import { Bell, CheckCheck } from 'lucide-react'
+import { getNoLeidasCount, getNotificaciones, marcarLeida, marcarTodasLeidas } from '@/features/notificaciones/services/notificacionesService'
 
 type Notificacion = {
   id: number
@@ -23,7 +21,6 @@ export default function NotificationBell() {
   const [noLeidas, setNoLeidas] = useState(0)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [abierto, setAbierto] = useState(false)
-  const [cargando, setCargando] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''
@@ -31,30 +28,20 @@ export default function NotificationBell() {
   const fetchNoLeidas = useCallback(async () => {
     if (!token) return
     try {
-      const res = await fetch(`${apiUrl}/api/notificaciones/no-leidas/count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setNoLeidas(data.no_leidas || 0)
-      }
+      const data = await getNoLeidasCount(token) as { no_leidas?: number }
+      setNoLeidas(data.no_leidas || 0)
     } catch {
-      // Silently ignore
+      // ignore
     }
   }, [token])
 
   const fetchNotificaciones = useCallback(async () => {
     if (!token) return
     try {
-      const res = await fetch(`${apiUrl}/api/notificaciones?per_page=10`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setNotificaciones(data.data || [])
-      }
+      const data = await getNotificaciones({ per_page: 10 }, token) as { data?: Notificacion[] }
+      setNotificaciones(data.data || [])
     } catch {
-      // Silently ignore
+      // ignore
     }
   }, [token])
 
@@ -86,10 +73,7 @@ export default function NotificationBell() {
 
   async function handleMarcarComoLeida(id: number) {
     try {
-      await fetch(`${apiUrl}/api/notificaciones/${id}/leer`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await marcarLeida(id, token)
       await fetchNoLeidas()
       await fetchNotificaciones()
     } catch {
@@ -99,10 +83,7 @@ export default function NotificationBell() {
 
   async function handleMarcarTodasComoLeidas() {
     try {
-      await fetch(`${apiUrl}/api/notificaciones/marcar-todas-leidas`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await marcarTodasLeidas(token)
       await fetchNoLeidas()
       await fetchNotificaciones()
     } catch {

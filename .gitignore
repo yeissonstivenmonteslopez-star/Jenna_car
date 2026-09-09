@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 frontend/node_modules/
+frontend/frontend/node_modules/
 mobile/node_modules/
 
 # Environment files and secrets
@@ -18,12 +19,15 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .pyre/
+instance/*.db
 
 # Frontend build and tool caches
 .next/
 out/
 frontend/.next/
 frontend/out/
+frontend/frontend/dist/
+frontend/frontend/.vite/
 *.tsbuildinfo
 
 # Expo and React Native generated files
@@ -43,6 +47,10 @@ backend/app/uploads/*
 !backend/app/uploads/profile-photos/
 backend/app/uploads/profile-photos/*
 !backend/app/uploads/profile-photos/.gitkeep
+backend/uploads/*
+!backend/uploads/profile-photos/
+backend/uploads/profile-photos/*
+!backend/uploads/profile-photos/.gitkeep
 
 # Logs and debug output
 *.log
