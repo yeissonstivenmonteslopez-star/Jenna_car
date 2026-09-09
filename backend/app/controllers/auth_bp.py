@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
 import secrets
-import smtplib
 from flask import Blueprint, request, jsonify
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -185,28 +183,6 @@ def current_user():
     return jsonify({'user': request.current_user.to_public_dict()})
 
 
-def _send_password_reset_email(recipient, code):
-    mail_host = os.getenv('MAIL_SERVER') or os.getenv('MAIL_HOST')
-    mail_from = os.getenv('MAIL_FROM') or os.getenv('MAIL_USERNAME')
-    username = os.getenv('MAIL_USERNAME')
-    password = os.getenv('MAIL_PASSWORD')
-    if not all([mail_host, mail_from, username, password]):
-        raise RuntimeError('El envío de correo no está configurado.')
-    message = EmailMessage()
-    message['Subject'] = 'Restablece tu contraseña - Jenna Car'
-    message['From'] = mail_from
-    message['To'] = recipient
-    message.set_content(
-        f'Usa este código para restablecer tu contraseña: {code}\n'
-        'El código vence en 15 minutos.'
-    )
-    with smtplib.SMTP(mail_host, int(os.getenv('MAIL_PORT', '587')), timeout=10) as server:
-        if os.getenv('MAIL_USE_TLS', 'true').lower() in {'1', 'true', 'yes'}:
-            server.starttls()
-        server.login(username, password)
-        server.send_message(message)
-
-
 @auth_bp.post('/forgot-password')
 @auth_bp.post('/password-reset/request')
 def request_password_reset():
@@ -214,32 +190,15 @@ def request_password_reset():
     email = (payload.get('email') or '').strip().lower()
     if not email:
         return jsonify({'error': 'Ingresa tu correo electrónico.'}), 400
-    accepted = {'message': 'Si el correo está registrado, recibirás un código para recuperar tu contraseña.'}
     usuario = Usuario.query.filter_by(email=email).first()
     if not usuario:
-        return jsonify(accepted), 202
+        return jsonify({'error': 'No existe una cuenta registrada con ese correo.'}), 404
     now = datetime.now(timezone.utc)
-    latest = PasswordResetToken.query.filter_by(usuario_id=usuario.id, used_at=None).order_by(PasswordResetToken.created_at.desc()).first()
-    latest_created = latest.created_at.replace(tzinfo=timezone.utc) if latest and latest.created_at.tzinfo is None else (latest.created_at if latest else None)
-    if latest_created and latest_created > now - timedelta(seconds=60):
-        return jsonify(accepted), 202
     PasswordResetToken.query.filter_by(usuario_id=usuario.id, used_at=None).delete()
     code = f'{secrets.randbelow(1_000_000):06d}'
-    db.session.add(PasswordResetToken(
-        usuario_id=usuario.id,
-        code_hash=generate_password_hash(code),
-        expires_at=now + timedelta(minutes=15),
-    ))
-    try:
-        if all([os.getenv('MAIL_SERVER') or os.getenv('MAIL_HOST'), os.getenv('MAIL_USERNAME'), os.getenv('MAIL_PASSWORD')]):
-            _send_password_reset_email(email, code)
-            db.session.commit()
-            return jsonify(accepted), 202
-        db.session.commit()
-        return jsonify({'message': 'Código de recuperación generado.', 'code': code, 'manual_reset': True}), 202
-    except Exception:
-        db.session.commit()
-        return jsonify({'message': 'Usa este código manualmente para restablecer tu contraseña.', 'code': code, 'manual_reset': True}), 202
+    db.session.add(PasswordResetToken(usuario_id=usuario.id, code_hash=generate_password_hash(code), expires_at=now + timedelta(minutes=15)))
+    db.session.commit()
+    return jsonify({'message': 'Código de recuperación generado manualmente.', 'code': code, 'manual_reset': True}), 202
 
 
 @auth_bp.post('/reset-password')
@@ -257,11 +216,7 @@ def confirm_password_reset():
     if not usuario:
         return jsonify({'error': 'Código inválido o expirado.'}), 400
     now = datetime.now(timezone.utc)
-    reset_token = PasswordResetToken.query.filter(
-        PasswordResetToken.usuario_id == usuario.id,
-        PasswordResetToken.used_at.is_(None),
-        PasswordResetToken.expires_at > now,
-    ).order_by(PasswordResetToken.created_at.desc()).first()
+    reset_token = PasswordResetToken.query.filter(PasswordResetToken.usuario_id == usuario.id, PasswordResetToken.used_at.is_(None), PasswordResetToken.expires_at > now).order_by(PasswordResetToken.created_at.desc()).first()
     if not reset_token or reset_token.attempts >= 5:
         return jsonify({'error': 'Código inválido o expirado.'}), 400
     if not check_password_hash(reset_token.code_hash, code):

@@ -15,6 +15,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { getAdminDashboard } from '@/features/auth/services/authService'
+import { formatCop } from '@/lib/utils'
 
 type AppointmentItem = {
   id: number
@@ -306,7 +307,7 @@ export default function AdminDashboard() {
                       <div className="mt-6 flex items-baseline justify-between">
                         <p className="font-serif text-3xl text-white">
                           {isCurrency
-                            ? `$${numValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            ? formatCop(numValue)
                             : numValue.toLocaleString('es-ES')}
                         </p>
                         <span className="flex items-center text-[10px] uppercase tracking-wider text-white/40 group-hover:text-red-400">

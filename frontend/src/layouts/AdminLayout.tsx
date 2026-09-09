@@ -1,11 +1,18 @@
 
 import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { getMe } from '@/features/auth/services/authService'
 
 export default function AdminLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [authorized, setAuthorized] = useState(false)
+
+  useEffect(() => {
+    if (location.pathname !== '/') {
+      window.history.replaceState(window.history.state, '', '/')
+    }
+  }, [location.pathname])
 
   useEffect(() => {
     function verifyAuth() {

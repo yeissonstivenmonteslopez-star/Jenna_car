@@ -41,11 +41,6 @@ mobile/android/
 
 # Local databases and runtime uploads
 backend/*.db
-backend/app/uploads/*
-!backend/app/uploads/.gitkeep
-!backend/app/uploads/profile-photos/
-backend/app/uploads/profile-photos/*
-!backend/app/uploads/profile-photos/.gitkeep
 backend/uploads/*
 !backend/uploads/profile-photos/
 backend/uploads/profile-photos/*

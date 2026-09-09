@@ -13,12 +13,11 @@ export default function ForgotPasswordPage() {
 
     try {
       const data = await forgotPassword(String(email))
-
       const manualCode = data.code ? `Código manual: ${data.code}` : ''
       setResetLink(data.code ? `/reset-password?email=${encodeURIComponent(String(email))}&code=${encodeURIComponent(String(data.code))}` : '/reset-password')
-      setMessage(`${data.message || 'Si el correo está registrado, recibirás instrucciones.'}${manualCode ? ` ${manualCode}` : ''}`)
+      setMessage(`${data.message || 'Código generado correctamente.'}${manualCode ? ` ${manualCode}` : ''}`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'No fue posible enviar la solicitud.')
+      setError(caught instanceof Error ? caught.message : 'No fue posible generar el código.')
     }
   }
 
@@ -28,16 +27,12 @@ export default function ForgotPasswordPage() {
         <a href="/sign-in" className="mb-12 text-xs text-primary-foreground/60">← Volver al acceso</a>
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white">Recuperar acceso</p>
         <h1 className="mt-4 font-serif text-5xl text-white">Restablece tu contraseña.</h1>
-        <p className="mt-4 text-sm text-primary-foreground/60">
-          Puedes recibir el enlace por correo o usar el código de recuperación generado en este entorno.
-        </p>
+        <p className="mt-4 text-sm text-primary-foreground/60">Genera un código manual para cambiar tu contraseña.</p>
         <form onSubmit={submit} className="mt-8 grid gap-5">
           <input name="email" required type="email" placeholder="tu@email.com" className="bg-field p-4 text-white placeholder:text-white" />
-          <button className="bg-accent p-4 text-xs font-semibold tracking-[0.18em] text-accent-foreground">
-            ENVIAR INSTRUCCIONES
-          </button>
+          <button className="bg-accent p-4 text-xs font-semibold tracking-[0.18em] text-accent-foreground">GENERAR CÓDIGO</button>
         </form>
-        {message && <div className="mt-5 border border-accent/30 bg-accent/10 p-4 text-sm whitespace-pre-line"><p>{message}</p><a href={resetLink} className="mt-3 inline-block text-accent underline">Introducir código y cambiar contraseña</a></div>}
+        {message && <div className="mt-5 border border-accent/30 bg-accent/10 p-4 text-sm whitespace-pre-line"><p>{message}</p><a href={resetLink} className="mt-3 inline-block text-accent underline">Usar código y cambiar contraseña</a></div>}
         {error && <p className="mt-5 text-sm text-red-300">{error}</p>}
       </div>
     </main>

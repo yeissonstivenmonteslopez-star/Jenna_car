@@ -57,10 +57,55 @@ select {
   font: inherit;
 }
 
+select {
+  appearance: none;
+  min-height: 42px;
+  padding-right: 2.5rem;
+  border-radius: 0.75rem;
+  border-color: rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 0.8rem center;
+  background-repeat: no-repeat;
+  background-size: 14px;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+select:hover {
+  border-color: rgba(248, 113, 113, 0.55);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+select:focus {
+  border-color: rgba(248, 113, 113, 0.8);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.14);
+  outline: none;
+}
+
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+option {
+  background: #171717;
+  color: #f5f5f5;
+}
+
 input,
 select,
 textarea {
   color: #fff;
+}
+
+input[type='number'] {
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 input::placeholder,

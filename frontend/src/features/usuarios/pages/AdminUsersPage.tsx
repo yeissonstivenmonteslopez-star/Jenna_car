@@ -201,8 +201,8 @@ export default function AdminUsuarios() {
                               onChange={(event) => setNewRol(event.target.value)}
                               className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f87171]/60"
                             >
-                              <option value="usuario" className="bg-[#141414]">usuario</option>
-                              <option value="admin" className="bg-[#141414]">admin</option>
+                              <option value="usuario" className="bg-[#141414]">Usuario</option>
+                              <option value="admin" className="bg-[#141414]">Administrador</option>
                             </select>
                             <button
                               onClick={() => handleCambiarRol(user.id)}

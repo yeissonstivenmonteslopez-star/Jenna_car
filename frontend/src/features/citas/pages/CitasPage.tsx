@@ -20,6 +20,15 @@ function getServiceBadge(serviceName: string) {
   return Wrench
 }
 
+function formatDuration(totalMinutes?: number) {
+  const minutes = Number(totalMinutes || 0)
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  if (hours && remainingMinutes) return `${hours} h ${remainingMinutes} min`
+  if (hours) return `${hours} h`
+  return `${remainingMinutes} min`
+}
+
 type VehicleOption = {
   id: number
   placa: string
@@ -48,6 +57,13 @@ export default function CitasPage() {
   const [bookingSaving, setBookingSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [showNewVehicleForm, setShowNewVehicleForm] = useState(false)
+  const [appointmentDate, setAppointmentDate] = useState('')
+  const [appointmentTime, setAppointmentTime] = useState('')
+
+  const timeSlots = Array.from({ length: 23 }, (_, index) => {
+    const totalMinutes = 8 * 60 + index * 30
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
+  })
 
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => String(vehicle.id) === selectedVehicleId) || null,
@@ -95,8 +111,8 @@ export default function CitasPage() {
   async function handleBookingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const token = localStorage.getItem('jenna_car_token') || ''
-    const fecha = (document.getElementById('fechaCita') as HTMLInputElement | null)?.value
-    const hora = (document.getElementById('horaCita') as HTMLInputElement | null)?.value
+    const fecha = appointmentDate
+    const hora = appointmentTime
     const motivo = (document.getElementById('motivoCita') as HTMLInputElement | null)?.value || ''
 
     if (!token) {
@@ -270,16 +286,16 @@ export default function CitasPage() {
                           <Icon size={18} />
                         </div>
                         <p className="text-sm font-medium text-white">{service.name}</p>
-                        <p className="mt-2 text-[11px] text-white/60">{service.duration_minutes ? `${service.duration_minutes} min` : 'Personalizado'}</p>
+                        <p className="mt-2 text-[11px] text-white/60">{service.duration_minutes ? formatDuration(service.duration_minutes) : 'Personalizado'}</p>
                       </button>
                     )
                   })}
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-[0.8fr_1.2fr]">
                 <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
-                  <span className="mb-1">Fecha</span>
+                  <span className="mb-1">Día de la cita</span>
                   <div className="relative">
                     <CalendarDays size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-red-300" />
                     <input
@@ -287,27 +303,27 @@ export default function CitasPage() {
                       type="date"
                       id="fechaCita"
                       min={new Date().toISOString().slice(0, 10)}
+                      value={appointmentDate}
+                      onChange={(event) => { setAppointmentDate(event.target.value); setAppointmentTime('') }}
                       style={{ colorScheme: 'dark' }}
-                      className="w-full rounded-xl border border-red-500/30 bg-[#0f0f0f] pl-10 pr-4 py-3 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/25"
+                      className="w-full rounded-xl border border-white/10 bg-[#0f0f0f] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/25"
                     />
                   </div>
                 </label>
-                <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
-                  <span className="mb-1">Hora</span>
-                  <div className="relative">
-                    <Clock3 size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-red-300" />
-                    <input
-                      required
-                      type="time"
-                      id="horaCita"
-                      min="08:00"
-                      max="19:00"
-                      step={1800}
-                      style={{ colorScheme: 'dark' }}
-                      className="w-full rounded-xl border border-red-500/30 bg-[#0f0f0f] pl-10 pr-4 py-3 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/25"
-                    />
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">Hora disponible</p>
+                    <span className="text-[10px] text-white/35">08:00 - 19:00</span>
                   </div>
-                </label>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {timeSlots.map((slot) => (
+                      <button key={slot} type="button" disabled={!appointmentDate} onClick={() => setAppointmentTime(slot)} className={`rounded-lg border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-red-400 bg-red-500/15 text-red-200' : 'border-white/10 bg-[#0f0f0f] text-white/60 hover:border-red-400/50 hover:text-white'} disabled:cursor-not-allowed disabled:opacity-35`}>
+                        <Clock3 size={12} className="mx-auto mb-1" />{slot}
+                      </button>
+                    ))}
+                  </div>
+                  {!appointmentDate && <p className="mt-2 text-xs text-white/35">Primero elige un día para ver los horarios.</p>}
+                </div>
               </div>
 
               <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">
@@ -357,7 +373,7 @@ export default function CitasPage() {
                   {selectedService ? selectedService.name : 'Sin seleccionar'}
                 </p>
                 <p className="mt-1 text-sm text-white/60">
-                  {selectedService?.duration_minutes ? `${selectedService.duration_minutes} minutos` : 'Personalizado'}
+                  {selectedService?.duration_minutes ? formatDuration(selectedService.duration_minutes) : 'Personalizado'}
                 </p>
               </div>
 
@@ -365,7 +381,7 @@ export default function CitasPage() {
                 <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/55">
                   <Clock3 size={12} /> Disponibilidad
                 </p>
-                <p className="mt-2 text-sm text-white/75">Revisamos la disponibilidad real al enviar la solicitud.</p>
+                <p className="mt-2 text-sm text-white/75">{appointmentDate && appointmentTime ? `${appointmentDate} a las ${appointmentTime}` : 'Selecciona un día y una hora para continuar.'}</p>
               </div>
             </div>
 

@@ -1,8 +1,8 @@
-
 import { useEffect, useMemo, useState } from 'react'
 import { CreditCard, Landmark, ShieldAlert, Sparkles } from 'lucide-react'
 import { getMisPagos, createPago } from '@/features/recibos/services/pagosService'
 import { getMisRecibos, getReciboPdf } from '@/features/recibos/services/recibosService'
+import { formatCop } from '@/lib/utils'
 
 interface Recibo {
   id: number
@@ -163,7 +163,7 @@ export default function MisRecibos() {
           </div>
           <div className="border border-white/10 bg-[#151515] p-5">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Total pendiente</p>
-            <p className="mt-4 font-serif text-3xl text-white">${summary.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</p>
+            <p className="mt-4 font-serif text-3xl text-white">{formatCop(summary.total)}</p>
           </div>
         </div>
 
@@ -199,7 +199,7 @@ export default function MisRecibos() {
                       <td className="p-4 font-semibold text-white">#{recibo.id}</td>
                       <td className="p-4 text-white/60">{formatDate(recibo.fecha_ingreso)}</td>
                       <td className="p-4">Vehículo #{recibo.vehiculo_id}</td>
-                      <td className="p-4 text-right font-semibold text-[#70e9d2]">${Number(recibo.total || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</td>
+                      <td className="p-4 text-right font-semibold text-[#70e9d2]">{formatCop(recibo.total)}</td>
                       <td className="p-4">
                         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${recibo.estado === 'pendiente' ? 'bg-[#70e9d2]/15 text-[#70e9d2]' : 'bg-white/10 text-white/70'}`}>
                           {recibo.estado}
@@ -302,7 +302,7 @@ export default function MisRecibos() {
                   pagos.map((pago) => (
                     <tr key={pago.id} className="border-b border-white/10 text-sm text-white/80">
                       <td className="p-4 font-mono text-xs text-[#70e9d2]">{pago.referencia}</td>
-                      <td className="p-4 text-right font-semibold text-white">${Number(pago.monto || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</td>
+                      <td className="p-4 text-right font-semibold text-white">{formatCop(pago.monto)}</td>
                       <td className="p-4">
                         <span className="inline-block rounded-full bg-[#70e9d2]/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#70e9d2]">
                           {pago.metodo_pago}
@@ -340,7 +340,7 @@ export default function MisRecibos() {
             <div className="mt-6">
               <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Recibo #{pagoData.recibo_id}</p>
-                <p className="mt-2 font-serif text-2xl text-[#70e9d2]">${pagoData.monto.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</p>
+                <p className="mt-2 font-serif text-2xl text-[#70e9d2]">{formatCop(pagoData.monto)}</p>
               </div>
 
               <div className="mb-6 rounded-2xl border border-[#70e9d2]/20 bg-[#70e9d2]/5 p-4">
