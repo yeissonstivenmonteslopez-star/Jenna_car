@@ -1,7 +1,6 @@
 # Dependencies
 node_modules/
 frontend/node_modules/
-frontend/frontend/node_modules/
 mobile/node_modules/
 
 # Environment files and secrets
@@ -26,8 +25,8 @@ instance/*.db
 out/
 frontend/.next/
 frontend/out/
-frontend/frontend/dist/
-frontend/frontend/.vite/
+frontend/dist/
+frontend/.vite/
 *.tsbuildinfo
 
 # Expo and React Native generated files
