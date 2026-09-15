@@ -1,0 +1,1 @@
+"""Persistencia y consultas de la aplicación."""

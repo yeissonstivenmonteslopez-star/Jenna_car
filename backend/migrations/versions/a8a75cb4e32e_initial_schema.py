@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-09-04 13:35:04.731972
 
 """
+# pyright: reportMissingImports=false
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import mysql

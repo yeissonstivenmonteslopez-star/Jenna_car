@@ -1,1 +1,1 @@
-"""HTTP controllers and Flask blueprints grouped by resource."""
+"""Controladores HTTP agrupados por recurso."""

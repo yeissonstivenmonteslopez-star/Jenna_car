@@ -22,10 +22,8 @@ class Usuario(db.Model):
     notificaciones = db.relationship('Notificacion', back_populates='usuario', cascade='all, delete-orphan')
 
     def verify_password(self, raw_password):
-        from werkzeug.security import check_password_hash
-        if self.password is None:
-            return False
-        return check_password_hash(self.password, raw_password)
+        from ..auth.password import verify_password
+        return verify_password(self.password, raw_password)
 
     def to_public_dict(self):
         return {

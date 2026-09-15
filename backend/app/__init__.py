@@ -12,7 +12,7 @@ import secrets  # noqa: F401 - compatibilidad con tests (backend_app.secrets)
 from flask import Flask
 from flask_cors import CORS
 from sqlalchemy import text
-from werkzeug.security import generate_password_hash  # noqa: F401 - compatibilidad con tests
+from .auth.password import hash_password as generate_password_hash  # noqa: F401 - compatibilidad con tests
 from google.oauth2 import id_token as google_id_token  # noqa: F401 - compatibilidad con tests
 
 from .extensions import db
@@ -21,9 +21,9 @@ from .models import Cita, Cliente, Notificacion, OrdenServicio, OrdenTrabajo, Pa
 from .api import ADMIN_ROUTES, BLUEPRINT_REGISTRATIONS
 from .config import apply_config
 from .services.catalog import seed_services
-from .services.security import create_access_token  # noqa: F401 - compatibilidad con tests
+from .auth.jwt import create_access_token  # noqa: F401 - compatibilidad con tests
 
-from .controllers.usuarios_bp import foto_perfil
+from .routes.usuarios import foto_perfil
 
 
 def _initialize_database(app):

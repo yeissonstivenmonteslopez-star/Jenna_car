@@ -1,22 +1,29 @@
-"""Public HTTP API surface: blueprint exports and route registration metadata."""
+"""Composición y registro de la API Flask.
 
-from ..controllers.auth_bp import auth_bp
-from ..controllers.citas_bp import admin_cita_detalle, admin_citas, actualizar_estado_cita, citas_bp, crear_cita_admin
-from ..controllers.dashboard_bp import admin_dashboard
-from ..controllers.health_bp import health_bp
-from ..controllers.notificaciones_bp import admin_actualizar_notificacion, admin_notificacion_detalle, admin_notificaciones, crear_notificacion_admin, notificaciones_bp
-from ..controllers.ordenes_bp import admin_ordenes, actualizar_orden_admin, crear_orden_admin, eliminar_orden_admin, obtener_orden_admin
-from ..controllers.pagos_bp import admin_pago_detalle, admin_pagos, pagos_bp
-from ..controllers.recibos_bp import recibos_bp
-from ..controllers.search_bp import admin_search
-from ..controllers.servicios_bp import actualizar_servicio_admin, admin_servicio_detalle, admin_servicios, crear_servicio_admin, eliminar_servicio_admin, servicios_bp
-from ..controllers.usuarios_bp import admin_usuarios, cambiar_rol_usuario, eliminar_usuarios, foto_perfil, usuarios_bp
-from ..controllers.vehiculos_bp import actualizar_vehiculo_admin, admin_vehiculo_detalle, admin_vehiculos, crear_vehiculo_admin, eliminar_vehiculo_admin, vehiculos_bp
+Las definiciones de endpoints viven en ``routes``. Este módulo solo decide
+qué blueprints se registran y qué rutas administrativas se conectan.
+"""
+
+from .routes.auth import auth_bp
+from .routes.citas import admin_cita_detalle, admin_citas, actualizar_estado_cita, citas_bp, crear_cita_admin
+from .routes.clientes import clientes_bp
+from .routes.dashboard import admin_dashboard
+from .routes.health import health_bp
+from .routes.notificaciones import admin_actualizar_notificacion, admin_notificacion_detalle, admin_notificaciones, crear_notificacion_admin, notificaciones_bp
+from .routes.ordenes import admin_ordenes, actualizar_orden_admin, crear_orden_admin, eliminar_orden_admin, obtener_orden_admin
+from .routes.pagos import admin_pago_detalle, admin_pagos, pagos_bp
+from .routes.recibos import recibos_bp
+from .routes.search import admin_search
+from .routes.servicios import actualizar_servicio_admin, admin_servicio_detalle, admin_servicios, crear_servicio_admin, eliminar_servicio_admin, servicios_bp
+from .routes.usuarios import admin_usuarios, cambiar_rol_usuario, eliminar_usuarios, usuarios_bp
+from .routes.vehiculos import actualizar_vehiculo_admin, admin_vehiculo_detalle, admin_vehiculos, crear_vehiculo_admin, eliminar_vehiculo_admin, vehiculos_bp
+
 
 BLUEPRINT_REGISTRATIONS = [
     (servicios_bp, '/api/services'),
     (vehiculos_bp, '/api/vehiculos'),
     (citas_bp, '/api/citas'),
+    (clientes_bp, '/api/clientes'),
     (auth_bp, '/api/auth'),
     (notificaciones_bp, '/api/notificaciones'),
     (pagos_bp, '/api/pagos'),
@@ -24,6 +31,7 @@ BLUEPRINT_REGISTRATIONS = [
     (usuarios_bp, '/api/usuarios'),
     (health_bp, '/api/health'),
 ]
+
 
 ADMIN_ROUTES = [
     ('/api/admin/servicios', admin_servicios, 'admin_servicios', None),
