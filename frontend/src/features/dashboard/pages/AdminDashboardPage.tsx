@@ -8,8 +8,6 @@ import {
   ChevronRight,
   CircleDollarSign,
   ClipboardList,
-  CreditCard,
-  LogOut,
   RefreshCw,
   Users,
   Wrench,
@@ -74,15 +72,12 @@ type MetricCardItem = {
 }
 
 const metricCards: MetricCardItem[] = [
-  { label: 'Usuarios totales', key: 'usuarios', icon: Users, href: '/admin/users', accent: 'text-blue-400' },
-  { label: 'Clientes registrados', key: 'clientes', icon: Users, href: '/admin/users', accent: 'text-indigo-400' },
-  { label: 'Vehículos registrados', key: 'vehiculos', icon: Car, href: '/admin/vehiculos', accent: 'text-emerald-400' },
-  { label: 'Citas pendientes', key: 'citas_pendientes', icon: CalendarDays, href: '/admin/citas', accent: 'text-amber-400' },
-  { label: 'Órdenes pendientes', key: 'ordenes_pendientes', icon: ClipboardList, href: '/admin/orders', accent: 'text-orange-400' },
-  { label: 'Órdenes en reparación', key: 'ordenes_reparacion', icon: Wrench, href: '/admin/orders', accent: 'text-purple-400' },
-  { label: 'Órdenes terminadas', key: 'ordenes_terminadas', icon: CheckCircle2, href: '/admin/orders', accent: 'text-teal-400' },
-  { label: 'Recibos pendientes', key: 'recibos_pendientes', icon: CreditCard, href: '/admin/orders', accent: 'text-red-400' },
-  { label: 'Ingresos totales', key: 'ingresos_totales', icon: CircleDollarSign, href: '/admin/orders', accent: 'text-green-400', isCurrency: true },
+  { label: 'Ingresos totales', key: 'ingresos_totales', icon: CircleDollarSign, href: '/admin/orders', accent: 'text-red-400', isCurrency: true },
+  { label: 'Citas pendientes', key: 'citas_pendientes', icon: CalendarDays, href: '/admin/citas', accent: 'text-red-400' },
+  { label: 'Órdenes pendientes', key: 'ordenes_pendientes', icon: ClipboardList, href: '/admin/orders', accent: 'text-red-400' },
+  { label: 'Órdenes terminadas', key: 'ordenes_terminadas', icon: CheckCircle2, href: '/admin/orders', accent: 'text-red-400' },
+  { label: 'Vehículos registrados', key: 'vehiculos', icon: Car, href: '/admin/vehiculos', accent: 'text-red-400' },
+  { label: 'Usuarios activos', key: 'usuarios', icon: Users, href: '/admin/users', accent: 'text-red-400' },
 ]
 
 export default function AdminDashboard() {
@@ -159,21 +154,7 @@ export default function AdminDashboard() {
 
   return (
     <main className="min-h-screen bg-[#090909] text-white">
-      {/* ── Encabezado ── */}
-      <header className="border-b border-red-900/40 bg-black px-6 py-5 text-white lg:px-10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <a href="/" className="font-serif text-xl tracking-[0.18em]">
-            JENNA <span className="text-red-500">CAR</span>
-          </a>
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-              Panel de Administración
-            </span>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-10 lg:px-10 lg:py-14">
+      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-10 lg:px-10 lg:py-12">
         {/* ── Título y Acciones Superiores ── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -199,67 +180,7 @@ export default function AdminDashboard() {
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Actualizar
             </button>
-            <button
-              onClick={() => {
-                window.location.replace('/')
-              }}
-              className="flex items-center gap-2 rounded-xl border border-red-600/40 bg-red-950/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-red-300 transition hover:border-red-500 hover:bg-red-900/50 hover:text-white"
-            >
-              <LogOut size={14} />
-              Salir del panel
-            </button>
           </div>
-        </div>
-
-        {/* ── Tarjetas de Navegación Rápida a Secciones ── */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <a
-            href="/admin/servicios"
-            className="group rounded-2xl border border-red-900/40 bg-[#151515] p-5 transition hover:border-red-500/70 hover:bg-[#1b1b1b]"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-red-400">Catálogo</span>
-              <Wrench size={18} className="text-white/40 group-hover:text-red-400" />
-            </div>
-            <h2 className="mt-3 font-serif text-2xl text-white">Servicios</h2>
-            <p className="mt-1 text-xs text-white/60">Gestiona precios, tiempos y catálogo preventivo.</p>
-          </a>
-
-          <a
-            href="/admin/orders"
-            className="group rounded-2xl border border-red-900/40 bg-[#151515] p-5 transition hover:border-red-500/70 hover:bg-[#1b1b1b]"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-red-400">Operación</span>
-              <ClipboardList size={18} className="text-white/40 group-hover:text-red-400" />
-            </div>
-            <h2 className="mt-3 font-serif text-2xl text-white">Órdenes de Trabajo</h2>
-            <p className="mt-1 text-xs text-white/60">Crea órdenes, asigna diagnósticos y genera cobros.</p>
-          </a>
-
-          <a
-            href="/admin/citas"
-            className="group rounded-2xl border border-red-900/40 bg-[#151515] p-5 transition hover:border-red-500/70 hover:bg-[#1b1b1b]"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-red-400">Agenda</span>
-              <CalendarDays size={18} className="text-white/40 group-hover:text-red-400" />
-            </div>
-            <h2 className="mt-3 font-serif text-2xl text-white">Citas Programadas</h2>
-            <p className="mt-1 text-xs text-white/60">Revisa la disponibilidad y confirma reservas.</p>
-          </a>
-
-          <a
-            href="/admin/users"
-            className="group rounded-2xl border border-red-900/40 bg-[#151515] p-5 transition hover:border-red-500/70 hover:bg-[#1b1b1b]"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-red-400">Seguridad</span>
-              <Users size={18} className="text-white/40 group-hover:text-red-400" />
-            </div>
-            <h2 className="mt-3 font-serif text-2xl text-white">Usuarios y Roles</h2>
-            <p className="mt-1 text-xs text-white/60">Administra cuentas y permisos de personal.</p>
-          </a>
         </div>
 
         {error && (

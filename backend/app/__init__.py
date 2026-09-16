@@ -9,7 +9,7 @@ from datetime import datetime, timezone  # noqa: F401 - compatibilidad con tests
 import os
 import secrets  # noqa: F401 - compatibilidad con tests (backend_app.secrets)
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from sqlalchemy import text
 from .auth.password import hash_password as generate_password_hash  # noqa: F401 - compatibilidad con tests
@@ -72,11 +72,27 @@ def create_app(config=None):
     if config:
         app.config.update(config)
 
-    CORS(app, resources={r'/api/*': {'origins': os.getenv('FRONTEND_ORIGIN', '*')}})
+    CORS(app, resources={r'/api/*': {'origins': app.config['CORS_ORIGINS']}})
     db.init_app(app)
     migrate.init_app(app, db)
 
     _initialize_database(app)
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return jsonify({'error': 'No encontrado'}), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(_error):
+        return jsonify({'error': 'Método no permitido'}), 405
+
+    @app.errorhandler(413)
+    def payload_too_large(_error):
+        return jsonify({'error': 'El archivo enviado excede el tamaño máximo permitido'}), 413
+
+    @app.errorhandler(500)
+    def internal_error(_error):
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
     # Registro de blueprints oficiales (únicos prefijos reales, sin versionado)
     # 2026-09-08: prefijo API v2 eliminado por no tener consumidores.

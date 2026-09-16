@@ -44,7 +44,7 @@ def migrate(dry_run: bool = False) -> int:
             print("[migrate_foto_perfil] dry_run=True - no se aplican cambios.")
             return count
 
-        # MySQL y SQLite soportan REPLACE; para usuarios sin prefijo no afecta por WHERE
+        # REPLACE no afecta a usuarios sin prefijo por el filtro WHERE
         result = db.session.execute(
             text("""
                 UPDATE usuarios

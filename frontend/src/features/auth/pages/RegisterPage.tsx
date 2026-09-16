@@ -1,30 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowLeft, ArrowUpRight, UserRound } from 'lucide-react'
-import { getGoogleClientId } from '@/services/apiClient'
 import { googleAuth, register } from '@/features/auth/services/authService'
-
-const googleClientId = getGoogleClientId()
-
-declare global {
-  interface Window {
-    __jennaGoogleInitializedFor?: string
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (res: { credential?: string }) => void; auto_select?: boolean }) => void
-          renderButton: (element: HTMLElement, options: { type: string; theme: string; size: string; text: string; shape: string; width: number }) => void
-          prompt: (notification?: (notification: { isNotDisplayed: () => boolean; getNotDisplayedReason: () => string; isSkippedMoment: () => boolean; getSkippedReason: () => string }) => void) => void
-        }
-      }
-    }
-  }
-}
+import { GoogleLogin } from '@react-oauth/google'
 
 export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const googleButtonRef = useRef<HTMLDivElement>(null)
 
   async function handleGoogleCallback(response: { credential?: string }) {
     if (!response.credential) return
@@ -42,46 +24,6 @@ export default function RegisterPage() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (!googleClientId) return
-    const initializeGoogle = () => {
-      if (window.google?.accounts.id) {
-        if (window.__jennaGoogleInitializedFor === googleClientId) return
-          window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleGoogleCallback,
-          auto_select: false,
-          use_fedcm_for_prompt: false,
-            itp_support: true,
-          } as Parameters<typeof window.google.accounts.id.initialize>[0])
-        window.__jennaGoogleInitializedFor = googleClientId
-        if (googleButtonRef.current) {
-          window.google.accounts.id.renderButton(googleButtonRef.current, {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            text: 'signup_with',
-            shape: 'rectangular',
-            width: 360,
-          })
-        }
-      }
-    }
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-jenna-google-sdk]')
-    if (existingScript) {
-      if (window.google?.accounts.id) initializeGoogle()
-      else existingScript.addEventListener('load', initializeGoogle, { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.dataset.jennaGoogleSdk = 'true'
-    script.addEventListener('load', initializeGoogle, { once: true })
-    document.body.appendChild(script)
-  }, [googleClientId])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -172,7 +114,18 @@ export default function RegisterPage() {
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div ref={googleButtonRef} className="flex min-h-10 justify-center" aria-label="Registrarme con Google" />
+            <div className="flex min-h-10 justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleCallback}
+                onError={() => setError('Falló la autenticación con Google')}
+                useOneTap={false}
+                theme="outline"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+                width="360"
+              />
+            </div>
           </div>
         </section>
       </div>

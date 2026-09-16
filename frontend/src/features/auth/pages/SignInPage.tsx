@@ -1,34 +1,9 @@
-
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, LockKeyhole } from 'lucide-react'
-import { getGoogleClientId } from '@/services/apiClient'
 import { googleAuth, login } from '@/features/auth/services/authService'
-
-const googleClientId = getGoogleClientId()
-
-declare global {
-  interface Window {
-  __jennaGoogleInitializedFor?: string
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (res: { credential?: string }) => void; auto_select?: boolean }) => void
-          renderButton: (element: HTMLElement, options: { type: string; theme: string; size: string; text: string; shape: string; width: number }) => void
-          prompt: (
-            notification?: (notification: {
-              isNotDisplayed: () => boolean
-              getNotDisplayedReason: () => string
-              isSkippedMoment: () => boolean
-              getSkippedReason: () => string
-            }) => void
-          ) => void
-        }
-      }
-    }
-  }
-}
+import { GoogleLogin } from '@react-oauth/google'
 
 export default function SignInPage() {
   return (
@@ -42,7 +17,6 @@ function SignInContent() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const googleButtonRef = useRef<HTMLDivElement>(null)
 
   async function handleGoogleCallback(response: { credential?: string }) {
     if (!response.credential) return
@@ -60,50 +34,6 @@ function SignInContent() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (!googleClientId) return
-    const initializeGoogle = () => {
-      if (window.google?.accounts.id) {
-        if (window.__jennaGoogleInitializedFor === googleClientId) return
-        try {
-          window.google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: handleGoogleCallback,
-            auto_select: false,
-            use_fedcm_for_prompt: false,
-            itp_support: true,
-          } as Parameters<typeof window.google.accounts.id.initialize>[0])
-          window.__jennaGoogleInitializedFor = googleClientId
-          if (googleButtonRef.current) {
-            window.google.accounts.id.renderButton(googleButtonRef.current, {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              text: 'continue_with',
-              shape: 'rectangular',
-              width: 360,
-            })
-          }
-        } catch {
-          setError('No fue posible inicializar el inicio de sesión con Google.')
-        }
-      }
-    }
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-jenna-google-sdk]')
-    if (existingScript) {
-      if (window.google?.accounts.id) initializeGoogle()
-      else existingScript.addEventListener('load', initializeGoogle, { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.dataset.jennaGoogleSdk = 'true'
-    script.addEventListener('load', initializeGoogle, { once: true })
-    document.body.appendChild(script)
-  }, [googleClientId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -211,7 +141,18 @@ function SignInContent() {
               <div className="h-px flex-1 bg-primary-foreground/10" />
             </div>
 
-            <div ref={googleButtonRef} className="flex min-h-10 w-full justify-center" aria-label="Continuar con Google" />
+            <div className="flex min-h-10 w-full justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleCallback}
+                onError={() => setError('Falló el inicio de sesión con Google')}
+                useOneTap={false}
+                theme="outline"
+                size="large"
+                text="continue_with"
+                shape="rectangular"
+                width="360"
+              />
+            </div>
 
             <p className="mt-10 text-center text-xs text-primary-foreground/45">
               ¿No tienes una cuenta?{' '}

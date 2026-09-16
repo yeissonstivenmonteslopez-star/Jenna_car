@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import AdminNav from '@/components/admin-nav'
 import { getMe } from '@/features/auth/services/authService'
 
 export default function AdminLayout() {
@@ -54,5 +55,10 @@ export default function AdminLayout() {
 
   if (!authorized) return <main className="min-h-screen bg-black p-12 text-white">Verificando acceso...</main>
 
-  return <Outlet />
+  return (
+    <div className="min-h-screen bg-[#090909] text-white">
+      <AdminNav />
+      <Outlet />
+    </div>
+  )
 }

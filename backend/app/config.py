@@ -1,8 +1,23 @@
 import os
+import secrets
 
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+
+
+def is_debug() -> bool:
+    return os.getenv('FLASK_DEBUG', 'false').lower() in {'1', 'true', 'yes'}
+
+
+def cors_origins() -> list[str]:
+    """Orígenes permitidos para el navegador. Si no se configura FRONTEND_ORIGIN,
+    solo se permiten los orígenes locales de desarrollo (nunca '*').
+    """
+    configured = os.getenv('FRONTEND_ORIGIN', '').strip()
+    if configured:
+        return [origin.strip() for origin in configured.split(',') if origin.strip()]
+    return ['http://localhost:5173', 'http://127.0.0.1:5173']
 
 
 def database_url() -> str:
@@ -17,7 +32,14 @@ def database_url() -> str:
 
 
 def apply_config(app) -> None:
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+    if os.getenv('SECRET_KEY'):
+        app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    elif is_debug():
+        app.config['SECRET_KEY'] = 'dev-secret-key'
+    else:
+        app.config['SECRET_KEY'] = secrets.token_hex(32)
+
+    app.config['CORS_ORIGINS'] = cors_origins()
     app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
     app.config['UPLOADS_PATH'] = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
