@@ -44,14 +44,10 @@ def qa_cita_state(prefix=None):
 
         customer = backend_app.Cliente.query.filter_by(documento=doc).first()
         if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=doc,
-                direccion='Cita QA',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
-            backend_app.db.session.flush()
+            customer = user
+            customer.documento = doc
+            customer.direccion = 'Cita QA'
+            customer.ciudad = 'Bogotá'
 
         vehicle = backend_app.Vehiculo.query.filter_by(placa=f'QA{prefix[:5].upper()}').first()
         if not vehicle:
@@ -109,9 +105,6 @@ def cleanup_cita_qa(state):
             backend_app.Cita.query.filter_by(cliente_id=customer.id).delete(synchronize_session=False)
             if vehicle:
                 backend_app.Vehiculo.query.filter_by(id=vehicle.id).delete(synchronize_session=False)
-            if service:
-                backend_app.OrdenServicio.query.filter_by(servicio_id=service.id).delete(synchronize_session=False)
-            backend_app.db.session.delete(customer)
 
         if admin:
             backend_app.db.session.delete(admin)
@@ -286,7 +279,7 @@ def test_client_can_create_vehicle_and_appointment():
             )
             backend_app.db.session.add(user)
             backend_app.db.session.flush()
-            backend_app.db.session.add(backend_app.Cliente(usuario_id=user.id, documento=f'BOOK-{prefix}'))
+            user.documento = f'BOOK-{prefix}'
             backend_app.db.session.commit()
         servicio = backend_app.Servicio.query.filter_by(nombre='Mantenimiento general').first()
         if not servicio:
@@ -339,7 +332,6 @@ def test_client_can_create_vehicle_and_appointment():
         if created:
             backend_app.Cita.query.filter_by(cliente_id=created.id).delete(synchronize_session=False)
             backend_app.Vehiculo.query.filter_by(cliente_id=created.id).delete(synchronize_session=False)
-            backend_app.db.session.delete(created)
         user = backend_app.Usuario.query.filter_by(email=user_email).first()
         if user:
             backend_app.db.session.delete(user)

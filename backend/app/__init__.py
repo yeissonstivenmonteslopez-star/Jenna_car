@@ -17,7 +17,7 @@ from google.oauth2 import id_token as google_id_token  # noqa: F401 - compatibil
 
 from .extensions import db
 from .extensions import migrate
-from .models import Cita, Cliente, Notificacion, OrdenServicio, OrdenTrabajo, Pago, PasswordResetToken, Recibo, Servicio, Usuario, Vehiculo
+from .models import Cita, Cliente, Diagnostico, ImagenTrabajo, Notificacion, OrdenTrabajo, Pago, PasswordResetToken, Recibo, ReciboDetalle, Servicio, Trabajo, Usuario, Vehiculo
 from .api import ADMIN_ROUTES, BLUEPRINT_REGISTRATIONS
 from .config import apply_config
 from .services.catalog import seed_services
@@ -30,7 +30,8 @@ def _initialize_database(app):
     if os.getenv('SKIP_DB_INIT') == '1':
         return
     with app.app_context():
-        db.create_all()
+        if not db.inspect(db.engine).has_table('usuarios'):
+            db.create_all()
         try:
             inspector = db.inspect(db.engine)
             if inspector.has_table('usuarios'):

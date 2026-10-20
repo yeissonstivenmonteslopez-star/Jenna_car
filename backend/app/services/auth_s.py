@@ -4,13 +4,15 @@ import os
 import re
 import secrets
 import jwt
+from flask import current_app
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from ..auth.jwt import create_access_token
 from ..auth.password import hash_password, verify_password
-from ..models import Cliente, PasswordResetToken, Usuario
+from ..models import PasswordResetToken, Usuario
 from ..repository import auth_r as auth_repository
 from ..repository import usuarios_r as user_repository
+from ..config import is_debug
 
 
 def google_identity(token):
@@ -62,15 +64,11 @@ def google_login(token):
         full_name = (identity.get('name') or '').strip().split()
         usuario = Usuario(nombre=(identity.get('given_name') or (full_name[0] if full_name else 'Usuario')).strip()[:100], apellido=(identity.get('family_name') or ' '.join(full_name[1:]) or 'Google').strip()[:100], email=identity['email'], password=None, google_id=google_id, rol='usuario', estado='activo')
         auth_repository.add_user(usuario)
-        auth_repository.add_client(Cliente(usuario_id=usuario.id, documento=f'GOO-{usuario.id}'))
         auth_repository.commit()
     else:
         changed = False
         if google_id and usuario.google_id != google_id:
             usuario.google_id = google_id
-            changed = True
-        if not usuario.cliente:
-            auth_repository.add_client(Cliente(usuario_id=usuario.id, documento=f'GOO-{usuario.id}'))
             changed = True
         if identity.get('picture') and usuario.foto_perfil != identity['picture']:
             usuario.foto_perfil = identity['picture']
@@ -99,11 +97,20 @@ def register(payload):
         return None, 'El email ya está registrado', 409
     if len(password) < 8:
         return None, 'La contraseña debe tener al menos 8 caracteres', 400
-    usuario = Usuario(nombre=nombre, apellido=apellido, email=email, password=hash_password(password), telefono=telefono, rol='usuario', estado='activo')
+    usuario = Usuario(
+        nombre=nombre,
+        apellido=apellido,
+        email=email,
+        password=hash_password(password),
+        telefono=telefono,
+        documento=(payload.get('documento') or payload.get('document') or '').strip() or None,
+        direccion=payload.get('direccion') or payload.get('address') or None,
+        ciudad=payload.get('ciudad') or None,
+        rol='usuario',
+        estado='activo',
+    )
     auth_repository.add_user(usuario)
-    cliente = Cliente(usuario_id=usuario.id, documento=(payload.get('documento') or payload.get('document') or '').strip() or f'CLI-{usuario.id}', direccion=payload.get('direccion') or payload.get('address'), ciudad=payload.get('ciudad') or None)
     try:
-        auth_repository.add_client(cliente)
         auth_repository.commit()
     except Exception:
         auth_repository.rollback()
@@ -128,6 +135,15 @@ def request_password_reset(email):
     auth_repository.add_reset_token(PasswordResetToken(usuario_id=usuario.id, code_hash=hash_password(code), expires_at=now + timedelta(minutes=15)))
     auth_repository.commit()
     
+    if not os.getenv('SMTP_EMAIL') or not os.getenv('SMTP_PASSWORD'):
+        if current_app.testing or is_debug():
+            return {
+                'message': 'Código de recuperación generado. Sigue las instrucciones para restablecer tu contraseña.',
+                'manual_reset': True,
+                'code': code,
+            }, None, 202
+        return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
+
     from ..utils.email import enviar_correo
     mensaje_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">

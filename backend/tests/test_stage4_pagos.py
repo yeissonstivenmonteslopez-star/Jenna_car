@@ -34,16 +34,14 @@ def make_payment_state(prefix='pagoqa'):
                 estado='activo',
             )
             backend_app.db.session.add(user)
+        backend_app.db.session.flush()
 
         customer = backend_app.Cliente.query.filter_by(documento=f'{prefix}-customer').first()
         if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=f'{prefix}-customer',
-                direccion='Calle Pago',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
+            customer = user
+            customer.documento = f'{prefix}-customer'
+            customer.direccion = 'Calle Pago'
+            customer.ciudad = 'Bogotá'
 
         vehicle = backend_app.Vehiculo.query.filter_by(placa=f'{prefix[:7].upper()}').first()
         if not vehicle:
@@ -63,7 +61,6 @@ def make_payment_state(prefix='pagoqa'):
         order = backend_app.OrdenTrabajo.query.filter_by(id=999999 + abs(hash(prefix)) % 1000000).first()
         if not order:
             order = backend_app.OrdenTrabajo(
-                cliente_id=customer.id,
                 vehiculo_id=vehicle.id,
                 fecha_ingreso=backend_app.datetime.now(backend_app.timezone.utc),
                 problema_reportado='Problema de prueba para pago',
@@ -78,7 +75,6 @@ def make_payment_state(prefix='pagoqa'):
         if not receipt:
             receipt = backend_app.Recibo(
                 orden_id=order.id,
-                cliente_id=customer.id,
                 subtotal=Decimal('350.00'),
                 total=Decimal('350.00'),
                 descuento=Decimal('0.00'),
@@ -111,9 +107,9 @@ def cleanup_payment_state(state):
         if order:
             backend_app.db.session.delete(order)
 
-        customer = backend_app.db.session.get(backend_app.Cliente, state['customer_id'])
-        if customer:
-            backend_app.db.session.delete(customer)
+        vehicle = backend_app.Vehiculo.query.filter_by(cliente_id=state['customer_id']).first()
+        if vehicle:
+            backend_app.db.session.delete(vehicle)
 
         user = backend_app.Usuario.query.filter_by(email=f"{state['prefix']}_user@jennacar.test").first()
         admin = backend_app.Usuario.query.filter_by(email=f"{state['prefix']}_admin@jennacar.test").first()
@@ -121,10 +117,6 @@ def cleanup_payment_state(state):
             backend_app.db.session.delete(user)
         if admin:
             backend_app.db.session.delete(admin)
-
-        vehicle = backend_app.Vehiculo.query.filter_by(cliente_id=state['customer_id']).first()
-        if vehicle:
-            backend_app.db.session.delete(vehicle)
 
         backend_app.db.session.commit()
 

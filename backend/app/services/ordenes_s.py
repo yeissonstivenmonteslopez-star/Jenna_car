@@ -4,7 +4,7 @@ from ..extensions import db
 from ..models import OrdenTrabajo
 from ..repository import ordenes_r as order_repository
 from ..utils.notifications import notificacion_por_usuario
-from ..utils.orders import apply_order_services, asegurar_recibo_orden, order_to_dict
+from ..utils.orders import apply_order_services, asegurar_recibo_orden, order_to_dict, set_order_amount
 
 STATES = {'pendiente', 'en_diagnostico', 'en_reparacion', 'terminada', 'entregada', 'cancelada'}
 
@@ -30,7 +30,6 @@ def create(payload):
         return None, 'Estado inválido', 400
 
     order = OrdenTrabajo(
-        cliente=cliente,
         vehiculo=vehicle,
         fecha_ingreso=(
             datetime.fromisoformat(payload['fecha_ingreso'])
@@ -39,16 +38,17 @@ def create(payload):
         ),
         kilometraje=payload.get('kilometraje', 0),
         problema_reportado=payload['problema_reportado'],
-        diagnostico=payload.get('diagnostico'),
-        trabajo_realizado=payload.get('trabajo_realizado'),
         observaciones=payload.get('observaciones'),
         estado=state,
     )
     try:
         db.session.add(order)
-        apply_order_services(order, payload.get('servicios'))
         db.session.flush()
         asegurar_recibo_orden(order, do_commit=False)
+        if 'servicios' in payload:
+            apply_order_services(order, payload.get('servicios'))
+        elif 'total' in payload:
+            set_order_amount(order, payload['total'])
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -73,7 +73,7 @@ def update(order, payload):
             return None, 'Vehículo inválido para el cliente de la orden', 400
         order.vehiculo_id = vehicle.id
 
-    for field in ['fecha_entrega', 'diagnostico', 'trabajo_realizado', 'observaciones', 'problema_reportado']:
+    for field in ['fecha_entrega', 'observaciones', 'problema_reportado']:
         if field in payload:
             try:
                 value = (
@@ -106,6 +106,8 @@ def update(order, payload):
     try:
         if 'servicios' in payload:
             apply_order_services(order, payload['servicios'])
+        elif 'total' in payload:
+            set_order_amount(order, payload['total'])
         db.session.flush()
         asegurar_recibo_orden(order, do_commit=False)
         db.session.commit()
@@ -116,7 +118,7 @@ def update(order, payload):
         db.session.rollback()
         return None, 'Conflicto de integridad al actualizar la orden.', 409
 
-    if 'servicios' in payload and order.total > 0:
+    if ('servicios' in payload or 'total' in payload) and order.total > 0:
         notificacion_por_usuario(
             order.cliente.usuario_id,
             f'Costo actualizado de tu orden #{order.id}',

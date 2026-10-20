@@ -44,14 +44,10 @@ def qa_service_state(prefix=None):
 
         customer = backend_app.Cliente.query.filter_by(documento=doc).first()
         if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=doc,
-                direccion='Servicio QA',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
-            backend_app.db.session.flush()
+            customer = user
+            customer.documento = doc
+            customer.direccion = 'Servicio QA'
+            customer.ciudad = 'Bogotá'
 
         backend_app.db.session.commit()
 
@@ -77,14 +73,20 @@ def cleanup_service_qa(state):
         if customer:
             customer_vehicle_ids = [vehicle.id for vehicle in backend_app.Vehiculo.query.filter_by(cliente_id=customer.id).all()]
             if customer_vehicle_ids:
-                backend_app.OrdenServicio.query.filter(backend_app.OrdenServicio.orden_id.in_(
-                    backend_app.db.session.query(backend_app.OrdenTrabajo.id).filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids))
+                order_ids = backend_app.db.session.query(backend_app.OrdenTrabajo.id).filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids))
+                cita_ids = backend_app.db.session.query(backend_app.Cita.id).filter(backend_app.Cita.vehiculo_id.in_(customer_vehicle_ids))
+                diagnostico_ids = backend_app.db.session.query(backend_app.Diagnostico.id).filter(backend_app.Diagnostico.cita_id.in_(cita_ids))
+                backend_app.Trabajo.query.filter(backend_app.Trabajo.orden_id.in_(order_ids)).delete(synchronize_session=False)
+                backend_app.Trabajo.query.filter(backend_app.Trabajo.diagnostico_id.in_(diagnostico_ids)).delete(synchronize_session=False)
+                backend_app.Diagnostico.query.filter(backend_app.Diagnostico.id.in_(diagnostico_ids)).delete(synchronize_session=False)
+                backend_app.ReciboDetalle.query.filter(backend_app.ReciboDetalle.recibo_id.in_(
+                    backend_app.db.session.query(backend_app.Recibo.id).filter(backend_app.Recibo.orden_id.in_(order_ids))
                 )).delete(synchronize_session=False)
+                backend_app.Recibo.query.filter(backend_app.Recibo.orden_id.in_(order_ids)).delete(synchronize_session=False)
                 backend_app.OrdenTrabajo.query.filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids)).delete(synchronize_session=False)
                 backend_app.Cita.query.filter(backend_app.Cita.vehiculo_id.in_(customer_vehicle_ids)).delete(synchronize_session=False)
                 backend_app.Vehiculo.query.filter_by(cliente_id=customer.id).delete(synchronize_session=False)
             backend_app.Cita.query.filter_by(cliente_id=customer.id).delete(synchronize_session=False)
-            backend_app.db.session.delete(customer)
 
         if admin:
             backend_app.db.session.delete(admin)
@@ -224,8 +226,22 @@ def test_delete_with_relations_desactivates_service():
             backend_app.db.session.add(vehicle)
             backend_app.db.session.flush()
 
+            cita = backend_app.Cita(
+                vehiculo_id=vehicle.id,
+                servicio_id=service.id,
+                fecha=backend_app.datetime.now().date(),
+                hora=backend_app.datetime.strptime('11:00', '%H:%M').time(),
+                estado='pendiente',
+            )
+            backend_app.db.session.add(cita)
+            backend_app.db.session.flush()
+            diagnostico = backend_app.Diagnostico(
+                cita_id=cita.id,
+                mecanico_id=state['customer_id'],
+                descripcion='Diagnostico QA',
+            )
+            backend_app.db.session.add(diagnostico)
             order = backend_app.OrdenTrabajo(
-                cliente_id=state['customer_id'],
                 vehiculo_id=vehicle.id,
                 problema_reportado='Servicio QA',
                 estado='pendiente',
@@ -235,15 +251,17 @@ def test_delete_with_relations_desactivates_service():
             backend_app.db.session.add(order)
             backend_app.db.session.flush()
 
-            backend_app.db.session.add(
-                backend_app.OrdenServicio(
-                    orden_id=order.id,
-                    servicio_id=service.id,
-                    cantidad=1,
-                    precio=200.00,
-                    subtotal=200.00,
-                )
-            )
+            backend_app.db.session.flush()
+            backend_app.db.session.add(backend_app.Trabajo(
+                diagnostico_id=diagnostico.id,
+                servicio_id=service.id,
+                mecanico_id=state['customer_id'],
+                orden_id=order.id,
+                descripcion='Trabajo QA',
+                cantidad=1,
+                precio=200.00,
+                subtotal=200.00,
+            ))
             backend_app.db.session.commit()
 
         delete_response = client.delete(f'/api/admin/servicios/{service_id}', headers={'Authorization': f'Bearer {state["admin_token"]}'})

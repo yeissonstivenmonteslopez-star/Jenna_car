@@ -47,14 +47,10 @@ def qa_state(prefix=None):
 
         customer = backend_app.Cliente.query.filter_by(documento=document).first()
         if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=document,
-                direccion='QA direccion',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
-            backend_app.db.session.flush()
+            customer = user
+            customer.documento = document
+            customer.direccion = 'QA direccion'
+            customer.ciudad = 'Bogotá'
 
         backend_app.db.session.commit()
 
@@ -85,8 +81,6 @@ def cleanup_qa(state):
         if customer:
             backend_app.Cita.query.filter_by(cliente_id=customer.id).delete()
             backend_app.Vehiculo.query.filter_by(cliente_id=customer.id).delete()
-            backend_app.db.session.delete(customer)
-
         if admin:
             backend_app.db.session.delete(admin)
         if user:
@@ -263,7 +257,6 @@ def test_delete_with_relations_desactivates_vehicle():
                 backend_app.db.session.commit()
             backend_app.db.session.add(
                 backend_app.Cita(
-                    cliente_id=state['client_id'],
                     vehiculo_id=vehicle.id,
                     servicio_id=servicio.id,
                     fecha=backend_app.datetime.strptime('2026-10-10', '%Y-%m-%d').date(),

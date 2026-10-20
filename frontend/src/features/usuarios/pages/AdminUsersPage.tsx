@@ -202,6 +202,7 @@ export default function AdminUsuarios() {
                               className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f87171]/60"
                             >
                               <option value="usuario" className="bg-[#141414]">Usuario</option>
+                              <option value="mecanico" className="bg-[#141414]">Mecanico</option>
                               <option value="admin" className="bg-[#141414]">Administrador</option>
                             </select>
                             <button

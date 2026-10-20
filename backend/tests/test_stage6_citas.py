@@ -61,25 +61,17 @@ def qa_cita_stage6(prefix=None):
 
         customer = backend_app.Cliente.query.filter_by(documento=doc).first()
         if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=doc,
-                direccion='Cita6 QA',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
-            backend_app.db.session.flush()
+            customer = user
+            customer.documento = doc
+            customer.direccion = 'Cita6 QA'
+            customer.ciudad = 'Bogotá'
 
         customer2 = backend_app.Cliente.query.filter_by(documento=doc2).first()
         if not customer2:
-            customer2 = backend_app.Cliente(
-                usuario_id=user2.id,
-                documento=doc2,
-                direccion='Cita6 QA 2',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer2)
-            backend_app.db.session.flush()
+            customer2 = user2
+            customer2.documento = doc2
+            customer2.direccion = 'Cita6 QA 2'
+            customer2.ciudad = 'Bogotá'
 
         vehicle = backend_app.Vehiculo.query.filter_by(placa=f'Q6{prefix[:5].upper()}').first()
         if not vehicle:
@@ -165,10 +157,6 @@ def cleanup_cita_stage6(state):
             backend_app.db.session.delete(vehicle)
         if vehicle2:
             backend_app.db.session.delete(vehicle2)
-        if customer:
-            backend_app.db.session.delete(customer)
-        if customer2:
-            backend_app.db.session.delete(customer2)
         if service:
             backend_app.db.session.delete(service)
         if admin:
@@ -275,7 +263,6 @@ def test_user_can_only_see_own_appointments():
 def test_two_simultaneous_requests_cannot_book_same_slot():
     state = qa_cita_stage6()
     try:
-        client = backend_app.app.test_client()
         payload = {
             'vehiculo_id': state['vehicle_id'],
             'servicio_id': state['service_id'],
@@ -286,7 +273,7 @@ def test_two_simultaneous_requests_cannot_book_same_slot():
         }
 
         def reserve(token):
-            return client.post(
+            return backend_app.app.test_client().post(
                 '/api/citas',
                 headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
                 json=payload,

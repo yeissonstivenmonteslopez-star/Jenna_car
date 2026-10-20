@@ -27,7 +27,7 @@ def build_values(payload, default_client_id=None, vehicle=None):
 	client_id = payload.get('cliente_id', vehicle.cliente_id if vehicle else default_client_id)
 	if not client_id: return None, 'El cliente es obligatorio', 400
 	if not client_repository.get(client_id): return None, 'Cliente no encontrado', 404
-	values = {'cliente_id': client_id}
+	values = {'usuario_id': client_id}
 	if 'placa' in payload or not vehicle:
 		try: placa = validar_placa(payload.get('placa'))
 		except ValueError as exc: return None, str(exc), 400
