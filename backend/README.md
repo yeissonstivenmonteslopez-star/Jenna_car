@@ -31,3 +31,15 @@ Las migraciones se ejecutan con Flask-Migrate usando `migrations/` como director
 ```powershell
 flask --app run.py db upgrade
 ```
+
+## Alinear la base de datos
+
+`database/Jenna_car.bd1.sql` es el esquema de referencia actual. Para una base creada con la migración inicial antigua, ejecuta `flask --app run.py db upgrade` para trasladar los datos y normalizar las tablas.
+
+Si importaste directamente el SQL actual en una base vacía, no ejecutes la migración inicial sobre esas tablas. Registra el esquema como actualizado una sola vez con:
+
+```powershell
+flask --app run.py db stamp head
+```
+
+Después de cualquiera de esos casos, `db upgrade` aplica las migraciones futuras.

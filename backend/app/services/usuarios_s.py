@@ -8,7 +8,7 @@ PROTECTED_USER_EMAILS = {'yeisson@gmail.com', 'admin3@jenna.com'}
 def list_admin():
     return [{'id': u.id, 'nombre': u.nombre, 'apellido': u.apellido, 'email': u.email, 'telefono': u.telefono, 'rol': u.rol, 'estado': u.estado, 'foto_perfil': u.foto_perfil, 'created_at': u.created_at.isoformat() if u.created_at else None} for u in user_repository.list_all()]
 def change_role(user_id, role):
-    if role not in ['usuario', 'admin']: return None, 'Rol inválido. Debe ser "usuario" o "admin"', 400
+    if role not in ['usuario', 'admin', 'mecanico']: return None, 'Rol inválido. Debe ser "usuario", "mecanico" o "admin"', 400
     user = user_repository.get(user_id)
     if not user: return None, 'Usuario no encontrado', 404
     admins = user_repository.count_admins()

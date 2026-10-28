@@ -22,6 +22,7 @@ def make_payment_state(prefix='histqa'):
                 estado='activo',
             )
             backend_app.db.session.add(admin)
+            backend_app.db.session.flush()
 
         user = backend_app.Usuario.query.filter_by(email=f'{prefix}_user@jennacar.test').first()
         if not user:
@@ -34,21 +35,16 @@ def make_payment_state(prefix='histqa'):
                 estado='activo',
             )
             backend_app.db.session.add(user)
-
-        customer = backend_app.Cliente.query.filter_by(documento=f'{prefix}-customer').first()
-        if not customer:
-            customer = backend_app.Cliente(
-                usuario_id=user.id,
-                documento=f'{prefix}-customer',
-                direccion='Calle Historial',
-                ciudad='Bogotá',
-            )
-            backend_app.db.session.add(customer)
+        backend_app.db.session.flush()
+        user.documento = f'{prefix}-customer'
+        user.direccion = 'Calle Historial'
+        user.ciudad = 'Bogotá'
+        customer = user
 
         vehicle = backend_app.Vehiculo.query.filter_by(placa=f'{prefix[:7].upper()}').first()
         if not vehicle:
             vehicle = backend_app.Vehiculo(
-                cliente_id=customer.id,
+                usuario_id=user.id,
                 placa=f'{prefix[:7].upper()}',
                 marca='Mazda',
                 modelo='CX-5',
@@ -59,11 +55,11 @@ def make_payment_state(prefix='histqa'):
                 estado='activo',
             )
             backend_app.db.session.add(vehicle)
+            backend_app.db.session.flush()
 
         order = backend_app.OrdenTrabajo.query.filter_by(id=999999 + abs(hash(prefix)) % 1000000).first()
         if not order:
             order = backend_app.OrdenTrabajo(
-                cliente_id=customer.id,
                 vehiculo_id=vehicle.id,
                 fecha_ingreso=backend_app.datetime.now(backend_app.timezone.utc),
                 problema_reportado='Problema de prueba para historial',
@@ -78,7 +74,6 @@ def make_payment_state(prefix='histqa'):
         if not receipt:
             receipt = backend_app.Recibo(
                 orden_id=order.id,
-                cliente_id=customer.id,
                 subtotal=Decimal('450.00'),
                 total=Decimal('450.00'),
                 descuento=Decimal('0.00'),
@@ -111,9 +106,9 @@ def cleanup_payment_state(state):
         if order:
             backend_app.db.session.delete(order)
 
-        customer = backend_app.db.session.get(backend_app.Cliente, state['customer_id'])
-        if customer:
-            backend_app.db.session.delete(customer)
+        vehicle = backend_app.Vehiculo.query.filter_by(cliente_id=state['customer_id']).first()
+        if vehicle:
+            backend_app.db.session.delete(vehicle)
 
         user = backend_app.Usuario.query.filter_by(email=f"{state['prefix']}_user@jennacar.test").first()
         admin = backend_app.Usuario.query.filter_by(email=f"{state['prefix']}_admin@jennacar.test").first()
@@ -121,10 +116,6 @@ def cleanup_payment_state(state):
             backend_app.db.session.delete(user)
         if admin:
             backend_app.db.session.delete(admin)
-
-        vehicle = backend_app.Vehiculo.query.filter_by(cliente_id=state['customer_id']).first()
-        if vehicle:
-            backend_app.db.session.delete(vehicle)
 
         backend_app.db.session.commit()
 

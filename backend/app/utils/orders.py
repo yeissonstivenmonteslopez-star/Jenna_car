@@ -10,21 +10,13 @@ def order_to_dict(order):
             from ..extensions import db
             db.session.rollback()
 
-    recibo_data = None
-    if order and order.recibo:
-        recibo_data = {
-            'id': order.recibo.id,
-            'estado': order.recibo.estado,
-            'subtotal': float(order.recibo.subtotal),
-            'total': float(order.recibo.total),
-        }
-
+    receipt = order.recibo if order else None
     return {
         'id': order.id,
         'cliente': {
-            'id': order.cliente.id,
-            'nombre': order.cliente.usuario.nombre,
-            'apellido': order.cliente.usuario.apellido,
+            'id': order.vehiculo.usuario_id,
+            'nombre': order.vehiculo.cliente.nombre,
+            'apellido': order.vehiculo.cliente.apellido,
         },
         'vehiculo': {
             'id': order.vehiculo.id,
@@ -42,18 +34,23 @@ def order_to_dict(order):
         'estado': order.estado,
         'subtotal': float(order.subtotal),
         'total': float(order.total),
-        'recibo': recibo_data,
+        'recibo': {
+            'id': receipt.id,
+            'estado': receipt.estado,
+            'subtotal': float(receipt.subtotal),
+            'total': float(receipt.total),
+        } if receipt else None,
         'servicios': [
             {
                 'id': item.id,
-                'servicio_id': item.servicio_id,
-                'nombre': item.servicio.nombre,
+                'servicio_id': None,
+                'nombre': item.descripcion,
                 'cantidad': item.cantidad,
-                'precio': float(item.precio),
+                'precio': float(item.precio_unitario),
                 'subtotal': float(item.subtotal),
             }
-            for item in order.ordenes_servicios
-        ],
+            for item in receipt.detalles
+        ] if receipt else [],
     }
 
 
@@ -70,7 +67,6 @@ def asegurar_recibo_orden(orden, do_commit=False):
     if not recibo:
         recibo = Recibo(
             orden_id=orden.id,
-            cliente_id=orden.cliente_id,
             fecha_emision=datetime.now(),
             subtotal=subtotal,
             descuento=descuento,
@@ -79,7 +75,6 @@ def asegurar_recibo_orden(orden, do_commit=False):
         )
         db.session.add(recibo)
     else:
-        recibo.cliente_id = orden.cliente_id
         recibo.subtotal = subtotal
         recibo.descuento = descuento
         recibo.total = total
@@ -89,10 +84,11 @@ def asegurar_recibo_orden(orden, do_commit=False):
 
 
 def apply_order_services(order, service_items):
-    from ..models import OrdenServicio, Servicio
+    from ..models import ReciboDetalle, Servicio
     from ..extensions import db
 
-    order.ordenes_servicios.clear()
+    receipt = asegurar_recibo_orden(order)
+    receipt.detalles.clear()
     subtotal = Decimal('0.00')
     for item in service_items or []:
         service = db.session.get(Servicio, item.get('servicio_id'))
@@ -101,12 +97,40 @@ def apply_order_services(order, service_items):
             raise ValueError('Servicio o cantidad inválidos')
         price = Decimal(str(item.get('precio', service.precio)))
         line_total = price * quantity
-        order.ordenes_servicios.append(OrdenServicio(
-            servicio=service,
+        receipt.detalles.append(ReciboDetalle(
+            descripcion=service.nombre,
             cantidad=quantity,
-            precio=price,
+            precio_unitario=price,
             subtotal=line_total,
         ))
         subtotal += line_total
     order.subtotal = subtotal
     order.total = subtotal
+    receipt.subtotal = subtotal
+    receipt.total = subtotal
+    receipt.descuento = Decimal('0.00')
+
+
+def set_order_amount(order, amount):
+    from ..models import ReciboDetalle
+
+    try:
+        total = Decimal(str(amount))
+    except Exception as exc:
+        raise ValueError('El total debe ser un importe válido') from exc
+    if not total.is_finite() or total < 0:
+        raise ValueError('El total no puede ser negativo')
+    receipt = asegurar_recibo_orden(order)
+    receipt.detalles.clear()
+    if total:
+        receipt.detalles.append(ReciboDetalle(
+            descripcion='Servicios de taller',
+            cantidad=1,
+            precio_unitario=total,
+            subtotal=total,
+        ))
+    order.subtotal = total
+    order.total = total
+    receipt.subtotal = total
+    receipt.total = total
+    receipt.descuento = Decimal('0.00')

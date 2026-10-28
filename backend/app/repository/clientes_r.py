@@ -11,7 +11,7 @@ def find_by_user(user_id):
 
 
 def list_all():
-    return Cliente.query.all()
+    return Cliente.query.filter_by(rol='usuario').all()
 
 
 def add(client):

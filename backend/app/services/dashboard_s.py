@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 from ..extensions import db
-from ..models import Cliente, Cita, OrdenTrabajo, Pago, Recibo, Usuario, Vehiculo
+from ..models import Cita, OrdenTrabajo, Pago, Recibo, Usuario, Vehiculo
 
 
 def obtener_dashboard_admin():
 	data = {
 		'usuarios': db.session.query(func.count(Usuario.id)).scalar() or 0,
-		'clientes': db.session.query(func.count(Cliente.id)).scalar() or 0,
+		'clientes': Usuario.query.filter_by(rol='usuario').count(),
 		'vehiculos': db.session.query(func.count(Vehiculo.id)).scalar() or 0,
 		'citas_pendientes': db.session.query(func.count(Cita.id)).filter(Cita.estado == 'pendiente').scalar() or 0,
 		'citas_hoy': db.session.query(func.count(Cita.id)).filter(Cita.fecha == datetime.now(timezone.utc).date()).scalar() or 0,

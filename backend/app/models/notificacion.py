@@ -35,7 +35,7 @@ class Notificacion(db.Model):
     }
 
     id = db.Column(INTEGER(unsigned=True), primary_key=True, autoincrement=True)
-    usuario_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    usuario_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('usuarios.id', name='fk_notificaciones_usuario', ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
     titulo = db.Column(db.String(150), nullable=False)
     mensaje = db.Column(db.Text, nullable=False)
     tipo = db.Column(db.String(50), nullable=False, default='sistema')

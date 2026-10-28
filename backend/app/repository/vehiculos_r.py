@@ -1,5 +1,5 @@
 from ..extensions import db
-from ..models import Cliente, Cita, OrdenTrabajo, Usuario, Vehiculo
+from ..models import Cita, OrdenTrabajo, Usuario, Vehiculo
 
 
 def get(vehicle_id):
@@ -15,7 +15,7 @@ def list_for_client(client_id):
 
 
 def list_admin(query=''):
-    base = Vehiculo.query.join(Cliente).join(Usuario)
+    base = Vehiculo.query.join(Vehiculo.cliente)
     if query:
         base = base.filter((Vehiculo.placa.ilike(f'%{query}%')) | (Vehiculo.marca.ilike(f'%{query}%')) | (Vehiculo.modelo.ilike(f'%{query}%')) | (Usuario.nombre.ilike(f'%{query}%')) | (Usuario.apellido.ilike(f'%{query}%')))
     return base.order_by(Vehiculo.id.desc()).all()

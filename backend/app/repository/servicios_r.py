@@ -1,5 +1,5 @@
 from ..extensions import db
-from ..models import Cita, OrdenServicio, Servicio
+from ..models import Cita, Servicio, Trabajo
 
 
 def get(service_id):
@@ -35,7 +35,7 @@ def add(service):
 
 
 def has_relations(service_id):
-    return bool(Cita.query.filter_by(servicio_id=service_id).first() or OrdenServicio.query.filter_by(servicio_id=service_id).first())
+    return bool(Cita.query.filter_by(servicio_id=service_id).first() or Trabajo.query.filter_by(servicio_id=service_id).first())
 
 
 def delete(service):

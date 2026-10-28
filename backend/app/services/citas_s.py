@@ -1,7 +1,7 @@
 """Appointment queries, validation, persistence, and domain serialization."""
 from datetime import datetime
 from ..extensions import db
-from ..models import Cita, Cliente, Servicio, Vehiculo
+from ..models import Cita, Servicio, Usuario, Vehiculo
 from ..schemas.serializers import cita_to_dict
 from ..utils.notifications import notificacion_por_usuario
 from ..utils.validation import validar_fecha_cita, validar_hora_cita
@@ -14,12 +14,9 @@ def _error(message, status):
 
 
 def create_for_user(user, payload):
-    cliente = Cliente.query.filter_by(usuario_id=user.id).first()
-    if not cliente:
-        return _error('El usuario no tiene perfil de cliente', 403)
     if not all(payload.get(key) for key in ('vehiculo_id', 'servicio_id', 'fecha', 'hora')):
         return _error('Vehículo, servicio, fecha y hora son obligatorios', 400)
-    vehiculo = Vehiculo.query.filter_by(id=payload['vehiculo_id'], cliente_id=cliente.id).first()
+    vehiculo = Vehiculo.query.filter_by(id=payload['vehiculo_id'], usuario_id=user.id).first()
     if not vehiculo:
         return _error('El vehículo no pertenece al usuario autenticado', 403)
     servicio = db.session.get(Servicio, payload['servicio_id'])
@@ -34,11 +31,11 @@ def create_for_user(user, payload):
         return _error(str(exc), 400)
     if occupied(fecha, hora):
         return _error('La fecha y hora seleccionadas ya están ocupadas. Selecciona otro horario.', 409)
-    cita = Cita(cliente_id=cliente.id, vehiculo_id=vehiculo.id, servicio_id=servicio.id, fecha=fecha, hora=hora, motivo=payload.get('motivo') or payload.get('observaciones') or '', observaciones=payload.get('observaciones') or '', estado='pendiente')
+    cita = Cita(vehiculo_id=vehiculo.id, servicio_id=servicio.id, fecha=fecha, hora=hora, motivo=payload.get('motivo') or payload.get('observaciones') or '', observaciones=payload.get('observaciones') or '', estado='pendiente')
     db.session.add(cita)
     db.session.commit()
     notificacion_por_usuario(usuario_id=user.id, titulo='Cita agendada', mensaje=f'Tu cita del {payload["fecha"]} a las {payload["hora"]} ha sido registrada exitosamente.', tipo='cita', link=f'/citas/{cita.id}')
-    return {'id': cita.id, 'cliente_id': cliente.id, 'vehiculo_id': vehiculo.id, 'servicio_id': servicio.id, 'fecha': str(payload['fecha']), 'hora': str(payload['hora']), 'motivo': cita.motivo, 'observaciones': cita.observaciones, 'estado': cita.estado}, None, 201
+    return {'id': cita.id, 'cliente_id': user.id, 'vehiculo_id': vehiculo.id, 'servicio_id': servicio.id, 'fecha': str(payload['fecha']), 'hora': str(payload['hora']), 'motivo': cita.motivo, 'observaciones': cita.observaciones, 'estado': cita.estado}, None, 201
 
 
 def parse_slot(payload):
@@ -51,37 +48,29 @@ def parse_slot(payload):
 
 
 def occupied(fecha, hora, excluding=None):
-    query = Cita.query.filter(Cita.fecha == fecha, Cita.hora == hora, Cita.estado != 'cancelada')
+    query = Cita.query.filter(Cita.fecha == fecha, Cita.hora == hora)
     if excluding:
         query = query.filter(Cita.id != excluding)
     return query.first() is not None
 
 
 def user_appointments(user):
-    cliente = Cliente.query.filter_by(usuario_id=user.id).first()
-    if not cliente:
-        return None, 'El usuario no tiene perfil de cliente', 403
-    return [{'id': c.id, 'fecha': str(c.fecha), 'hora': str(c.hora), 'vehiculo': {'id': c.vehiculo.id, 'marca': c.vehiculo.marca, 'modelo': c.vehiculo.modelo, 'placa': c.vehiculo.placa}, 'servicio': {'id': c.servicio.id, 'name': c.servicio.nombre}, 'motivo': c.motivo, 'observaciones': c.observaciones, 'estado': c.estado} for c in Cita.query.filter_by(cliente_id=cliente.id).order_by(Cita.fecha.desc(), Cita.hora.desc()).all()], None, None
+    citas = Cita.query.join(Cita.vehiculo).filter(Vehiculo.usuario_id == user.id).order_by(Cita.fecha.desc(), Cita.hora.desc()).all()
+    return [{'id': c.id, 'fecha': str(c.fecha), 'hora': str(c.hora), 'vehiculo': {'id': c.vehiculo.id, 'marca': c.vehiculo.marca, 'modelo': c.vehiculo.modelo, 'placa': c.vehiculo.placa}, 'servicio': {'id': c.servicio.id, 'name': c.servicio.nombre}, 'motivo': c.motivo, 'observaciones': c.observaciones, 'estado': c.estado} for c in citas], None, None
 
 
 def get_for_user(user, cita_id):
-    cliente = Cliente.query.filter_by(usuario_id=user.id).first()
     query = Cita.query.filter_by(id=cita_id)
     if user.rol != 'admin':
-        if not cliente:
-            return None, 'Cita no encontrada', 404
-        query = query.filter_by(cliente_id=cliente.id)
+        query = query.join(Cita.vehiculo).filter(Vehiculo.usuario_id == user.id)
     cita = query.first()
     return (cita_to_dict(cita), None, None) if cita else _error('Cita no encontrada', 404)
 
 
 def cancel(user, cita_id):
-    cliente = Cliente.query.filter_by(usuario_id=user.id).first()
     query = Cita.query.filter_by(id=cita_id)
     if user.rol != 'admin':
-        if not cliente:
-            return _error('Cita no encontrada', 404)
-        query = query.filter_by(cliente_id=cliente.id)
+        query = query.join(Cita.vehiculo).filter(Vehiculo.usuario_id == user.id)
     cita = query.first()
     if not cita:
         return _error('Cita no encontrada', 404)
@@ -111,16 +100,19 @@ def admin_list(filters):
 
 def admin_payload(payload, cita=None):
     values = {}
-    for field, model, message in [('cliente_id', Cliente, 'Cliente no encontrado'), ('vehiculo_id', Vehiculo, 'Vehículo no encontrado'), ('servicio_id', Servicio, 'Servicio no encontrado')]:
+    for field, model, message in [('vehiculo_id', Vehiculo, 'Vehículo no encontrado'), ('servicio_id', Servicio, 'Servicio no encontrado')]:
         if field in payload or cita is None:
             value = payload.get(field)
             if not value: return None, f'El {field.replace("_id", "")} es obligatorio', 400
             obj = db.session.get(model, value)
             if not obj: return None, message, 404
             values[field] = obj.id
-    cliente_id = values.get('cliente_id', cita.cliente_id if cita else None); vehiculo_id = values.get('vehiculo_id', cita.vehiculo_id if cita else None)
+    cliente_id = payload.get('cliente_id', cita.cliente_id if cita else None)
+    vehiculo_id = values.get('vehiculo_id', cita.vehiculo_id if cita else None)
     vehicle = db.session.get(Vehiculo, vehiculo_id)
-    if vehicle.cliente_id != cliente_id: return None, 'El vehículo no pertenece al cliente indicado', 400
+    if not vehicle: return None, 'Vehículo no encontrado', 404
+    if cliente_id is not None and vehicle.usuario_id != int(cliente_id):
+        return None, 'El vehículo no pertenece al cliente indicado', 400
     if 'fecha' in payload or cita is None:
         try: values['fecha'] = datetime.strptime(str(payload.get('fecha')), '%Y-%m-%d').date()
         except (TypeError, ValueError): return None, 'La fecha debe tener formato YYYY-MM-DD', 400
@@ -133,6 +125,12 @@ def admin_payload(payload, cita=None):
     elif cita is None: values['estado'] = 'pendiente'
     for field in ('motivo', 'observaciones'):
         if field in payload: values[field] = (payload[field] or '').strip() or None
+    if 'mecanico_id' in payload:
+        mechanic_id = payload.get('mecanico_id')
+        mechanic = db.session.get(Usuario, mechanic_id) if mechanic_id else None
+        if mechanic_id and (not mechanic or mechanic.rol != 'mecanico'):
+            return None, 'Mecánico no encontrado', 404
+        values['mecanico_id'] = mechanic.id if mechanic else None
     return values, None, None
 
 
@@ -146,7 +144,7 @@ def save_admin(cita, payload, creating=False):
     else:
         for field, value in values.items(): setattr(cita, field, value)
     db.session.commit()
-    return cita_to_dict(cita), None, None
+    return cita_to_dict(cita), None, 201 if creating else None
 
 
 def set_state(cita_id, state):
