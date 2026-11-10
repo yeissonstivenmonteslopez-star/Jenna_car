@@ -18,37 +18,30 @@ from ..config import is_debug
 def google_identity(token):
     raw_ids = f"{os.getenv('GOOGLE_CLIENT_IDS', '')},{os.getenv('GOOGLE_CLIENT_ID', '')}"
     client_ids = [item.strip() for item in raw_ids.split(',') if item.strip()]
+    if not client_ids:
+        return None, 'El acceso con Google no está configurado.', 503
+    if not isinstance(token, str) or not token.strip():
+        return None, 'Token de Google inválido.', 401
     identity = None
-    last_error = ''
     for client_id in client_ids:
         try:
-            identity = google_id_token.verify_oauth2_token(token, google_requests.Request(), audience=client_id)
-            if identity:
+            candidate = google_id_token.verify_oauth2_token(token, google_requests.Request(), audience=client_id)
+            if candidate and candidate.get('aud') == client_id:
+                identity = candidate
                 break
-        except Exception as exc:
-            last_error = str(exc)
-    if not identity:
-        try:
-            identity = google_id_token.verify_oauth2_token(token, google_requests.Request())
-        except Exception as exc:
-            last_error = str(exc)
-    if not identity:
-        try:
-            unverified = jwt.decode(token, options={'verify_signature': False})
-            if unverified.get('iss') in {'accounts.google.com', 'https://accounts.google.com'}:
-                identity = unverified
         except Exception:
-            pass
-    if not identity:
-        message = f'No fue posible verificar la cuenta de Google ({last_error})' if last_error else 'No fue posible verificar la cuenta de Google.'
-        return None, message, 401
-    if client_ids and identity.get('aud') and identity.get('aud') not in client_ids and identity.get('azp') not in client_ids:
-        return None, 'El token de Google no coincide con el Client ID configurado en el servidor.', 401
+            # Never expose token/provider details and never decode unverified JWTs.
+            continue
+    if not identity or not identity.get('sub'):
+        return None, 'No fue posible verificar la cuenta de Google.', 401
+    if identity.get('iss') not in {'accounts.google.com', 'https://accounts.google.com'}:
+        return None, 'Emisor de Google inválido.', 401
     if str(identity.get('email_verified', '')).lower() not in {'true', '1'}:
         return None, 'La cuenta de Google no tiene un correo verificado.', 401
     email = (identity.get('email') or '').strip().lower()
     if not email:
         return None, 'La cuenta de Google no tiene un correo válido.', 400
+    identity['email'] = email
     return identity, None, None
 
 
@@ -66,6 +59,10 @@ def google_login(token):
         auth_repository.add_user(usuario)
         auth_repository.commit()
     else:
+        if usuario.estado != 'activo':
+            return None, 'Usuario inactivo.', 403
+        if usuario.google_id and usuario.google_id != google_id:
+            return None, 'La cuenta de Google no coincide con la cuenta vinculada.', 403
         changed = False
         if google_id and usuario.google_id != google_id:
             usuario.google_id = google_id
@@ -134,8 +131,9 @@ def request_password_reset(email):
     code = f'{secrets.randbelow(1_000_000):06d}'
     auth_repository.add_reset_token(PasswordResetToken(usuario_id=usuario.id, code_hash=hash_password(code), expires_at=now + timedelta(minutes=15)))
     auth_repository.commit()
-    
-    if not os.getenv('SMTP_EMAIL') or not os.getenv('SMTP_PASSWORD'):
+
+    from ..utils.email import correo_configurado, enviar_correo_async
+    if not correo_configurado():
         if current_app.testing or is_debug():
             return {
                 'message': 'Código de recuperación generado. Sigue las instrucciones para restablecer tu contraseña.',
@@ -144,7 +142,6 @@ def request_password_reset(email):
             }, None, 202
         return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
 
-    from ..utils.email import enviar_correo
     mensaje_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #ddd;">
@@ -161,12 +158,13 @@ def request_password_reset(email):
         </div>
     </div>
     """
-    enviar_correo(email, "Código de recuperación de contraseña", mensaje_html)
+    if not enviar_correo_async(email, "Código de recuperación de contraseña", mensaje_html):
+        return None, 'No se pudo enviar el correo de recuperación. Inténtalo de nuevo.', 503
 
     return {'message': 'Código de recuperación enviado al correo.', 'manual_reset': False}, None, 202
 
 
-def confirm_password_reset(email, code, password):
+def _validate_reset_code(email, code):
     usuario = auth_repository.find_by_email(email)
     now = datetime.now(timezone.utc)
     token = auth_repository.latest_valid_reset_token(usuario.id, now) if usuario else None
@@ -176,8 +174,22 @@ def confirm_password_reset(email, code, password):
             if token.attempts >= 5:
                 token.used_at = now
             auth_repository.commit()
-        return None, 'Código inválido o expirado.', 400
+        return None, None, 'Código inválido o expirado.'
+    return usuario, token, None
+
+
+def verify_password_reset_code(email, code):
+    _, _, error = _validate_reset_code(email, code)
+    if error:
+        return None, error, 400
+    return {'message': 'Código validado correctamente.'}, None, None
+
+
+def confirm_password_reset(email, code, password):
+    usuario, token, error = _validate_reset_code(email, code)
+    if error:
+        return None, error, 400
     usuario.password = hash_password(password)
-    token.used_at = now
+    token.used_at = datetime.now(timezone.utc)
     auth_repository.commit()
     return {'message': 'Contraseña actualizada correctamente.'}, None, None

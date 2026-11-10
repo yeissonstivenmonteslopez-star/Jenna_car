@@ -1,4 +1,5 @@
 # Dependencies
+dist-deploy/
 node_modules/
 frontend/node_modules/
 mobile/node_modules/

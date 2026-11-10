@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowLeft, ArrowUpRight, UserRound } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Eye, EyeOff, UserRound } from 'lucide-react'
 import { googleAuth, register } from '@/features/auth/services/authService'
 import { GoogleLogin } from '@react-oauth/google'
 
 export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
 
   async function handleGoogleCallback(response: { credential?: string }) {
     if (!response.credential) return
@@ -70,7 +72,7 @@ export default function RegisterPage() {
           <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
             <a href="/" className="font-serif text-xl tracking-[0.18em]">JENNA <span className="text-red-500">CAR</span></a>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Área cliente</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-red-400">Área cliente</p>
               <h2 className="mt-4 font-serif text-6xl leading-[0.95]">Tu vehículo,<br /><em className="text-red-500">en buenas manos.</em></h2>
               <p className="mt-6 max-w-sm text-sm leading-6 text-white/60">Crea tu cuenta para agendar citas, consultar el estado de tu vehículo y gestionar tus recibos.</p>
             </div>
@@ -78,7 +80,7 @@ export default function RegisterPage() {
         </section>
 
         <section className="flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
-          <a href="/sign-in" className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-white">
+          <a href="/sign-in" className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/55 transition hover:text-white">
             <ArrowLeft size={15} /> Ya tengo una cuenta
           </a>
 
@@ -87,21 +89,37 @@ export default function RegisterPage() {
               <div className="mb-6 flex h-11 w-11 items-center justify-center border border-red-500/30 bg-red-500/10 text-red-400">
                 <UserRound size={18} />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Registro</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-red-400">Registro</p>
               <h1 className="mt-4 font-serif text-5xl leading-none text-white sm:text-6xl">Crea tu cuenta.</h1>
               <p className="mt-4 text-sm text-white/55">Completa tus datos para empezar a cuidar tu vehículo.</p>
             </div>
 
             <form onSubmit={submit} className="grid gap-6 sm:grid-cols-2">
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Nombre<input name="nombre" required placeholder="Tu nombre" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Apellido<input name="apellido" required placeholder="Tu apellido" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Documento <span className="font-normal normal-case tracking-normal text-white/35">Opcional</span><input name="documento" placeholder="Número de documento" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Teléfono<input name="telefono" required type="tel" inputMode="numeric" pattern="[0-9]{10}" maxLength={10} placeholder="10 números" title="Ingresa exactamente 10 números" onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 10) }} className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65 sm:col-span-2">Correo electrónico<input name="email" required type="email" placeholder="tu@email.com" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Contraseña<input name="password" required minLength={8} type="password" placeholder="Mínimo 8 caracteres" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Confirmar contraseña<input name="confirmation" required minLength={8} type="password" placeholder="Repite tu contraseña" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">Nombre<input name="nombre" required placeholder="Tu nombre" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">Apellido<input name="apellido" required placeholder="Tu apellido" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">Documento <span className="font-normal normal-case tracking-normal text-white/35">Opcional</span><input name="documento" placeholder="Número de documento" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">Teléfono<input name="telefono" required type="tel" inputMode="numeric" pattern="[0-9]{10}" maxLength={10} placeholder="10 números" title="Ingresa exactamente 10 números" onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 10) }} className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65 sm:col-span-2">Correo electrónico<input name="email" required type="email" placeholder="tu@email.com" className="rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" /></label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">
+                Contraseña
+                <span className="relative">
+                  <input name="password" required minLength={8} type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Mínimo 8 caracteres" className="w-full rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 pr-12 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20" />
+                  <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword} title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="absolute inset-y-0 right-0 flex items-center px-4 text-white/65 transition hover:text-red-400 focus-visible:outline-2 focus-visible:outline-red-500">
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </span>
+              </label>
+              <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-white/65">
+                Confirmar contraseña
+                <span className="relative">
+                  <input name="confirmation" required minLength={8} type={showConfirmation ? 'text' : 'password'} autoComplete="new-password" placeholder="Repite tu contraseña" className="w-full rounded-lg border border-white/10 bg-[#161616] px-4 py-3.5 pr-12 text-base normal-case tracking-normal text-white outline-none transition placeholder:text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20" />
+                  <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} aria-label={showConfirmation ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'} aria-pressed={showConfirmation} title={showConfirmation ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="absolute inset-y-0 right-0 flex items-center px-4 text-white/65 transition hover:text-red-400 focus-visible:outline-2 focus-visible:outline-red-500">
+                    {showConfirmation ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </span>
+              </label>
 
-              <button disabled={loading} className="group mt-2 flex items-center justify-center gap-3 rounded-lg bg-red-600 p-4 text-xs font-semibold tracking-[0.2em] text-white transition hover:bg-red-500 sm:col-span-2 disabled:opacity-70">
+              <button disabled={loading} className="group mt-2 flex items-center justify-center gap-3 rounded-lg bg-red-600 p-4 text-base font-semibold tracking-[0.2em] text-white transition hover:bg-red-500 sm:col-span-2 disabled:opacity-70">
                 {loading ? 'CREANDO…' : <>CREAR CUENTA <ArrowUpRight size={16} className="transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></>}
               </button>
 
@@ -110,7 +128,7 @@ export default function RegisterPage() {
 
             <div className="my-7 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-white/35">o</span>
+              <span className="text-sm uppercase tracking-[0.18em] text-white/35">o</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 

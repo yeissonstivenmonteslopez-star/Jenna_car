@@ -51,3 +51,37 @@ def cita_to_dict(cita):
         'created_at': cita.created_at.isoformat() if cita.created_at else None,
         'updated_at': cita.updated_at.isoformat() if cita.updated_at else None,
     }
+
+
+def diagnostico_to_dict(diagnostico):
+    return {
+        'id': diagnostico.id,
+        'cita_id': diagnostico.cita_id,
+        'mecanico_id': diagnostico.mecanico_id,
+        'descripcion': diagnostico.descripcion,
+        'observaciones': diagnostico.observaciones,
+        'solucion_recomendada': diagnostico.solucion_recomendada,
+        'estado': diagnostico.estado,
+        'fecha_diagnostico': diagnostico.fecha_diagnostico.isoformat() if diagnostico.fecha_diagnostico else None,
+        'created_at': diagnostico.created_at.isoformat() if diagnostico.created_at else None,
+        'updated_at': diagnostico.updated_at.isoformat() if diagnostico.updated_at else None,
+    }
+
+
+def trabajo_to_dict(trabajo):
+    return {
+        'id': trabajo.id,
+        'diagnostico_id': trabajo.diagnostico_id,
+        'servicio_id': trabajo.servicio_id,
+        'mecanico_id': trabajo.mecanico_id,
+        'orden_id': trabajo.orden_id,
+        'descripcion': trabajo.descripcion,
+        'estado': trabajo.estado,
+        'fecha_inicio': trabajo.fecha_inicio.isoformat() if trabajo.fecha_inicio else None,
+        'fecha_fin': trabajo.fecha_fin.isoformat() if trabajo.fecha_fin else None,
+        'cantidad': trabajo.cantidad,
+        'precio': float(trabajo.precio),
+        'subtotal': float(trabajo.subtotal),
+        'created_at': trabajo.created_at.isoformat() if trabajo.created_at else None,
+        'updated_at': trabajo.updated_at.isoformat() if trabajo.updated_at else None,
+    }

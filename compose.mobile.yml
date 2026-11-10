@@ -1,0 +1,62 @@
+name: jenna-car-mobile
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: jenna_car
+      MYSQL_USER: jenna_mobile
+      MYSQL_PASSWORD: ${DOCKER_DB_PASSWORD:?Configura .env.docker}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_ROOT_PASSWORD:?Configura .env.docker}
+    volumes:
+      - mobile_mysql:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u "$$MYSQL_USER" -D jenna_car -e "SELECT 1" >/dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://jenna_mobile:${DOCKER_DB_PASSWORD}@db:3306/jenna_car?charset=utf8mb4
+      SECRET_KEY: ${DOCKER_SECRET_KEY:?Configura .env.docker}
+      FLASK_DEBUG: "false"
+      PAYMENTS_SIMULATED: "false"
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+    ports:
+      - "5000:5000"
+    volumes:
+      - mobile_uploads:/app/backend/uploads
+      - mobile_repair_uploads:/app/backend/app/uploads
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: web
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - mobile_repair_uploads:/var/www/repairs:ro
+volumes:
+  mobile_mysql:
+  mobile_uploads:
+  mobile_repair_uploads:

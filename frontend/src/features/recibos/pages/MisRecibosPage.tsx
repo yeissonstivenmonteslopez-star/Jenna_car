@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CreditCard, Landmark, ShieldAlert, Sparkles } from 'lucide-react'
-import { getMisPagos, createPago } from '@/features/recibos/services/pagosService'
+import { getMisPagos, createPago, getPagoConfig } from '@/features/recibos/services/pagosService'
 import { getMisRecibos, getReciboPdf } from '@/features/recibos/services/recibosService'
 import { formatCop } from '@/lib/utils'
 
@@ -33,18 +33,18 @@ export default function MisRecibos() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string>('')
   const [openPay, setOpenPay] = useState(false)
+  const [simulated, setSimulated] = useState<boolean | null>(null)
   const [pagoData, setPagoData] = useState<{
     recibo_id: number | null
-    numero_nequi: string
     monto: number
     referencia: string
   } | null>(null)
 
   const summary = useMemo(() => ({
     pendientes: recibos.filter((recibo) => recibo.estado === 'pendiente').length,
-    pagados: pagos.length,
+    pagados: recibos.filter((recibo) => recibo.estado === 'pagado').length,
     total: recibos.reduce((sum, recibo) => sum + Number(recibo.total || 0), 0),
-  }), [recibos, pagos])
+  }), [recibos])
 
   useEffect(() => {
     if (!token) { window.location.href = '/sign-in'; return }
@@ -85,12 +85,15 @@ export default function MisRecibos() {
     if (!token) return
     fetchRecibos()
     fetchPagos()
+    getPagoConfig(token)
+      .then((result) => setSimulated(result.data.simulacion === true))
+      .catch((error: unknown) => setMessage((error as Error).message))
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePagar = (recibo: Recibo) => {
+    setMessage('')
     setPagoData({
       recibo_id: recibo.id,
-      numero_nequi: '',
       monto: recibo.total,
       referencia: '',
     })
@@ -98,24 +101,25 @@ export default function MisRecibos() {
   }
 
   const handleConfirmarPago = async () => {
-    const { recibo_id, numero_nequi } = pagoData!
-    if (!numero_nequi.trim()) {
-      setMessage('Por favor ingresa un número de Nequi')
-      return
-    }
+    if (loading || !pagoData?.recibo_id) return
+    const { recibo_id } = pagoData
 
     setMessage('')
     setLoading(true)
 
     try {
-      const data = await createPago({ recibo_id: recibo_id!, numero_nequi }, token)
-
-
-      setMessage(`¡${data.data.mensaje || 'Pago procesado correctamente'}`)
-      setOpenPay(false)
-      fetchRecibos()
-      fetchPagos()
-      setTimeout(() => setMessage(''), 5000)
+      const data = await createPago({ recibo_id }, token)
+      if (data.data.simulacion === true) {
+        setOpenPay(false)
+        await Promise.all([fetchRecibos(), fetchPagos()])
+        setMessage(data.data.mensaje || 'Pago simulado registrado. No se ha cobrado dinero real.')
+        return
+      }
+      const checkout = new URL(data.data.url_redireccion)
+      if (checkout.protocol !== 'https:' || !/(^|\.)mercadopago\.com(\.[a-z]{2})?$/.test(checkout.hostname)) {
+        throw new Error('La pasarela no devolvió un enlace de pago válido')
+      }
+      window.location.assign(checkout.href)
     } catch (err: unknown) {
       setMessage((err as Error).message || 'Error de conexión con el servidor')
     } finally {
@@ -145,6 +149,12 @@ export default function MisRecibos() {
             </a>
           </div>
         </header>
+
+        {simulated && (
+          <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
+            Modo de demostración: los pagos son simulados y no mueven dinero real.
+          </div>
+        )}
 
         {message && (
           <div className="mb-6 rounded-xl border border-[#70e9d2]/30 bg-[#70e9d2]/10 p-4 text-sm text-[#d6fff9]">
@@ -209,12 +219,13 @@ export default function MisRecibos() {
                         {recibo.estado === 'pendiente' ? (
                           <button
                             onClick={() => handlePagar(recibo)}
+                            disabled={simulated === null || loading}
                             className="rounded-lg border border-[#70e9d2]/40 bg-[#70e9d2]/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#70e9d2]"
                           >
-                            Pagar con Nequi
+                            {simulated === null ? 'Cargando modo de pago…' : simulated ? 'Simular pago' : 'Pagar con Mercado Pago'}
                           </button>
                         ) : (
-                          <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">Pagado</span>
+                          <span className="text-[10px] uppercase tracking-[0.12em] text-white/50">{recibo.estado}</span>
                         )}
                       </td>
                       <td className="p-4">
@@ -315,7 +326,7 @@ export default function MisRecibos() {
                       </td>
                       <td className="p-4 text-white/60">{pago.fecha_pago ? formatDate(pago.fecha_pago) : '—'}</td>
                       <td className="p-4">
-                        <span className="text-[10px] uppercase tracking-[0.12em] text-[#70e9d2]">{pago.simulacion ? 'Simulado' : 'Real'}</span>
+                        <span className="text-[10px] uppercase tracking-[0.12em] text-[#70e9d2]">{pago.simulacion ? 'Simulado' : 'Mercado Pago'}</span>
                       </td>
                     </tr>
                   ))
@@ -331,8 +342,8 @@ export default function MisRecibos() {
           <div role="dialog" aria-modal="true" className="w-full max-w-md border border-red-900/50 bg-[#151515] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.5)]">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#70e9d2]">Nequi</p>
-                <h2 className="mt-3 font-serif text-3xl text-white">Pagar recibo</h2>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#70e9d2]">{simulated ? 'Demostración' : 'Mercado Pago'}</p>
+                <h2 className="mt-3 font-serif text-3xl text-white">{simulated ? 'Simular pago' : 'Pagar recibo'}</h2>
               </div>
               <button onClick={() => setOpenPay(false)} className="text-white/60 hover:text-[#70e9d2]">✕</button>
             </div>
@@ -346,25 +357,16 @@ export default function MisRecibos() {
               <div className="mb-6 rounded-2xl border border-[#70e9d2]/20 bg-[#70e9d2]/5 p-4">
                 <div className="mb-2 flex items-center gap-2 text-[#70e9d2]">
                   <ShieldAlert size={16} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">Pago simulado</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">{simulated ? 'Pago simulado' : 'Pago seguro'}</span>
                 </div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d6fff9]">PAGO SIMULADO — NO ES UNA TRANSACCIÓN REAL</p>
-                <p className="mt-2 text-xs text-white/60">Esta simulación no mueve dinero real ni afecta cuentas bancarias.</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d6fff9]">{simulated ? 'NO ES UNA TRANSACCIÓN REAL' : 'Completa el pago en Mercado Pago'}</p>
+                <p className="mt-2 text-xs text-white/60">{simulated ? 'Se registrará un pago de demostración y el recibo quedará pagado en la aplicación. No se realizarán cobros ni transferencias.' : 'Elige entre los medios disponibles en la pasarela. El recibo se actualizará al recibir la confirmación del pago.'}</p>
               </div>
 
               <form onSubmit={(event) => { event.preventDefault(); handleConfirmarPago() }} className="grid gap-4">
-                <div>
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Número de Nequi</label>
-                  <input
-                    type="text"
-                    value={pagoData.numero_nequi}
-                    onChange={(event) => setPagoData({ ...pagoData, numero_nequi: event.target.value })}
-                    placeholder="Ingresa tu número de Nequi"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[#70e9d2]/60"
-                  />
-                </div>
-                <button type="submit" className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#70e9d2] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#07131b] transition hover:bg-[#8ff6e4]">
-                  <Sparkles size={15} /> Confirmar pago
+                {message && <p role="alert" className="text-sm text-red-300">{message}</p>}
+                <button type="submit" disabled={loading} className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#70e9d2] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#07131b] transition hover:bg-[#8ff6e4]">
+                  <Sparkles size={15} /> {loading ? 'Procesando…' : simulated ? 'Confirmar pago simulado' : 'Continuar a Mercado Pago'}
                 </button>
               </form>
             </div>

@@ -56,7 +56,20 @@ def occupied(fecha, hora, excluding=None):
 
 def user_appointments(user):
     citas = Cita.query.join(Cita.vehiculo).filter(Vehiculo.usuario_id == user.id).order_by(Cita.fecha.desc(), Cita.hora.desc()).all()
-    return [{'id': c.id, 'fecha': str(c.fecha), 'hora': str(c.hora), 'vehiculo': {'id': c.vehiculo.id, 'marca': c.vehiculo.marca, 'modelo': c.vehiculo.modelo, 'placa': c.vehiculo.placa}, 'servicio': {'id': c.servicio.id, 'name': c.servicio.nombre}, 'motivo': c.motivo, 'observaciones': c.observaciones, 'estado': c.estado} for c in citas], None, None
+    return [{'id': c.id, 'fecha': str(c.fecha), 'hora': str(c.hora), 'vehiculo': {'id': c.vehiculo.id, 'marca': c.vehiculo.marca, 'modelo': c.vehiculo.modelo, 'placa': c.vehiculo.placa}, 'servicio': {'id': c.servicio.id, 'name': c.servicio.nombre}, 'motivo': c.motivo, 'observaciones': c.observaciones, 'estado': c.estado, 'mecanico_id': c.mecanico_id} for c in citas], None, None
+
+
+def assign_mechanic_to_appointment(cita_id, mecanico_id):
+    """Asignar un mecanico a una cita. Solo admin o el mecanico propio puede hacerlo."""
+    from ..models import Usuario
+    cita = db.session.get(Cita, cita_id)
+    if not cita: return None, 'Cita no encontrada', 404
+    mecanico = db.session.get(Usuario, mecanico_id)
+    if not mecanico: return None, 'Mecánico no encontrado', 404
+    if mecanico.rol != 'mecanico': return None, 'El usuario no tiene rol de mecánico', 400
+    cita.mecanico_id = mecanico.id
+    db.session.commit()
+    return cita_to_dict(cita), None, None
 
 
 def get_for_user(user, cita_id):

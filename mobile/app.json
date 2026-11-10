@@ -1,13 +1,12 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Jenna Car",
     "slug": "mobile",
     "scheme": "jennacar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
     "androidNavigationBar": {
       "backgroundColor": "#0A0A0A",
       "barStyle": "light-content",
@@ -28,15 +27,15 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": false
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-status-bar"
     ]
   }
 }

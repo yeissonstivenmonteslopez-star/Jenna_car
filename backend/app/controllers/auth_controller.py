@@ -36,6 +36,16 @@ def request_password_reset():
     return (jsonify({'error': error}), status) if error else (jsonify(data), status)
 
 
+def verify_password_reset_code():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get('email') or '').strip().lower()
+    code = str(payload.get('code') or '').strip()
+    if not email or not code:
+        return jsonify({'error': 'Correo y código son obligatorios.'}), 400
+    data, error, status = auth_service.verify_password_reset_code(email, code)
+    return (jsonify({'error': error}), status) if error else jsonify(data)
+
+
 def confirm_password_reset_route():
     payload = request.get_json(silent=True) or {}
     email = (payload.get('email') or '').strip().lower()
