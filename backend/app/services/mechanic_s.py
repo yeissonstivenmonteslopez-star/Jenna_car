@@ -1,8 +1,9 @@
 """Mechanic dashboard and appointment queries."""
 from datetime import datetime
 from ..extensions import db
-from ..models import Cita, Servicio, Usuario, Vehiculo, Diagnostico, Trabajo, ImagenTrabajo
+from ..models import Cita, Servicio, Usuario, Vehiculo, Diagnostico, Trabajo, ImagenTrabajo, OrdenTrabajo, ReciboDetalle
 from ..schemas.serializers import cita_to_dict, diagnostico_to_dict, trabajo_to_dict
+from ..utils.notifications import notificacion_por_usuario
 
 
 def mechanic_dashboard(user):
@@ -75,6 +76,14 @@ def mechanic_appointment_detail(user, cita_id):
     trabajos = Trabajo.query.join(Trabajo.diagnostico).filter(
         Diagnostico.cita_id == cita.id
     ).all()
+    ordenes = OrdenTrabajo.query.filter(
+        OrdenTrabajo.vehiculo_id == cita.vehiculo_id,
+        ~OrdenTrabajo.estado.in_({'cancelada', 'entregada'}),
+    ).order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc()).all()
+    ordenes_facturables = [
+        orden for orden in ordenes
+        if not orden.recibo or orden.recibo.estado == 'pendiente'
+    ]
     imagenes = ImagenTrabajo.query.filter(ImagenTrabajo.trabajo_id.in_([t.id for t in trabajos])).all() if trabajos else []
 
     return {
@@ -99,6 +108,7 @@ def mechanic_appointment_detail(user, cita_id):
         'mecanico_id': cita.mecanico_id,
         'diagnosticos': [diagnostico_to_dict(d) for d in diagnosticos],
         'trabajos': [trabajo_to_dict(t) for t in trabajos],
+        'ordenes': [{'id': order.id, 'estado': order.estado, 'total': float(order.total or 0)} for order in ordenes_facturables],
         'imagenes': [{
             'id': img.id,
             'ruta': img.ruta_imagen,
@@ -148,9 +158,31 @@ def register_trabajo(user, payload):
     if diagnostico.mecanico_id != user.id:
         return None, 'No tienes permisos para registrar trabajo en este diagnostico', 403
 
+    cita = diagnostico.cita
+    if not cita:
+        return None, 'La cita del diagnóstico no existe', 404
+    order_id = payload.get('orden_id')
+    if order_id:
+        order = db.session.get(OrdenTrabajo, order_id)
+        if not order or order.vehiculo_id != cita.vehiculo_id:
+            return None, 'La orden no corresponde al vehículo de la cita', 400
+        if order.estado in {'cancelada', 'entregada'}:
+            return None, 'La orden ya no está activa', 409
+    else:
+        active_orders = OrdenTrabajo.query.filter(
+            OrdenTrabajo.vehiculo_id == cita.vehiculo_id,
+            ~OrdenTrabajo.estado.in_({'cancelada', 'entregada'}),
+        ).order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc()).all()
+        if not active_orders:
+            return None, 'No hay una orden activa para este vehículo. Solicita crearla desde administración.', 409
+        if len(active_orders) > 1:
+            return None, 'Hay varias órdenes activas para este vehículo. Selecciona una orden antes de registrar el trabajo.', 409
+        order = active_orders[0]
+
     # Verificar que el servicio existe
     servicio = db.session.get(Servicio, servicio_id)
     if not servicio: return None, 'Servicio no encontrado', 404
+    if servicio.estado != 'activo': return None, 'El servicio seleccionado no está disponible', 409
 
     from decimal import Decimal, InvalidOperation
     try:
@@ -160,23 +192,62 @@ def register_trabajo(user, payload):
             raise ValueError()
     except (ValueError, TypeError, InvalidOperation):
         return None, 'Cantidad o precio inválidos', 400
-    if not (payload.get('descripcion') or '').strip() or payload.get('estado', 'pendiente') not in {'pendiente', 'en_proceso', 'completado', 'cancelado'}:
+    initial_state = payload.get('estado', 'pendiente')
+    if not (payload.get('descripcion') or '').strip() or initial_state not in {'pendiente', 'en_proceso', 'completado', 'cancelado'}:
         return None, 'Descripción o estado inválidos', 400
-    # Crear trabajo
+    if order.estado_aprobacion != 'aprobado' and initial_state != 'pendiente':
+        return None, 'El cliente debe aprobar la cotización antes de iniciar el trabajo', 409
+    from ..utils.orders import asegurar_recibo_orden
+    if order.recibo and order.recibo.estado != 'pendiente':
+        return None, 'El recibo de esta orden ya no está pendiente de cobro', 409
+    receipt = asegurar_recibo_orden(order)
+    if receipt.estado != 'pendiente':
+        return None, 'El recibo de esta orden ya no está pendiente de cobro', 409
+    line_total = cantidad * precio
+    previous_subtotal = Decimal(str(order.subtotal or 0))
+    previous_total = Decimal(str(order.total or 0))
+    discount = max(previous_subtotal - previous_total, Decimal('0.00'))
     trabajo = Trabajo(
         diagnostico_id=diagnostico_id,
         servicio_id=servicio_id,
         mecanico_id=user.id,
+        orden_id=order.id,
         descripcion=payload.get('descripcion') or '',
         estado=payload.get('estado', 'pendiente'),
         fecha_inicio=payload.get('fecha_inicio'),
         fecha_fin=payload.get('fecha_fin'),
         cantidad=cantidad,
         precio=precio,
-        subtotal=cantidad * precio,
+        subtotal=line_total,
     )
     db.session.add(trabajo)
-    db.session.commit()
+    db.session.flush()
+    receipt.detalles.append(ReciboDetalle(
+        descripcion=f'{servicio.nombre}: {trabajo.descripcion}'[:255],
+        cantidad=cantidad,
+        precio_unitario=precio,
+        subtotal=line_total,
+    ))
+    order.subtotal = previous_subtotal + line_total
+    order.total = max(previous_total + line_total, Decimal('0.00'))
+    order.estado_aprobacion = 'pendiente'
+    receipt.subtotal = order.subtotal
+    receipt.total = order.total
+    receipt.descuento = max(order.subtotal - order.total, Decimal('0.00'))
+    receipt.enviado_cliente = False
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return None, 'No fue posible registrar el trabajo y actualizar el recibo.', 409
+    notificacion_por_usuario(
+        cita.vehiculo.usuario_id,
+        f'Diagnóstico y cotización de la orden #{order.id}',
+        f'El mecánico registró observaciones y una cotización por ${float(order.total):.2f}. '
+        'Revisa los detalles y aprueba o rechaza el trabajo.',
+        tipo='diagnostico',
+        link='/mis-reparaciones',
+    )
     return trabajo_to_dict(trabajo), None, None
 
 
@@ -190,6 +261,8 @@ def update_trabajo_status(user, trabajo_id, nuevo_estado):
     valid_states = {'pendiente', 'en_proceso', 'completado', 'cancelado'}
     if nuevo_estado not in valid_states:
         return None, 'Estado inválido', 400
+    if nuevo_estado in {'en_proceso', 'completado'} and trabajo.orden and trabajo.orden.estado_aprobacion != 'aprobado':
+        return None, 'El cliente debe aprobar la cotización antes de iniciar el trabajo', 409
     if nuevo_estado == 'en_proceso' and not trabajo.fecha_inicio:
         trabajo.fecha_inicio = datetime.now()
     if nuevo_estado == 'completado':
@@ -236,14 +309,24 @@ def upload_repair_image(user, payload, file):
 
     # Guardar en base de datos imagenes_trabajo
     from ..models import ImagenTrabajo
+    descripcion = (payload.get('descripcion') or '').strip()[:255]
     imagen = ImagenTrabajo(
         trabajo_id=trabajo_id,
         usuario_id=user.id,
         ruta_imagen=ruta_imagen,
-        descripcion=payload.get('descripcion') or '',
+        descripcion=descripcion or 'Avance de reparación',
     )
     db.session.add(imagen)
     db.session.commit()
+    cliente = trabajo.diagnostico.cita.vehiculo.cliente
+    if cliente:
+        notificacion_por_usuario(
+            cliente.usuario_id,
+            f'Nuevo avance de tu vehículo {trabajo.diagnostico.cita.vehiculo.placa}',
+            imagen.descripcion,
+            tipo='reparacion_en_proceso',
+            link='/mis-reparaciones',
+        )
 
     return {
         'id': imagen.id,

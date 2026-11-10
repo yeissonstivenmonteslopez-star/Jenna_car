@@ -1,8 +1,10 @@
 """Appointment queries, validation, persistence, and domain serialization."""
 from datetime import datetime
+from html import escape
 from ..extensions import db
 from ..models import Cita, Servicio, Usuario, Vehiculo
 from ..schemas.serializers import cita_to_dict
+from ..utils.email import enviar_correo
 from ..utils.notifications import notificacion_por_usuario
 from ..utils.validation import validar_fecha_cita, validar_hora_cita
 
@@ -11,6 +13,29 @@ STATES = {'pendiente', 'confirmada', 'atendida', 'cancelada'}
 
 def _error(message, status):
     return None, message, status
+
+
+def _send_appointment_confirmation(user, vehicle, service, fecha, hora):
+        if not user or not user.email:
+                return
+        name = escape(f'{user.nombre} {user.apellido}')
+        vehicle_name = escape(f'{vehicle.marca} {vehicle.modelo} ({vehicle.placa})')
+        service_name = escape(service.nombre)
+        date_label = escape(fecha.strftime('%d/%m/%Y'))
+        time_label = escape(str(hora)[:5])
+        message = f'''<div style="font-family:Arial,sans-serif;color:#171717;max-width:560px;margin:0 auto;padding:24px">
+            <p style="font-size:11px;font-weight:bold;letter-spacing:2px;color:#b52d2d">JENNA CAR</p>
+            <h1 style="font-size:24px;margin:20px 0 8px">Cita agendada</h1>
+            <p>Hola {name}, recibimos tu solicitud de servicio.</p>
+            <table style="width:100%;border-collapse:collapse;margin:24px 0">
+                <tr><td style="padding:10px 0;color:#666">Servicio</td><td style="padding:10px 0;text-align:right;font-weight:bold">{service_name}</td></tr>
+                <tr><td style="padding:10px 0;color:#666">Vehículo</td><td style="padding:10px 0;text-align:right;font-weight:bold">{vehicle_name}</td></tr>
+                <tr><td style="padding:10px 0;color:#666">Fecha</td><td style="padding:10px 0;text-align:right;font-weight:bold">{date_label}</td></tr>
+                <tr><td style="padding:10px 0;color:#666">Hora</td><td style="padding:10px 0;text-align:right;font-weight:bold">{time_label}</td></tr>
+            </table>
+            <p style="font-size:13px;color:#666">Te avisaremos si necesitamos confirmar algún detalle.</p>
+        </div>'''
+        enviar_correo(user.email, 'Confirmación de cita | Jenna Car', message)
 
 
 def create_for_user(user, payload):
@@ -35,6 +60,7 @@ def create_for_user(user, payload):
     db.session.add(cita)
     db.session.commit()
     notificacion_por_usuario(usuario_id=user.id, titulo='Cita agendada', mensaje=f'Tu cita del {payload["fecha"]} a las {payload["hora"]} ha sido registrada exitosamente.', tipo='cita', link=f'/citas/{cita.id}')
+    _send_appointment_confirmation(user, vehiculo, servicio, fecha, hora)
     return {'id': cita.id, 'cliente_id': user.id, 'vehiculo_id': vehiculo.id, 'servicio_id': servicio.id, 'fecha': str(payload['fecha']), 'hora': str(payload['hora']), 'motivo': cita.motivo, 'observaciones': cita.observaciones, 'estado': cita.estado}, None, 201
 
 
@@ -48,10 +74,19 @@ def parse_slot(payload):
 
 
 def occupied(fecha, hora, excluding=None):
-    query = Cita.query.filter(Cita.fecha == fecha, Cita.hora == hora)
+    query = Cita.query.filter(Cita.fecha == fecha, Cita.hora == hora, Cita.estado != 'cancelada')
     if excluding:
         query = query.filter(Cita.id != excluding)
     return query.first() is not None
+
+
+def available_times(fecha_value):
+    try:
+        fecha = validar_fecha_cita(fecha_value)
+    except ValueError as exc:
+        return None, str(exc), 400
+    slots = [datetime.strptime(f'{hour:02d}:00', '%H:%M').time() for hour in range(8, 19)]
+    return [slot.strftime('%H:%M') for slot in slots if not occupied(fecha, slot)], None, None
 
 
 def user_appointments(user):
@@ -64,6 +99,10 @@ def assign_mechanic_to_appointment(cita_id, mecanico_id):
     from ..models import Usuario
     cita = db.session.get(Cita, cita_id)
     if not cita: return None, 'Cita no encontrada', 404
+    if mecanico_id in (None, ''):
+        cita.mecanico_id = None
+        db.session.commit()
+        return cita_to_dict(cita), None, None
     mecanico = db.session.get(Usuario, mecanico_id)
     if not mecanico: return None, 'Mecánico no encontrado', 404
     if mecanico.rol != 'mecanico': return None, 'El usuario no tiene rol de mecánico', 400
@@ -157,6 +196,8 @@ def save_admin(cita, payload, creating=False):
     else:
         for field, value in values.items(): setattr(cita, field, value)
     db.session.commit()
+    if creating and cita.cliente:
+        _send_appointment_confirmation(cita.cliente.usuario, cita.vehiculo, cita.servicio, cita.fecha, cita.hora)
     return cita_to_dict(cita), None, 201 if creating else None
 
 

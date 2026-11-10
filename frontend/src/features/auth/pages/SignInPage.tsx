@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, LockKeyhole } from 'lucide-react'
 import { googleAuth, login } from '@/features/auth/services/authService'
 import { GoogleLogin } from '@react-oauth/google'
+import { getGoogleClientId } from '@/services/apiClient'
 
 export default function SignInPage() {
   return (
@@ -18,6 +19,7 @@ function SignInContent() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const googleClientId = getGoogleClientId()
 
   async function handleGoogleCallback(response: { credential?: string }) {
     if (!response.credential) return
@@ -27,7 +29,8 @@ function SignInContent() {
       const data = await googleAuth(response.credential)
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
-      const redirectTarget = searchParams.get('redirect') || '/'
+      const defaultRoute = data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
+      const redirectTarget = searchParams.get('redirect') || defaultRoute
       window.location.href = redirectTarget
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible iniciar sesión con Google.')
@@ -45,7 +48,8 @@ function SignInContent() {
       const data = await login({ email: String(form.get('email')), password: String(form.get('password')) })
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
-      const redirectTarget = searchParams.get('redirect') || '/'
+      const defaultRoute = data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
+      const redirectTarget = searchParams.get('redirect') || defaultRoute
       window.location.href = redirectTarget
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible iniciar sesión.')
@@ -105,7 +109,7 @@ function SignInContent() {
                   name="email"
                   required
                   type="email"
-                  className="border border-primary-foreground/15 bg-field px-4 py-4 text-base normal-case tracking-normal"
+                  className="w-full rounded-lg border border-primary-foreground/15 bg-field px-4 py-4 text-base normal-case tracking-normal outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
               </label>
               <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground/65">
@@ -117,7 +121,7 @@ function SignInContent() {
                     minLength={8}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    className="w-full border border-primary-foreground/15 bg-field px-4 py-4 pr-12 text-base normal-case tracking-normal outline-none transition focus:border-accent"
+                    className="w-full rounded-lg border border-primary-foreground/15 bg-field px-4 py-4 pr-12 text-base normal-case tracking-normal outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                   />
                   <button
                     type="button"
@@ -149,25 +153,33 @@ function SignInContent() {
               )}
             </form>
 
-            <div className="my-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-primary-foreground/10" />
-              <span className="text-sm uppercase tracking-[0.18em] text-primary-foreground/35">o</span>
-              <div className="h-px flex-1 bg-primary-foreground/10" />
-            </div>
+            {googleClientId ? (
+              <>
+                <div className="my-6 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-primary-foreground/10" />
+                  <span className="text-sm uppercase tracking-[0.18em] text-primary-foreground/35">o</span>
+                  <div className="h-px flex-1 bg-primary-foreground/10" />
+                </div>
 
-            <div className="flex min-h-12 w-full justify-center overflow-hidden rounded-full border border-primary-foreground/15 bg-white shadow-sm transition hover:border-accent/50 hover:shadow-[0_0_20px_rgba(181,45,45,0.16)]">
-              <GoogleLogin
-                onSuccess={handleGoogleCallback}
-                onError={() => setError('Falló el inicio de sesión con Google')}
-                useOneTap={false}
-                theme="outline"
-                size="large"
-                text="continue_with"
-                shape="pill"
-                logo_alignment="center"
-                width="360"
-              />
-            </div>
+                <div className="mx-auto flex h-11 w-full max-w-[360px] justify-center overflow-hidden rounded-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleCallback}
+                    onError={() => setError('Falló el inicio de sesión con Google')}
+                    useOneTap={false}
+                    ux_mode="popup"
+                    use_fedcm_for_button={true}
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    shape="pill"
+                    logo_alignment="center"
+                    width="360"
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-sm text-primary-foreground/45">Inicio con Google no configurado.</p>
+            )}
 
             <p className="mt-10 text-center text-sm text-primary-foreground/45">
               ¿No tienes una cuenta?{' '}

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { ArrowLeft, BadgeCheck, CalendarDays, Camera, Mail, Phone, ReceiptText, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, CalendarDays, Camera, Mail, Phone, ReceiptText, ShieldCheck, UserRound, Wrench } from 'lucide-react'
 import { buildAssetUrl } from '@/services/apiClient'
 import { getPerfil, updatePerfil, uploadFotoPerfil } from '@/features/usuarios/services/usuariosService'
 
@@ -119,6 +119,7 @@ export default function ProfilePage() {
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Accesos rápidos</p>
               <div className="grid gap-2">
                 <a href="/mis-citas" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><CalendarDays size={16} className="text-red-400" /> Mis citas</span><span className="text-red-400">→</span></a>
+                <a href="/mis-reparaciones" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><Wrench size={16} className="text-red-400" /> Mis reparaciones</span><span className="text-red-400">→</span></a>
                 <a href="/mis-recibos" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><ReceiptText size={16} className="text-red-400" /> Recibos y pagos</span><span className="text-red-400">→</span></a>
                 {user.rol === 'admin' && <a href="/admin/dashboard" className="flex items-center justify-between rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-100 transition hover:bg-red-500/20"><span className="flex items-center gap-3"><ShieldCheck size={16} className="text-red-400" /> Panel administrativo</span><span className="text-red-300">→</span></a>}
               </div>

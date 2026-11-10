@@ -24,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - ./env.production
     container_name: jenna_car_backend
     restart: unless-stopped
     depends_on:
@@ -41,6 +43,7 @@ services:
       DATABASE_URL: mysql+pymysql://${DB_USER:-jenna_car_user}:${DB_PASSWORD:-jenna_car_pass}@db:3306/${DB_NAME:-jenna_car}?charset=utf8mb4
       SECRET_KEY: ${SECRET_KEY:-jenna-car-dev-secret-2026-strong-key-123}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     ports:
       - "5000:5000"
 
@@ -55,6 +58,7 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
 
 volumes:
   mysql_data:

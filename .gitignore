@@ -9,6 +9,8 @@ mobile/node_modules/
 .env.*
 !.env.example
 !.env.*.example
+/backend/env
+/env.production
 frontend/env.local
 backend/google_client_secret.json
 

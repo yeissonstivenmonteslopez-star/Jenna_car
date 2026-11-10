@@ -79,6 +79,7 @@ def make_payment_state(prefix='pagoqa'):
                 total=Decimal('350.00'),
                 descuento=Decimal('0.00'),
                 estado='pendiente',
+                enviado_cliente=True,
             )
             backend_app.db.session.add(receipt)
 
@@ -133,9 +134,9 @@ def test_user_can_create_simulated_payment_for_own_receipt():
         payload = response.get_json()
         assert response.status_code == 201, payload
         assert payload['data']['simulacion'] is True
-        assert payload['data']['metodo_pago'] == 'Nequi'
+        assert payload['data']['metodo_pago'] == 'Simulación'
         assert payload['data']['estado'] == 'completado'
-        assert payload['data']['referencia'].startswith('NEQUI-')
+        assert payload['data']['referencia'].startswith('SIM-')
         assert 'numero_nequi' not in str(payload)
     finally:
         cleanup_payment_state(state)
@@ -222,7 +223,7 @@ def test_admin_can_get_single_payment():
         payload = response.get_json()
         assert response.status_code == 200
         assert payload['data']['id'] == pago_id
-        assert payload['data']['metodo_pago'] == 'Nequi'
+        assert payload['data']['metodo_pago'] == 'Simulación'
     finally:
         cleanup_payment_state(state)
 
@@ -240,5 +241,42 @@ def test_simulated_payment_marks_receipt_as_pagado():
         with backend_app.app.app_context():
             receipt = backend_app.db.session.get(backend_app.Recibo, state['receipt_id'])
             assert receipt.estado == 'pagado'
+    finally:
+        cleanup_payment_state(state)
+
+
+def test_admin_must_send_receipt_before_customer_can_pay_or_view_it():
+    state = make_payment_state('receiptapproval')
+    try:
+        with backend_app.app.app_context():
+            order = backend_app.db.session.get(backend_app.OrdenTrabajo, state['order_id'])
+            receipt = backend_app.db.session.get(backend_app.Recibo, state['receipt_id'])
+            order.estado_aprobacion = 'aprobado'
+            receipt.enviado_cliente = False
+            backend_app.db.session.commit()
+
+        client = backend_app.app.test_client()
+        user_headers = {'Authorization': f'Bearer {state["user_token"]}'}
+        admin_headers = {'Authorization': f'Bearer {state["admin_token"]}'}
+
+        customer_orders = client.get('/api/ordenes/mis-ordenes', headers=user_headers)
+        assert customer_orders.status_code == 200
+        assert state['order_id'] in [item['id'] for item in customer_orders.get_json()['data']]
+
+        hidden_receipts = client.get('/api/recibos/mis-recibos', headers=user_headers)
+        assert state['receipt_id'] not in [item['id'] for item in hidden_receipts.get_json()['data']]
+
+        blocked_payment = client.post(
+            '/api/pagos',
+            headers={**user_headers, 'Content-Type': 'application/json'},
+            json={'recibo_id': state['receipt_id']},
+        )
+        assert blocked_payment.status_code == 409
+
+        sent = client.post(f"/api/admin/ordenes/{state['order_id']}/enviar-recibo", headers=admin_headers)
+        assert sent.status_code == 200, sent.get_json()
+
+        visible_receipts = client.get('/api/recibos/mis-recibos', headers=user_headers)
+        assert state['receipt_id'] in [item['id'] for item in visible_receipts.get_json()['data']]
     finally:
         cleanup_payment_state(state)

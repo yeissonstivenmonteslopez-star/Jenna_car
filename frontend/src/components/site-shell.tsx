@@ -75,6 +75,8 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
                 <div className="p-2">
                   <a href="/profile" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Mi perfil</a>
                   <a href="/mis-citas" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Ver mis citas</a>
+                  {user.rol === 'usuario' && <a href="/mis-reparaciones" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Mis reparaciones</a>}
+                  {user.rol === 'mecanico' && <a href="/mechanic" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Panel mecánico</a>}
                   {user.rol === 'admin' && <a href="/admin/dashboard" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Panel administrativo</a>}
                   {user.rol === 'admin' && <a href="/admin/notificaciones" onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-2 text-white/80 transition hover:bg-red-500/10 hover:text-white">Notificaciones</a>}
                   <button type="button" onClick={signOut} className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-red-300 transition hover:bg-red-500/10 hover:text-red-200">Cerrar sesión</button>

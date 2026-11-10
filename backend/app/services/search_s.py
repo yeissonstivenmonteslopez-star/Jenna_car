@@ -4,6 +4,13 @@ from ..models import Cita, OrdenTrabajo, Recibo, Usuario, Vehiculo
 
 
 def buscar_admin(query, type_filter):
+    query = (query or '').strip()
+    type_filter = (type_filter or '').strip().lower()
+    if type_filter == 'all':
+        type_filter = ''
+    if not query and not type_filter:
+        return {'clientes': [], 'vehiculos': [], 'órdenes': [], 'citas': [], 'recibos': []}
+
     results = {}
     if type_filter in {'', 'cliente'}:
         clients = Usuario.query.filter(

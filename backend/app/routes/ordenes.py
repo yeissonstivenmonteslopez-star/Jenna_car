@@ -7,6 +7,18 @@ from ..controllers import ordenes_controller
 ordenes_bp = Blueprint('ordenes', __name__)
 
 
+@ordenes_bp.get('/mis-ordenes')
+@jwt_required(roles=['usuario'])
+def mis_ordenes_cliente():
+    return ordenes_controller.mis_ordenes_cliente()
+
+
+@ordenes_bp.post('/mis-ordenes/<int:orden_id>/aprobacion')
+@jwt_required(roles=['usuario'])
+def aprobar_orden_cliente(orden_id):
+    return ordenes_controller.aprobar_orden_cliente(orden_id)
+
+
 @ordenes_bp.get('')
 @jwt_required(roles=['admin'])
 def admin_ordenes():
@@ -35,3 +47,8 @@ def actualizar_orden_admin(orden_id):
 @jwt_required(roles=['admin'])
 def eliminar_orden_admin(orden_id):
     return ordenes_controller.eliminar_orden_admin(orden_id)
+
+
+@jwt_required(roles=['admin'])
+def enviar_recibo_admin(orden_id):
+    return ordenes_controller.enviar_recibo_admin(orden_id)

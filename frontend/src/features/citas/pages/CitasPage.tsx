@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { ArrowLeft, CalendarDays, CarFront, CheckCircle2, Clock3, ShieldCheck, Sparkles, Wrench } from 'lucide-react'
 import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
 import { getServices } from '@/features/servicios/services/serviciosService'
-import { createCita } from '@/features/citas/services/citasService'
+import { createCita, getHorasDisponibles } from '@/features/citas/services/citasService'
 
 const serviceBadges = {
   mantenimiento: Wrench,
@@ -59,11 +59,9 @@ export default function CitasPage() {
   const [showNewVehicleForm, setShowNewVehicleForm] = useState(false)
   const [appointmentDate, setAppointmentDate] = useState('')
   const [appointmentTime, setAppointmentTime] = useState('')
-
-  const timeSlots = Array.from({ length: 23 }, (_, index) => {
-    const totalMinutes = 8 * 60 + index * 30
-    return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
-  })
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [slotsError, setSlotsError] = useState('')
 
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => String(vehicle.id) === selectedVehicleId) || null,
@@ -108,6 +106,28 @@ export default function CitasPage() {
     loadBookingOptions()
   }, [])
 
+  useEffect(() => {
+    setAvailableSlots([])
+    setSlotsError('')
+    if (!appointmentDate) return
+    const token = localStorage.getItem('jenna_car_token') || ''
+    if (!token) return
+
+    let active = true
+    setLoadingSlots(true)
+    getHorasDisponibles(appointmentDate, token)
+      .then((response) => {
+        if (active) setAvailableSlots(response.data || [])
+      })
+      .catch((error: unknown) => {
+        if (active) setSlotsError(error instanceof Error ? error.message : 'No fue posible consultar los horarios.')
+      })
+      .finally(() => {
+        if (active) setLoadingSlots(false)
+      })
+    return () => { active = false }
+  }, [appointmentDate])
+
   async function handleBookingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const token = localStorage.getItem('jenna_car_token') || ''
@@ -125,8 +145,12 @@ export default function CitasPage() {
       return
     }
 
-    if (hora > '19:00') {
-      setMessageBooking('No se pueden agendar citas después de las 19:00.')
+    if (hora >= '19:00') {
+      setMessageBooking('El último horario disponible comienza a las 18:00.')
+      return
+    }
+    if (!availableSlots.includes(hora)) {
+      setMessageBooking('Ese horario ya no está disponible. Selecciona otro.')
       return
     }
 
@@ -304,7 +328,7 @@ export default function CitasPage() {
                       id="fechaCita"
                       min={new Date().toISOString().slice(0, 10)}
                       value={appointmentDate}
-                      onChange={(event) => { setAppointmentDate(event.target.value); setAppointmentTime('') }}
+                      onChange={(event) => { setAppointmentDate(event.target.value); setAppointmentTime(''); setAvailableSlots([]) }}
                       style={{ colorScheme: 'dark' }}
                       className="w-full rounded-xl border border-white/10 bg-[#0f0f0f] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/25"
                     />
@@ -316,11 +340,11 @@ export default function CitasPage() {
                     <span className="text-[10px] text-white/35">08:00 - 19:00</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {timeSlots.map((slot) => (
-                      <button key={slot} type="button" disabled={!appointmentDate} onClick={() => setAppointmentTime(slot)} className={`rounded-lg border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-red-400 bg-red-500/15 text-red-200' : 'border-white/10 bg-[#0f0f0f] text-white/60 hover:border-red-400/50 hover:text-white'} disabled:cursor-not-allowed disabled:opacity-35`}>
+                    {loadingSlots ? <p className="col-span-full py-3 text-xs text-white/45">Consultando disponibilidad…</p> : slotsError ? <p className="col-span-full py-3 text-xs text-red-300">{slotsError}</p> : availableSlots.length ? availableSlots.map((slot) => (
+                      <button key={slot} type="button" onClick={() => setAppointmentTime(slot)} className={`rounded-lg border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-red-400 bg-red-500/15 text-red-200' : 'border-white/10 bg-[#0f0f0f] text-white/60 hover:border-red-400/50 hover:text-white'}`}>
                         <Clock3 size={12} className="mx-auto mb-1" />{slot}
                       </button>
-                    ))}
+                    )) : appointmentDate ? <p className="col-span-full py-3 text-xs text-white/45">No quedan horarios libres para esta fecha.</p> : null}
                   </div>
                   {!appointmentDate && <p className="mt-2 text-xs text-white/35">Primero elige un día para ver los horarios.</p>}
                 </div>

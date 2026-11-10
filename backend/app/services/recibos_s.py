@@ -8,7 +8,7 @@ def list_for_user(user_id):
         Recibo.query
         .join(Recibo.orden_trabajo)
         .join(OrdenTrabajo.vehiculo)
-        .filter(Vehiculo.usuario_id == user_id)
+        .filter(Vehiculo.usuario_id == user_id, Recibo.enviado_cliente.is_(True))
         .order_by(Recibo.fecha_emision.desc(), Recibo.id.desc())
         .all()
     )
@@ -21,6 +21,7 @@ def find_owned(user, receipt_id):
     if not order: return None, 'Orden relacionada no encontrada', 404
     if user.rol != 'admin':
         if not order.vehiculo or order.vehiculo.usuario_id != user.id: return None, 'No tienes permisos para ver este recibo', 403
+        if not receipt.enviado_cliente: return None, 'Recibo no encontrado', 404
     return receipt, None, None
 
 def pdf(receipt):

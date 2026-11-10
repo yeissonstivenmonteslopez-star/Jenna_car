@@ -21,7 +21,7 @@ export const api = {
   works: () => data<Work[]>('/api/mechanic/works/history'),
   workState: (id: number, estado: WorkState) => data<Work>(`/api/mechanic/works/${id}/status`, 'PUT', { estado }),
   diagnostic: (body: Pick<Diagnostic, 'cita_id' | 'descripcion' | 'observaciones' | 'solucion_recomendada' | 'estado'>) => data<Diagnostic>('/api/mechanic/diagnostics', 'POST', body),
-  work: (body: Pick<Work, 'diagnostico_id' | 'servicio_id' | 'descripcion' | 'cantidad' | 'precio'>) => data<Work>('/api/mechanic/works', 'POST', body),
+  work: (body: Pick<Work, 'diagnostico_id' | 'servicio_id' | 'descripcion' | 'cantidad' | 'precio'> & { orden_id?: number }) => data<Work>('/api/mechanic/works', 'POST', body),
   progress: (id: number) => data<RepairProgress[]>(`/api/mechanic/client/repairs/${id}/progress`),
   mechanicOrders: () => data<Order[]>('/api/mechanic/orders'),
 };

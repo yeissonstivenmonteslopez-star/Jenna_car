@@ -59,6 +59,7 @@ class IsolatedTests(unittest.TestCase):
 
     def receipt(self):
         return SimpleNamespace(id=1, orden_id=11, estado='pendiente', total=Decimal('15000'),
+                               enviado_cliente=True,
                                orden_trabajo=SimpleNamespace(vehiculo=SimpleNamespace(usuario_id=7)))
 
     def test_simulation_registers_payment_without_provider_or_new_schema(self):
@@ -94,6 +95,14 @@ class IsolatedTests(unittest.TestCase):
         os.environ['PAYMENTS_SIMULATED'] = 'true'
         receipt = self.receipt()
         receipt.estado = 'pagado'
+        extensions.db.session.get.return_value = receipt
+        self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': 1})[2], 409)
+        extensions.db.session.execute.assert_not_called()
+
+    def test_simulation_rejects_receipt_not_sent_by_admin(self):
+        os.environ['PAYMENTS_SIMULATED'] = 'true'
+        receipt = self.receipt()
+        receipt.enviado_cliente = False
         extensions.db.session.get.return_value = receipt
         self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': 1})[2], 409)
         extensions.db.session.execute.assert_not_called()

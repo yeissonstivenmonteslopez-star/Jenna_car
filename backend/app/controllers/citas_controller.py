@@ -23,6 +23,13 @@ def verificar_disponibilidad():
     return jsonify({'data': not appointment_service.occupied(*slot)})
 
 
+def horarios_disponibles():
+    slots, error, status = appointment_service.available_times(request.args.get('fecha', '').strip())
+    if error:
+        return jsonify({'error': error}), status
+    return jsonify({'data': slots})
+
+
 def mis_citas():
     data, error, status = appointment_service.user_appointments(request.current_user)
     return _service_response(data, error, status)

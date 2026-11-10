@@ -55,3 +55,11 @@ export async function deleteOrden(ordenId: number, token?: string) {
   })
   return handleResponse(res, 'No fue posible eliminar la orden.')
 }
+
+export async function enviarReciboOrden(ordenId: number, token?: string) {
+  const res = await fetch(getApiUrl(`/api/admin/ordenes/${ordenId}/enviar-recibo`), {
+    method: 'POST',
+    headers: { ...authHeaders(token) },
+  })
+  return handleResponse(res, 'No fue posible enviar el recibo.')
+}

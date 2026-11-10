@@ -14,7 +14,8 @@ export function getApiUrl(path: string): string {
 }
 
 export function getGoogleClientId(): string {
-  return import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || ''
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || ''
+  return /^\d+-[\w-]+\.apps\.googleusercontent\.com$/.test(clientId) ? clientId : ''
 }
 
 export function getStoredToken(): string {

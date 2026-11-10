@@ -33,3 +33,23 @@ def eliminar_orden_admin(orden_id):
         return jsonify({'error': 'Orden no encontrada'}), 404
     data, error, status = order_service.delete(order)
     return (jsonify({'error': error}), status) if error else jsonify(data)
+
+
+def enviar_recibo_admin(orden_id):
+    data, error, status = order_service.send_receipt(orden_id)
+    return (jsonify({'error': error}), status) if error else jsonify({'data': data})
+
+
+def mis_ordenes_cliente():
+    return jsonify({'data': order_service.list_for_client(request.current_user.id)})
+
+
+def aprobar_orden_cliente(orden_id):
+    payload = request.get_json(silent=True) or {}
+    data, error, status = order_service.approve_by_client(
+        request.current_user,
+        orden_id,
+        payload.get('decision'),
+        payload.get('comentario') or '',
+    )
+    return (jsonify({'error': error}), status) if error else jsonify({'data': data})

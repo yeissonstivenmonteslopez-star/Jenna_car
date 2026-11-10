@@ -3,12 +3,14 @@ import type { FormEvent } from 'react'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, UserRound } from 'lucide-react'
 import { googleAuth, register } from '@/features/auth/services/authService'
 import { GoogleLogin } from '@react-oauth/google'
+import { getGoogleClientId } from '@/services/apiClient'
 
 export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const googleClientId = getGoogleClientId()
 
   async function handleGoogleCallback(response: { credential?: string }) {
     if (!response.credential) return
@@ -126,24 +128,32 @@ export default function RegisterPage() {
               {error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-center text-sm text-red-200 sm:col-span-2">{error}</p>}
             </form>
 
-            <div className="my-7 flex items-center gap-4">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-sm uppercase tracking-[0.18em] text-white/35">o</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
+            {googleClientId ? (
+              <>
+                <div className="my-7 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="text-sm uppercase tracking-[0.18em] text-white/35">o</span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
 
-            <div className="flex min-h-10 justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleCallback}
-                onError={() => setError('Falló la autenticación con Google')}
-                useOneTap={false}
-                theme="outline"
-                size="large"
-                text="signup_with"
-                shape="rectangular"
-                width="360"
-              />
-            </div>
+                <div className="flex min-h-10 justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleCallback}
+                    onError={() => setError('Falló la autenticación con Google')}
+                    useOneTap={false}
+                    ux_mode="popup"
+                    use_fedcm_for_button={true}
+                    theme="outline"
+                    size="large"
+                    text="signup_with"
+                    shape="rectangular"
+                    width="360"
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-sm text-white/45">Registro con Google no configurado.</p>
+            )}
           </div>
         </section>
       </div>

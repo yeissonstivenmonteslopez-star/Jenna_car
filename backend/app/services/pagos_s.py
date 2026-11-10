@@ -36,12 +36,15 @@ def create_simulated(user, receipt_id):
     if receipt.estado != 'pendiente':
         db.session.rollback()
         return None, 'El recibo no está pendiente de pago', 409
+    if not receipt.enviado_cliente:
+        db.session.rollback()
+        return None, 'El recibo aún no ha sido enviado por administración', 409
     if receipt.total <= 0:
         db.session.rollback()
         return None, 'El recibo debe tener un total mayor que cero', 400
     reference = f'SIM-{secrets.token_hex(12).upper()}'
     now = datetime.now(timezone.utc)
-    values = dict(recibo_id=receipt.id, usuario_id=user.id, monto=receipt.total,
+    values = dict(recibo_id=receipt.id, usuario_id=user.id, monto=str(receipt.total),
                   metodo_pago='otro', referencia=reference, estado='completado', fecha_pago=now)
     try:
         # Use the original schema: simulation needs no Mercado Pago migration.
@@ -113,6 +116,8 @@ def create(user, payload):
         return None, 'Recibo no encontrado', 404
     if receipt.estado != 'pendiente':
         return None, 'El recibo no está pendiente de pago', 409
+    if not receipt.enviado_cliente:
+        return None, 'El recibo aún no ha sido enviado por administración', 409
     if receipt.total <= 0:
         return None, 'El recibo debe tener un total mayor que cero', 400
     reference = f'MP-{receipt.id}-{secrets.token_hex(12)}'

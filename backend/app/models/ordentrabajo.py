@@ -17,6 +17,7 @@ class OrdenTrabajo(db.Model):
     problema_reportado = db.Column(db.Text, nullable=False)
     observaciones = db.Column(db.Text, nullable=True)
     estado = db.Column(SaEnum('pendiente', 'en_diagnostico', 'en_reparacion', 'terminada', 'entregada', 'cancelada', name='orden_estado'), nullable=False, default='pendiente')
+    estado_aprobacion = db.Column(SaEnum('pendiente', 'aprobado', 'rechazado', name='orden_aprobacion_estado'), nullable=False, default='pendiente')
     subtotal = db.Column(Numeric(10, 2), nullable=False, default=0.00)
     total = db.Column(Numeric(10, 2), nullable=False, default=0.00)
     created_at = db.Column(TIMESTAMP, default=lambda: datetime.now(timezone.utc))

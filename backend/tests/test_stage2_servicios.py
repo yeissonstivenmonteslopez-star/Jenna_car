@@ -73,18 +73,20 @@ def cleanup_service_qa(state):
         if customer:
             customer_vehicle_ids = [vehicle.id for vehicle in backend_app.Vehiculo.query.filter_by(cliente_id=customer.id).all()]
             if customer_vehicle_ids:
-                order_ids = backend_app.db.session.query(backend_app.OrdenTrabajo.id).filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids))
-                cita_ids = backend_app.db.session.query(backend_app.Cita.id).filter(backend_app.Cita.vehiculo_id.in_(customer_vehicle_ids))
-                diagnostico_ids = backend_app.db.session.query(backend_app.Diagnostico.id).filter(backend_app.Diagnostico.cita_id.in_(cita_ids))
+                order_ids = [order.id for order in backend_app.OrdenTrabajo.query.filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids)).all()]
+                cita_ids = [cita.id for cita in backend_app.Cita.query.filter(backend_app.Cita.vehiculo_id.in_(customer_vehicle_ids)).all()]
+                diagnostico_ids = [diagnostico.id for diagnostico in backend_app.Diagnostico.query.filter(backend_app.Diagnostico.cita_id.in_(cita_ids)).all()] if cita_ids else []
                 backend_app.Trabajo.query.filter(backend_app.Trabajo.orden_id.in_(order_ids)).delete(synchronize_session=False)
-                backend_app.Trabajo.query.filter(backend_app.Trabajo.diagnostico_id.in_(diagnostico_ids)).delete(synchronize_session=False)
-                backend_app.Diagnostico.query.filter(backend_app.Diagnostico.id.in_(diagnostico_ids)).delete(synchronize_session=False)
-                backend_app.ReciboDetalle.query.filter(backend_app.ReciboDetalle.recibo_id.in_(
-                    backend_app.db.session.query(backend_app.Recibo.id).filter(backend_app.Recibo.orden_id.in_(order_ids))
-                )).delete(synchronize_session=False)
+                if diagnostico_ids:
+                    backend_app.Trabajo.query.filter(backend_app.Trabajo.diagnostico_id.in_(diagnostico_ids)).delete(synchronize_session=False)
+                    backend_app.Diagnostico.query.filter(backend_app.Diagnostico.id.in_(diagnostico_ids)).delete(synchronize_session=False)
+                receipt_ids = [receipt.id for receipt in backend_app.Recibo.query.filter(backend_app.Recibo.orden_id.in_(order_ids)).all()] if order_ids else []
+                if receipt_ids:
+                    backend_app.ReciboDetalle.query.filter(backend_app.ReciboDetalle.recibo_id.in_(receipt_ids)).delete(synchronize_session=False)
                 backend_app.Recibo.query.filter(backend_app.Recibo.orden_id.in_(order_ids)).delete(synchronize_session=False)
                 backend_app.OrdenTrabajo.query.filter(backend_app.OrdenTrabajo.vehiculo_id.in_(customer_vehicle_ids)).delete(synchronize_session=False)
-                backend_app.Cita.query.filter(backend_app.Cita.vehiculo_id.in_(customer_vehicle_ids)).delete(synchronize_session=False)
+                if cita_ids:
+                    backend_app.Cita.query.filter(backend_app.Cita.id.in_(cita_ids)).delete(synchronize_session=False)
                 backend_app.Vehiculo.query.filter_by(cliente_id=customer.id).delete(synchronize_session=False)
             backend_app.Cita.query.filter_by(cliente_id=customer.id).delete(synchronize_session=False)
 
@@ -106,6 +108,103 @@ def test_admin_can_list_services():
         assert isinstance(payload['data'], list)
     finally:
         cleanup_service_qa(state)
+
+def test_mechanic_work_links_unique_active_order_and_adds_receipt_charge():
+    state = qa_service_state()
+    mechanic_email = f"service_mechanic_{state['prefix']}@jennacar.test"
+    vehicle_plate = f"MB{state['prefix'][:6].upper()}"
+    service_name = f"Mechanic Billing {state['prefix']}"
+    try:
+        with backend_app.app.app_context():
+            mechanic = backend_app.Usuario(
+                nombre='Service',
+                apellido='Mechanic',
+                email=mechanic_email,
+                password=backend_app.generate_password_hash('mechanic123'),
+                rol='mecanico',
+                estado='activo',
+            )
+            backend_app.db.session.add(mechanic)
+            backend_app.db.session.flush()
+            vehicle = backend_app.Vehiculo(
+                cliente_id=state['customer_id'],
+                placa=vehicle_plate,
+                marca='Toyota',
+                modelo='Corolla',
+                anio=2024,
+                color='Rojo',
+                kilometraje=1000,
+                tipo_combustible='gasolina',
+                estado='activo',
+            )
+            service = backend_app.Servicio(
+                nombre=service_name,
+                descripcion='Servicio para facturación mecánica',
+                precio=125.00,
+                duracion_estimada=60,
+                estado='activo',
+            )
+            backend_app.db.session.add_all([vehicle, service])
+            backend_app.db.session.flush()
+            cita = backend_app.Cita(
+                vehiculo_id=vehicle.id,
+                servicio_id=service.id,
+                mecanico_id=mechanic.id,
+                fecha=backend_app.datetime.now().date(),
+                hora=backend_app.datetime.strptime('10:00', '%H:%M').time(),
+                estado='confirmada',
+            )
+            backend_app.db.session.add(cita)
+            backend_app.db.session.flush()
+            diagnostico = backend_app.Diagnostico(
+                cita_id=cita.id,
+                mecanico_id=mechanic.id,
+                descripcion='Revisión mecánica QA',
+            )
+            order = backend_app.OrdenTrabajo(
+                vehiculo_id=vehicle.id,
+                problema_reportado='Mantenimiento QA',
+                estado='en_reparacion',
+                subtotal=50.00,
+                total=50.00,
+            )
+            backend_app.db.session.add_all([diagnostico, order])
+            backend_app.db.session.commit()
+            mechanic_token = backend_app.create_access_token(mechanic)
+            order_id = order.id
+            service_id = service.id
+            diagnostic_id = diagnostico.id
+
+        response = backend_app.app.test_client().post(
+            '/api/mechanic/works',
+            headers={'Authorization': f'Bearer {mechanic_token}', 'Content-Type': 'application/json'},
+            json={
+                'diagnostico_id': diagnostic_id,
+                'servicio_id': service_id,
+                'descripcion': 'Cambio de filtro QA',
+                'cantidad': 2,
+                'precio': 125.00,
+            },
+        )
+        assert response.status_code == 200, response.get_data(as_text=True)
+        assert response.get_json()['data']['orden_id'] == order_id
+
+        with backend_app.app.app_context():
+            order = backend_app.db.session.get(backend_app.OrdenTrabajo, order_id)
+            assert float(order.total) == 300.00
+            assert order.recibo.estado == 'pendiente'
+            assert len(order.recibo.detalles) == 1
+            assert float(order.recibo.detalles[0].subtotal) == 250.00
+    finally:
+        cleanup_service_qa(state)
+        with backend_app.app.app_context():
+            mechanic = backend_app.Usuario.query.filter_by(email=mechanic_email).first()
+            if mechanic:
+                backend_app.db.session.delete(mechanic)
+            service = backend_app.Servicio.query.filter_by(nombre=service_name).first()
+            if service:
+                backend_app.db.session.delete(service)
+            backend_app.db.session.commit()
 
 
 def test_admin_can_create_service():

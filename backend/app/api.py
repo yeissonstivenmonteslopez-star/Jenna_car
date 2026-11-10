@@ -10,7 +10,7 @@ from .routes.clientes import clientes_bp
 from .routes.dashboard import admin_dashboard
 from .routes.health import health_bp
 from .routes.notificaciones import admin_actualizar_notificacion, admin_notificacion_detalle, admin_notificaciones, crear_notificacion_admin, notificaciones_bp
-from .routes.ordenes import admin_ordenes, actualizar_orden_admin, crear_orden_admin, eliminar_orden_admin, obtener_orden_admin
+from .routes.ordenes import admin_ordenes, actualizar_orden_admin, crear_orden_admin, eliminar_orden_admin, enviar_recibo_admin, obtener_orden_admin, ordenes_bp
 from .routes.pagos import admin_pago_detalle, admin_pagos, pagos_bp
 from .routes.recibos import recibos_bp
 from .routes.search import admin_search
@@ -28,6 +28,7 @@ BLUEPRINT_REGISTRATIONS = [
     (notificaciones_bp, '/api/notificaciones'),
     (pagos_bp, '/api/pagos'),
     (recibos_bp, '/api/recibos'),
+    (ordenes_bp, '/api/ordenes'),
     (usuarios_bp, '/api/usuarios'),
     (health_bp, '/api/health'),
 ]
@@ -59,6 +60,7 @@ ADMIN_ROUTES = [
     ('/api/admin/ordenes', crear_orden_admin, 'crear_orden_admin', ['POST']),
     ('/api/admin/ordenes/<int:orden_id>', actualizar_orden_admin, 'actualizar_orden_admin', ['PUT']),
     ('/api/admin/ordenes/<int:orden_id>', eliminar_orden_admin, 'eliminar_orden_admin', ['DELETE']),
+    ('/api/admin/ordenes/<int:orden_id>/enviar-recibo', enviar_recibo_admin, 'enviar_recibo_admin', ['POST']),
     ('/api/admin/notificaciones', crear_notificacion_admin, 'crear_notificacion_admin', ['POST']),
     ('/api/admin/notificaciones/<int:notificacion_id>', admin_actualizar_notificacion, 'admin_actualizar_notificacion', ['PATCH']),
     ('/api/admin/citas/<int:cita_id>', admin_cita_detalle, 'admin_cita_detalle', ['GET', 'PUT', 'DELETE']),

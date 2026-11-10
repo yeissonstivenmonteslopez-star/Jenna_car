@@ -22,8 +22,8 @@ def validar_hora_cita(hora: str):
         except ValueError:
             raise ValueError('La hora debe tener formato HH:MM o HH:MM:SS')
 
-    if hora_obj > datetime.strptime('19:00', '%H:%M').time():
-        raise ValueError('No se pueden agendar citas después de las 19:00.')
+    if hora_obj >= datetime.strptime('19:00', '%H:%M').time():
+        raise ValueError('El último horario disponible comienza a las 18:00.')
 
     return hora_obj
 

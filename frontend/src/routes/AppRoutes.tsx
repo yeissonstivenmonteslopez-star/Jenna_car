@@ -5,6 +5,7 @@ import AdminDashboard from '@/features/dashboard/pages/AdminDashboardPage'
 import AdminCitas from '@/features/citas/pages/AdminCitasPage'
 import AdminNotificaciones from '@/features/notificaciones/pages/AdminNotificacionesPage'
 import AdminOrders from '@/features/ordenes/pages/AdminOrdersPage'
+import MisReparaciones from '@/features/ordenes/pages/MisReparacionesPage'
 import AdminSearch from '@/features/search/pages/AdminSearchPage'
 import AdminServicios from '@/features/servicios/pages/AdminServiciosPage'
 import AdminUsers from '@/features/usuarios/pages/AdminUsersPage'
@@ -16,6 +17,7 @@ import LoginRedirect from '@/features/auth/pages/LoginRedirect'
 import MisCitas from '@/features/citas/pages/MisCitasPage'
 import MisRecibos from '@/features/recibos/pages/MisRecibosPage'
 import Notificaciones from '@/features/notificaciones/pages/NotificacionesPage'
+import MechanicPanelPage from '@/features/mechanic/pages/MechanicPanelPage'
 import Profile from '@/features/usuarios/pages/ProfilePage'
 import Register from '@/features/auth/pages/RegisterPage'
 import ResetPassword from '@/features/auth/pages/ResetPasswordPage'
@@ -33,8 +35,10 @@ export default function AppRoutes() {
       <Route path="/citas" element={<Citas />} />
       <Route path="/mis-citas" element={<MisCitas />} />
       <Route path="/mis-recibos" element={<MisRecibos />} />
+      <Route path="/mis-reparaciones" element={<MisReparaciones />} />
       <Route path="/notificaciones" element={<Notificaciones />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/mechanic" element={<MechanicPanelPage />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />

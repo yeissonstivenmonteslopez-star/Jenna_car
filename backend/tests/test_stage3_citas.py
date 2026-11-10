@@ -1,10 +1,12 @@
 import os
 import sys
 import uuid
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import app as backend_app
+from app.services import citas_s as appointment_service
 
 backend_app.app.config['TESTING'] = True
 
@@ -130,23 +132,60 @@ def test_admin_can_create_appointment():
     state = qa_cita_state()
     try:
         client = backend_app.app.test_client()
-        response = client.post(
-            '/api/admin/citas',
-            headers={'Authorization': f'Bearer {state["admin_token"]}', 'Content-Type': 'application/json'},
-            json={
-                'cliente_id': state['customer_id'],
-                'vehiculo_id': state['vehicle_id'],
-                'servicio_id': state['service_id'],
-                'fecha': '2027-05-10',
-                'hora': '10:30:00',
-                'motivo': 'Prueba QA',
-                'observaciones': 'Observación QA',
-                'estado': 'pendiente',
-            },
-        )
+        with patch.object(appointment_service, 'enviar_correo') as send_email:
+            response = client.post(
+                '/api/admin/citas',
+                headers={'Authorization': f'Bearer {state["admin_token"]}', 'Content-Type': 'application/json'},
+                json={
+                    'cliente_id': state['customer_id'],
+                    'vehiculo_id': state['vehicle_id'],
+                    'servicio_id': state['service_id'],
+                    'fecha': '2027-05-10',
+                    'hora': '10:30:00',
+                    'motivo': 'Prueba QA',
+                    'observaciones': 'Observación QA',
+                    'estado': 'pendiente',
+                },
+            )
+        send_email.assert_called_once()
+        recipient, subject, message = send_email.call_args.args
+        assert recipient == f"cita_user_{state['prefix']}@jennacar.test"
+        assert subject == 'Confirmación de cita | Jenna Car'
+        assert '10/05/2027' in message and '10:30' in message and f"QA Service {state['prefix']}" in message
         assert response.status_code == 201
         payload = response.get_json()['data']
         assert payload['servicio']['id'] == state['service_id']
+    finally:
+        cleanup_cita_qa(state)
+
+
+def test_available_times_exclude_occupied_slots():
+    state = qa_cita_state()
+    try:
+        client = backend_app.app.test_client()
+        headers = {'Authorization': f'Bearer {state["user_token"]}', 'Content-Type': 'application/json'}
+        with patch.object(appointment_service, 'notificacion_por_usuario'), patch.object(appointment_service, '_send_appointment_confirmation'):
+            created = client.post(
+                '/api/citas',
+                headers=headers,
+                json={
+                    'vehiculo_id': state['vehicle_id'],
+                    'servicio_id': state['service_id'],
+                    'fecha': '2027-05-14',
+                    'hora': '10:00:00',
+                    'motivo': 'Prueba de disponibilidad',
+                },
+            )
+        assert created.status_code == 201, created.get_json()
+
+        response = client.get(
+            '/api/citas/horas-disponibles?fecha=2027-05-14',
+            headers={'Authorization': f'Bearer {state["user_token"]}'},
+        )
+        assert response.status_code == 200
+        slots = response.get_json()['data']
+        assert '10:00' not in slots
+        assert '11:00' in slots
     finally:
         cleanup_cita_qa(state)
 
@@ -210,7 +249,7 @@ def test_appointment_after_7pm_is_rejected():
             },
         )
         assert response.status_code == 400
-        assert '7' in response.get_json()['error'] or '19:00' in response.get_json()['error']
+        assert '7' in response.get_json()['error'] or '18:00' in response.get_json()['error']
     finally:
         cleanup_cita_qa(state)
 
@@ -312,17 +351,23 @@ def test_client_can_create_vehicle_and_appointment():
     assert response.status_code == 201, response.get_data(as_text=True)
     vehicle_id = response.get_json()['data']['id']
 
-    response = client.post(
-        '/api/citas',
-        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
-        json={
-            'vehiculo_id': vehicle_id,
-            'servicio_id': service_id,
-            'fecha': '2027-06-10',
-            'hora': '10:30:00',
-            'motivo': 'Prueba de reserva del cliente',
-        },
-    )
+    with patch.object(appointment_service, 'enviar_correo') as send_email:
+        response = client.post(
+            '/api/citas',
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+            json={
+                'vehiculo_id': vehicle_id,
+                'servicio_id': service_id,
+                'fecha': '2027-06-10',
+                'hora': '10:30:00',
+                'motivo': 'Prueba de reserva del cliente',
+            },
+        )
+    send_email.assert_called_once()
+    recipient, subject, message = send_email.call_args.args
+    assert recipient == user_email
+    assert subject == 'Confirmación de cita | Jenna Car'
+    assert 'Mantenimiento general' in message and '10/06/2027' in message
     assert response.status_code == 201, response.get_data(as_text=True)
     payload = response.get_json()['data']
     assert payload['vehiculo_id'] == vehicle_id

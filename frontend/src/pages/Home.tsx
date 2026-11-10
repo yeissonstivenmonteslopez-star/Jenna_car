@@ -4,7 +4,7 @@ import { ArrowUpRight, CalendarDays, ChevronDown, Menu, ShieldCheck, Wrench, X, 
 import { Gallery } from '@/components/gallery'
 import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
 import { getServices } from '@/features/servicios/services/serviciosService'
-import { checkDisponibilidad, createCita } from '@/features/citas/services/citasService'
+import { createCita, getHorasDisponibles } from '@/features/citas/services/citasService'
 
 const services = [
   { icon: Wrench, title: 'Mantenimiento', text: 'Revisiones precisas para que tu vehículo siempre esté a punto.', backTitle: 'Diagnóstico', backText: 'Tecnología avanzada para anticiparnos a cada problema.' },
@@ -43,6 +43,11 @@ export default function Page() {
   const [minBookingDate, setMinBookingDate] = useState('')
   const [showNewVehicleForm, setShowNewVehicleForm] = useState(false)
   const [flippedServices, setFlippedServices] = useState<Record<string, boolean>>({})
+  const [appointmentDate, setAppointmentDate] = useState('')
+  const [appointmentTime, setAppointmentTime] = useState('')
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [slotsError, setSlotsError] = useState('')
 
   useEffect(() => {
     setMinBookingDate(new Date().toISOString().slice(0, 10))
@@ -77,6 +82,22 @@ export default function Page() {
     }
   }, [bookingOpen])
 
+  useEffect(() => {
+    setAvailableSlots([])
+    setSlotsError('')
+    setAppointmentTime('')
+    if (!bookingOpen || !appointmentDate) return
+    const token = localStorage.getItem('jenna_car_token') || ''
+    if (!token) return
+    let active = true
+    setLoadingSlots(true)
+    getHorasDisponibles(appointmentDate, token)
+      .then((response) => { if (active) setAvailableSlots(response.data || []) })
+      .catch((error: unknown) => { if (active) setSlotsError(error instanceof Error ? error.message : 'No fue posible consultar los horarios.') })
+      .finally(() => { if (active) setLoadingSlots(false) })
+    return () => { active = false }
+  }, [bookingOpen, appointmentDate])
+
   function requestBooking() {
     const token = localStorage.getItem('jenna_car_token') || ''
     if (!token) {
@@ -86,32 +107,11 @@ export default function Page() {
     window.location.href = '/citas'
   }
 
-  async function checkAvailability() {
-    const fecha = (document.getElementById('fechaCita') as HTMLInputElement | null)?.value
-    const hora = (document.getElementById('horaCita') as HTMLInputElement | null)?.value
-    const token = typeof window === 'undefined' ? '' : localStorage.getItem('jenna_car_token') || ''
-    if (!fecha || !hora) {
-      setMessageBooking('Por favor selecciona fecha y hora')
-      return
-    }
-    if (hora > '19:00') {
-      setMessageBooking('No se pueden agendar citas después de las 19:00.')
-      return
-    }
-    if (token) {
-      checkDisponibilidad({ fecha, hora }, token).then((data) => {
-        setMessageBooking(data.data ? 'Horario disponible' : 'Horario no disponible')
-      }).catch((error: unknown) => setMessageBooking(error instanceof Error ? error.message : 'Horario no disponible'))
-    } else {
-      setMessageBooking('Debes iniciar sesión')
-    }
-  }
-
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const token = localStorage.getItem('jenna_car_token') || ''
-    const fecha = (document.getElementById('fechaCita') as HTMLInputElement | null)?.value
-    const hora = (document.getElementById('horaCita') as HTMLInputElement | null)?.value
+    const fecha = appointmentDate
+    const hora = appointmentTime
     const motivo = (document.getElementById('motivoCita') as HTMLInputElement | null)?.value || ''
 
     if (!token) {
@@ -122,8 +122,12 @@ export default function Page() {
       setMessageBooking('Selecciona fecha y hora para continuar.')
       return
     }
-    if (hora > '19:00') {
-      setMessageBooking('No se pueden agendar citas después de las 19:00.')
+    if (hora >= '19:00') {
+      setMessageBooking('El último horario disponible comienza a las 18:00.')
+      return
+    }
+    if (!availableSlots.includes(hora)) {
+      setMessageBooking('Ese horario ya no está disponible. Selecciona otro.')
       return
     }
     if (!selectedServiceId) {
@@ -287,13 +291,23 @@ export default function Page() {
                   <option key={service.id} value={service.id}>{service.name} · {formatCop(service.price)}</option>
                 ))}
               </select>
-              <input required type="date" id="fechaCita" min={minBookingDate || undefined} className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
-              <label className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Hora:</label>
-              <input required type="time" id="horaCita" min="08:00" max="19:00" step={1800} className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Día de la cita
+                <input required type="date" id="fechaCita" min={minBookingDate || undefined} value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
+              </label>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Hora disponible</label>
+                  <span className="text-[10px] text-muted-foreground">08:00–19:00 · cada hora</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {loadingSlots ? <p className="col-span-full py-3 text-xs text-muted-foreground">Consultando disponibilidad…</p> : slotsError ? <p className="col-span-full py-3 text-xs text-accent">{slotsError}</p> : availableSlots.length ? availableSlots.map((slot) => (
+                    <button key={slot} type="button" onClick={() => setAppointmentTime(slot)} className={`border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-transparent text-muted-foreground hover:border-accent hover:text-secondary-foreground'}`}>{slot}</button>
+                  )) : appointmentDate ? <p className="col-span-full py-3 text-xs text-muted-foreground">No quedan horarios libres para esta fecha.</p> : <p className="col-span-full py-3 text-xs text-muted-foreground">Selecciona una fecha para ver las horas libres.</p>}
+                </div>
+              </div>
               <input id="motivoCita" placeholder="Motivo / observaciones (opcional)" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
               {messageBooking && <p className="text-xs text-accent">{messageBooking}</p>}
-              <button type="button" onClick={checkAvailability} className="w-full border border-border bg-field px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground">Ver disponibilidad</button>
-              <button disabled={bookingSaving} className="flex items-center justify-center gap-3 bg-accent px-5 py-4 text-[10px] font-semibold tracking-[0.18em] text-accent-foreground disabled:opacity-60">{bookingSaving ? 'AGENDANDO…' : 'SOLICITAR CITA'} <CalendarDays size={15} /></button>
+              <button disabled={bookingSaving || !appointmentTime} className="flex items-center justify-center gap-3 bg-accent px-5 py-4 text-[10px] font-semibold tracking-[0.18em] text-accent-foreground disabled:opacity-50">{bookingSaving ? 'AGENDANDO…' : 'SOLICITAR CITA'} <CalendarDays size={15} /></button>
             </form>
           </div>
         </div>

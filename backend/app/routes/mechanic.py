@@ -93,14 +93,18 @@ def assigned_orders():
     return jsonify({'data': [order_to_dict(row) for row in rows]})
 
 @mechanic_bp.get('/images/<int:image_id>')
-@jwt_required(roles=['mecanico'])
+@jwt_required(roles=['mecanico', 'usuario'])
 def repair_image(image_id):
     import os
     from flask import send_from_directory
     from ..models import ImagenTrabajo
     from ..extensions import db
     image = db.session.get(ImagenTrabajo, image_id)
-    if not image or image.trabajo.mecanico_id != request.current_user.id:
+    if not image:
+        return jsonify({'error': 'Imagen no encontrada'}), 404
+    if request.current_user.rol == 'mecanico' and image.trabajo.mecanico_id != request.current_user.id:
+        return jsonify({'error': 'Imagen no encontrada'}), 404
+    if request.current_user.rol == 'usuario' and image.trabajo.diagnostico.cita.vehiculo.usuario_id != request.current_user.id:
         return jsonify({'error': 'Imagen no encontrada'}), 404
     directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads', 'reparaciones'))
     return send_from_directory(directory, os.path.basename(image.ruta_imagen))

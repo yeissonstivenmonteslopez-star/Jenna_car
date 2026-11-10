@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarCheck2, CalendarClock, Check, PencilLine, Search, X } from 'lucide-react'
-import { getAdminCitas, updateCitaEstado } from '@/features/citas/services/citasService'
+import { asignarMecanico, getAdminCitas, updateCitaEstado } from '@/features/citas/services/citasService'
 import AdminBackLink from '@/components/admin-back-link'
+import { getAdminUsuarios } from '@/features/usuarios/services/usuariosService'
 
 interface Cita {
   id: number
@@ -15,6 +16,14 @@ interface Cita {
   motivo: string
   observaciones: string
   estado: string
+  mecanico_id: number | null
+}
+
+interface Mechanic {
+  id: number
+  nombre: string
+  apellido: string
+  rol: string
 }
 
 const estadosValidos = ['pendiente', 'confirmada', 'atendida', 'cancelada']
@@ -22,11 +31,13 @@ const estadosValidos = ['pendiente', 'confirmada', 'atendida', 'cancelada']
 export default function AdminCitas() {
   const [token] = useState<string>(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
   const [citas, setCitas] = useState<Cita[]>([])
+  const [mecanicos, setMecanicos] = useState<Mechanic[]>([])
   const [message, setMessage] = useState<string>('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [newEstado, setNewEstado] = useState<string>('pendiente')
   const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const [assigningId, setAssigningId] = useState<number | null>(null)
 
   const summary = useMemo(() => ({
     pendientes: citas.filter((cita) => cita.estado === 'pendiente').length,
@@ -42,8 +53,23 @@ export default function AdminCitas() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCitas = async (authToken: string) => {
-    const data = await getAdminCitas(authToken)
-    setCitas(data.data || [])
+    const [citaData, userData] = await Promise.all([getAdminCitas(authToken), getAdminUsuarios(authToken)])
+    setCitas(citaData.data || [])
+    setMecanicos((userData.data || []).filter((user: Mechanic) => user.rol === 'mecanico'))
+  }
+
+  const handleAsignarMecanico = async (citaId: number, value: string) => {
+    setAssigningId(citaId)
+    setMessage('')
+    try {
+      await asignarMecanico(citaId, value ? Number(value) : null, token)
+      setMessage(value ? `Mecánico asignado a la cita #${citaId}.` : `Mecánico retirado de la cita #${citaId}.`)
+      await fetchCitas(token)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No fue posible asignar el mecánico.')
+    } finally {
+      setAssigningId(null)
+    }
   }
 
   useEffect(() => {
@@ -230,13 +256,14 @@ export default function AdminCitas() {
                   <th className="p-4">Fecha</th>
                   <th className="p-4">Hora</th>
                   <th className="p-4">Estado</th>
+                  <th className="p-4">Mecánico</th>
                   <th className="p-4">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCitas.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-16 text-center text-sm text-white/50">No hay citas registradas</td>
+                    <td colSpan={9} className="p-16 text-center text-sm text-white/50">No hay citas registradas</td>
                   </tr>
                 ) : (
                   filteredCitas.map((cita) => (
@@ -254,6 +281,20 @@ export default function AdminCitas() {
                         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(cita.estado)}`}>
                           {cita.estado}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        <select
+                          value={cita.mecanico_id ? String(cita.mecanico_id) : ''}
+                          disabled={assigningId === cita.id}
+                          aria-label={`Mecánico asignado a la cita ${cita.id}`}
+                          onChange={(event) => void handleAsignarMecanico(cita.id, event.target.value)}
+                          className="min-w-36 rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2 text-xs text-white outline-none transition focus:border-[#f87171]/60 disabled:opacity-50"
+                        >
+                          <option value="" className="bg-[#141414]">Sin asignar</option>
+                          {mecanicos.map((mecanico) => (
+                            <option key={mecanico.id} value={mecanico.id} className="bg-[#141414]">{mecanico.nombre} {mecanico.apellido}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="p-4">
                         {editingId === cita.id ? (

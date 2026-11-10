@@ -25,6 +25,13 @@ export async function checkDisponibilidad(data: { fecha: string; hora: string },
   return handleResponse(res, 'Horario no disponible')
 }
 
+export async function getHorasDisponibles(fecha: string, token?: string) {
+  const res = await fetch(getApiUrl(`/api/citas/horas-disponibles?fecha=${encodeURIComponent(fecha)}`), {
+    headers: { ...authHeaders(token) },
+  })
+  return handleResponse<{ data: string[] }>(res, 'No fue posible consultar los horarios.')
+}
+
 export async function getAdminCitas(token?: string) {
   const res = await fetch(getApiUrl('/api/admin/citas'), {
     headers: { ...authHeaders(token) },
@@ -39,4 +46,13 @@ export async function updateCitaEstado(citaId: number, estado: string, token?: s
     body: JSON.stringify({ estado }),
   })
   return handleResponse(res, 'Error al cambiar estado')
+}
+
+export async function asignarMecanico(citaId: number, mecanicoId: number | null, token?: string) {
+  const res = await fetch(getApiUrl(`/api/citas/admin/${citaId}/asignar-mecanico`), {
+    method: 'PUT',
+    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mecanico_id: mecanicoId }),
+  })
+  return handleResponse(res, 'No fue posible asignar el mecánico.')
 }

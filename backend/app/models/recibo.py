@@ -14,6 +14,7 @@ class Recibo(db.Model):
     total = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     descuento = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     estado = db.Column(db.Enum('pendiente', 'pagado', 'anulado', name='recibo_estado'), nullable=False, default='pendiente')
+    enviado_cliente = db.Column(db.Boolean, nullable=False, default=False)
 
     orden_trabajo = db.relationship('OrdenTrabajo', back_populates='recibo')
     pagos = db.relationship('Pago', back_populates='recibo', cascade='all, delete-orphan')

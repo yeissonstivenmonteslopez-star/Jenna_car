@@ -32,11 +32,13 @@ def order_to_dict(order):
         'trabajo_realizado': order.trabajo_realizado,
         'observaciones': order.observaciones,
         'estado': order.estado,
+        'estado_aprobacion': order.estado_aprobacion,
         'subtotal': float(order.subtotal),
         'total': float(order.total),
         'recibo': {
             'id': receipt.id,
             'estado': receipt.estado,
+            'enviado_cliente': receipt.enviado_cliente,
             'subtotal': float(receipt.subtotal),
             'total': float(receipt.total),
         } if receipt else None,

@@ -21,6 +21,12 @@ def verificar_disponibilidad():
     return citas_controller.verificar_disponibilidad()
 
 
+@citas_bp.get('/horas-disponibles')
+@jwt_required()
+def horas_disponibles():
+    return citas_controller.horarios_disponibles()
+
+
 @citas_bp.get('/mis-citas')
 @jwt_required()
 def mis_citas():
@@ -68,5 +74,6 @@ def actualizar_estado_cita(cita_id):
 @citas_bp.put('/admin/<int:cita_id>/asignar-mecanico')
 @jwt_required(roles=['admin'])
 def admin_asignar_mecanico(cita_id):
-    data, error, status = appointment_service.assign_mechanic_to_appointment(cita_id, request.get_json(silent=True).get('mecanico_id'))
+    payload = request.get_json(silent=True) or {}
+    data, error, status = appointment_service.assign_mechanic_to_appointment(cita_id, payload.get('mecanico_id'))
     return _service_response(data, error, status)
