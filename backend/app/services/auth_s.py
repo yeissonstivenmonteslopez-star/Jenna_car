@@ -18,37 +18,30 @@ from ..config import is_debug
 def google_identity(token):
     raw_ids = f"{os.getenv('GOOGLE_CLIENT_IDS', '')},{os.getenv('GOOGLE_CLIENT_ID', '')}"
     client_ids = [item.strip() for item in raw_ids.split(',') if item.strip()]
+    if not client_ids:
+        return None, 'El acceso con Google no está configurado.', 503
+    if not isinstance(token, str) or not token.strip():
+        return None, 'Token de Google inválido.', 401
     identity = None
-    last_error = ''
     for client_id in client_ids:
         try:
-            identity = google_id_token.verify_oauth2_token(token, google_requests.Request(), audience=client_id)
-            if identity:
+            candidate = google_id_token.verify_oauth2_token(token, google_requests.Request(), audience=client_id)
+            if candidate and candidate.get('aud') == client_id:
+                identity = candidate
                 break
-        except Exception as exc:
-            last_error = str(exc)
-    if not identity:
-        try:
-            identity = google_id_token.verify_oauth2_token(token, google_requests.Request())
-        except Exception as exc:
-            last_error = str(exc)
-    if not identity:
-        try:
-            unverified = jwt.decode(token, options={'verify_signature': False})
-            if unverified.get('iss') in {'accounts.google.com', 'https://accounts.google.com'}:
-                identity = unverified
         except Exception:
-            pass
-    if not identity:
-        message = f'No fue posible verificar la cuenta de Google ({last_error})' if last_error else 'No fue posible verificar la cuenta de Google.'
-        return None, message, 401
-    if client_ids and identity.get('aud') and identity.get('aud') not in client_ids and identity.get('azp') not in client_ids:
-        return None, 'El token de Google no coincide con el Client ID configurado en el servidor.', 401
+            # Never expose token/provider details and never decode unverified JWTs.
+            continue
+    if not identity or not identity.get('sub'):
+        return None, 'No fue posible verificar la cuenta de Google.', 401
+    if identity.get('iss') not in {'accounts.google.com', 'https://accounts.google.com'}:
+        return None, 'Emisor de Google inválido.', 401
     if str(identity.get('email_verified', '')).lower() not in {'true', '1'}:
         return None, 'La cuenta de Google no tiene un correo verificado.', 401
     email = (identity.get('email') or '').strip().lower()
     if not email:
         return None, 'La cuenta de Google no tiene un correo válido.', 400
+    identity['email'] = email
     return identity, None, None
 
 
@@ -66,6 +59,10 @@ def google_login(token):
         auth_repository.add_user(usuario)
         auth_repository.commit()
     else:
+        if usuario.estado != 'activo':
+            return None, 'Usuario inactivo.', 403
+        if usuario.google_id and usuario.google_id != google_id:
+            return None, 'La cuenta de Google no coincide con la cuenta vinculada.', 403
         changed = False
         if google_id and usuario.google_id != google_id:
             usuario.google_id = google_id
