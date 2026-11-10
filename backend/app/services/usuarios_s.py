@@ -5,15 +5,45 @@ from ..repository import usuarios_r as user_repository
 from ..repository.clientes_r import find_by_user
 PROTECTED_USER_EMAILS = {'yeisson@gmail.com', 'admin3@jenna.com'}
 
+
 def list_admin():
     return [{'id': u.id, 'nombre': u.nombre, 'apellido': u.apellido, 'email': u.email, 'telefono': u.telefono, 'rol': u.rol, 'estado': u.estado, 'foto_perfil': u.foto_perfil, 'created_at': u.created_at.isoformat() if u.created_at else None} for u in user_repository.list_all()]
-def change_role(user_id, role):
+
+
+def change_role(user_id, role, current_user_id=None):
+    """
+    Cambiar rol de usuario con validaciones completas.
+
+    Restricciones:
+    - Solo un administrador puede invocar este cambio (validado en el route).
+    - Un usuario no puede cambiar su propio rol.
+    - No se puede quitar el rol 'admin' si ese usuario es el último administrador.
+    - No se puede modificar el rol 'admin' hacia otro valor.
+    - Los datos del usuario se conservan al cambiar el rol.
+    """
     if role not in ['usuario', 'admin', 'mecanico']: return None, 'Rol inválido. Debe ser "usuario", "mecanico" o "admin"', 400
     user = user_repository.get(user_id)
     if not user: return None, 'Usuario no encontrado', 404
+
+    # Impedir que un usuario cambie su propio rol
+    if current_user_id is not None and user_id == current_user_id:
+        return None, 'No puedes cambiar tu propio rol desde este endpoint.', 403
+
+    # No permitir modificar el rol 'admin' mediante esta funcionalidad
+    if user.rol == 'admin' and role != 'admin':
+        return None, 'No se puede modificar el rol de administrador por este endpoint.', 403
+
+    # No quitar el rol de admin si es el último administrador existente
     admins = user_repository.count_admins()
-    if user.rol == 'admin' and role != 'admin' and admins <= 1: return None, 'No se puede quitar el rol de administrador al último administrador existente.', 400
-    user.rol = role; user_repository.commit(); return {'user': user.to_public_dict()}, None, None
+    if user.rol == 'admin' and role != 'admin' and admins <= 1:
+        return None, 'No se puede quitar el rol de administrador al último administrador existente.', 400
+
+    # Conservar los datos del usuario al cambiar el rol
+    user.rol = role
+    user_repository.commit()
+    return {'user': user.to_public_dict()}, None, None
+
+
 def delete_bulk(ids, current_id):
     if not isinstance(ids, list) or not ids: return None, 'Debes seleccionar al menos un usuario.', 400
     try: user_ids = {int(value) for value in ids}
@@ -32,6 +62,8 @@ def delete_bulk(ids, current_id):
         user_repository.delete_cascade(user_ids, client_ids, order_ids, receipt_ids); user_repository.commit()
     except Exception: user_repository.rollback(); return None, 'No fue posible eliminar los usuarios y sus datos relacionados.', 409
     return {'deleted': len(users), 'protected': sorted(PROTECTED_USER_EMAILS)}, None, None
+
+
 def update_profile(user, payload):
     for field, max_length in [('nombre', 100), ('apellido', 100), ('telefono', 10)]:
         if field not in payload: continue
@@ -40,6 +72,8 @@ def update_profile(user, payload):
         if field == 'telefono' and (not value.isdigit() or len(value) != 10): return None, 'El teléfono debe tener exactamente 10 números.', 400
         setattr(user, field, value[:max_length] or None)
     user_repository.commit(); return {'user': user.to_public_dict()}, None, None
+
+
 def save_photo(user, photo, upload_path):
     if not photo or not photo.filename: return None, 'Selecciona una imagen para continuar.', 400
     extension = os.path.splitext(photo.filename)[1].lower()

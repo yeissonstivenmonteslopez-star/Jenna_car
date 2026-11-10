@@ -134,8 +134,9 @@ def request_password_reset(email):
     code = f'{secrets.randbelow(1_000_000):06d}'
     auth_repository.add_reset_token(PasswordResetToken(usuario_id=usuario.id, code_hash=hash_password(code), expires_at=now + timedelta(minutes=15)))
     auth_repository.commit()
-    
-    if not os.getenv('SMTP_EMAIL') or not os.getenv('SMTP_PASSWORD'):
+
+    from ..utils.email import correo_configurado, enviar_correo_async
+    if not correo_configurado():
         if current_app.testing or is_debug():
             return {
                 'message': 'Código de recuperación generado. Sigue las instrucciones para restablecer tu contraseña.',
@@ -144,7 +145,6 @@ def request_password_reset(email):
             }, None, 202
         return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
 
-    from ..utils.email import enviar_correo
     mensaje_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #ddd;">
@@ -161,12 +161,13 @@ def request_password_reset(email):
         </div>
     </div>
     """
-    enviar_correo(email, "Código de recuperación de contraseña", mensaje_html)
+    if not enviar_correo_async(email, "Código de recuperación de contraseña", mensaje_html):
+        return None, 'No se pudo enviar el correo de recuperación. Inténtalo de nuevo.', 503
 
     return {'message': 'Código de recuperación enviado al correo.', 'manual_reset': False}, None, 202
 
 
-def confirm_password_reset(email, code, password):
+def _validate_reset_code(email, code):
     usuario = auth_repository.find_by_email(email)
     now = datetime.now(timezone.utc)
     token = auth_repository.latest_valid_reset_token(usuario.id, now) if usuario else None
@@ -176,8 +177,22 @@ def confirm_password_reset(email, code, password):
             if token.attempts >= 5:
                 token.used_at = now
             auth_repository.commit()
-        return None, 'Código inválido o expirado.', 400
+        return None, None, 'Código inválido o expirado.'
+    return usuario, token, None
+
+
+def verify_password_reset_code(email, code):
+    _, _, error = _validate_reset_code(email, code)
+    if error:
+        return None, error, 400
+    return {'message': 'Código validado correctamente.'}, None, None
+
+
+def confirm_password_reset(email, code, password):
+    usuario, token, error = _validate_reset_code(email, code)
+    if error:
+        return None, error, 400
     usuario.password = hash_password(password)
-    token.used_at = now
+    token.used_at = datetime.now(timezone.utc)
     auth_repository.commit()
     return {'message': 'Contraseña actualizada correctamente.'}, None, None

@@ -1,5 +1,12 @@
 import { getApiUrl, authHeaders, handleResponse } from '@/services/apiClient'
 
+export async function getPagoConfig(token?: string) {
+  const res = await fetch(getApiUrl('/api/pagos/config'), {
+    headers: { ...authHeaders(token) },
+  })
+  return handleResponse(res, 'No fue posible consultar el modo de pago.')
+}
+
 export async function getMisPagos(token?: string) {
   const res = await fetch(getApiUrl('/api/pagos/mis-pagos'), {
     headers: { ...authHeaders(token) },
@@ -7,7 +14,7 @@ export async function getMisPagos(token?: string) {
   return handleResponse(res, 'No fue posible cargar pagos.')
 }
 
-export async function createPago(data: { recibo_id: number; numero_nequi: string }, token?: string) {
+export async function createPago(data: { recibo_id: number }, token?: string) {
   const res = await fetch(getApiUrl('/api/pagos'), {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },

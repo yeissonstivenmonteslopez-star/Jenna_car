@@ -24,6 +24,8 @@ from .services.catalog import seed_services
 from .auth.jwt import create_access_token  # noqa: F401 - compatibilidad con tests
 
 from .routes.usuarios import foto_perfil
+from .routes.mechanic import mechanic_bp
+from .routes.payments import payment_bp
 
 
 def _initialize_database(app):
@@ -102,6 +104,12 @@ def create_app(config=None):
 
     # Ruta única para servir fotos de perfil (no depende de blueprint versionado)
     app.add_url_rule('/uploads/profile-photos/<path:filename>', endpoint='compat_profile_photo', view_func=foto_perfil)
+
+    # Blueprint de panel de mecánico
+    app.register_blueprint(mechanic_bp, url_prefix='/api/mechanic')
+
+    # Blueprint de pagos (PSE - Wompi)
+    app.register_blueprint(payment_bp, url_prefix='/api/payments')
 
     # Rutas oficiales de administración /api/admin/... (un solo loop, methods=None => GET por defecto)
     for rule, view_func, endpoint, methods in ADMIN_ROUTES:

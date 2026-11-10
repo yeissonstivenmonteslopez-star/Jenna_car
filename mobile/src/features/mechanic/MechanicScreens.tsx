@@ -1,0 +1,56 @@
+import { useState } from 'react';
+import { Image } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as ImagePicker from 'expo-image-picker';
+import { api } from '../../api/resources';
+import { API_URL, request } from '../../api/http';
+import useResource from '../../hooks/useResource';
+import { Button, Card, Choices, Copy, ErrorText, Input, Page, label, money } from '../../components/ui';
+import ResourceState from '../../components/ResourceState';
+import type { AppRoutes } from '../../app/routes';
+import { loadToken } from '../../services/session';
+import { useEffect } from 'react';
+import type { WorkState } from '../../types/models';
+
+type Props = NativeStackScreenProps<AppRoutes>;
+export function MechanicDashboardScreen({ navigation }: Props) {
+  const resource = useResource(api.mechanicDashboard);
+  const agenda = useResource(api.mechanicAppointments);
+  const today = new Date().toLocaleDateString('en-CA');
+  return <Page title="Mi jornada" subtitle="Diagnosticar. Reparar. Entregar."><ResourceState {...resource} reload={resource.reload}>{resource.value && <><Card><Copy large>{resource.value.en_proceso} en proceso</Copy><Copy>{resource.value.pendientes} pendientes · {resource.value.completados} completados</Copy><Copy muted>{agenda.value?.filter(cita => cita.fecha === today).length ?? '—'} citas de hoy</Copy></Card><Button title="Abrir agenda asignada" onPress={() => navigation.navigate('Agenda')} /><Button secondary title="Órdenes vinculadas" onPress={() => navigation.navigate('OrdenesMecanico')} /><Button secondary title="Todos mis trabajos" onPress={() => navigation.navigate('Trabajos')} /><Button secondary title="Historial terminado" onPress={() => navigation.navigate('Historial')} /><Button secondary title="Mi perfil" onPress={() => navigation.navigate('Perfil')} /><Button secondary title="Notificaciones" onPress={() => navigation.navigate('Notificaciones')} /><Button secondary title="Ajustes" onPress={() => navigation.navigate('Ajustes')} /><Button secondary title="Ayuda" onPress={() => navigation.navigate('Ayuda')} /></>}</ResourceState></Page>;
+}
+export function MechanicAgendaScreen({ navigation }: Props) {
+  const resource = useResource(api.mechanicAppointments); const [filter, setFilter] = useState('todos');
+  return <Page title="Agenda asignada" subtitle="Vehículos y clientes de tus citas"><Choices values={['todos', 'pendiente', 'confirmada', 'atendida', 'cancelada']} value={filter} onChange={setFilter} /><ResourceState {...resource} empty={!resource.value?.length} reload={resource.reload}>{resource.value?.filter(item => filter === 'todos' || item.estado === filter).map(item => <Card key={item.id}><Copy large>{item.placa}</Copy><Copy>{item.marca} {item.modelo} · {item.cliente_nombre}</Copy><Copy muted>{item.fecha} · {item.hora} · {label(item.estado)}</Copy><Copy>{item.motivo || 'Sin falla reportada'}</Copy><Button title="Ver diagnóstico y trabajos" onPress={() => navigation.navigate('CitaMecanico', { id: item.id })} /></Card>)}{resource.value?.length && !resource.value.some(item => filter === 'todos' || item.estado === filter) ? <Copy muted>No hay citas con este estado.</Copy> : null}</ResourceState></Page>;
+}
+export function MechanicWorksScreen({ route }: Props) {
+  const resource = useResource(api.works); const [filter, setFilter] = useState(route.name === 'Historial' ? 'completado' : 'todos'); const [error, setError] = useState(''); const [busy, setBusy] = useState<number>();
+  const items = resource.value?.filter(item => (route.name !== 'Historial' || item.estado === 'completado') && (filter === 'todos' || item.estado === filter));
+  async function update(id: number, estado: WorkState) { setBusy(id); setError(''); try { await api.workState(id, estado); await resource.reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(undefined); } }
+  return <Page title={route.name === 'Historial' ? 'Trabajos terminados' : 'Mis trabajos'}>{route.name !== 'Historial' && <Choices values={['todos', 'pendiente', 'en_proceso', 'completado', 'cancelado']} value={filter} onChange={setFilter} />}{error && <ErrorText message={error} />}<ResourceState {...resource} empty={!items?.length} reload={resource.reload}>{items?.map(work => <Card key={work.id}><Copy large>Trabajo #{work.id}</Copy><Copy>{work.descripcion}</Copy><Copy muted>{label(work.estado)} · {money(work.subtotal)}</Copy><Copy muted>{work.fecha_inicio || 'Sin inicio'} / {work.fecha_fin || 'Sin cierre'}</Copy>{route.name !== 'Historial' && work.estado !== 'completado' && work.estado !== 'cancelado' && <Button busy={busy === work.id} title={work.estado === 'pendiente' ? 'Iniciar trabajo' : 'Finalizar trabajo'} onPress={() => void update(work.id, work.estado === 'pendiente' ? 'en_proceso' : 'completado')} />}</Card>)}</ResourceState></Page>;
+}
+export function MechanicDetailScreen({ route }: NativeStackScreenProps<AppRoutes, 'CitaMecanico'>) {
+  const [token, setToken] = useState<string | null>(null); useEffect(() => { void loadToken().then(setToken); }, []);
+  const resource = useResource(() => api.mechanicDetail(route.params.id)); const services = useResource(api.services);
+  const [descripcion, setDescripcion] = useState(''); const [observaciones, setObservaciones] = useState(''); const [solucion, setSolucion] = useState(''); const [service, setService] = useState(''); const [quantity, setQuantity] = useState('1'); const [price, setPrice] = useState('0'); const [workDescription, setWorkDescription] = useState('');
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  useFocusEffect(useCallback(() => { void resource.reload(); }, [resource.reload]));
+  async function run(action: () => Promise<unknown>) { setError(''); setBusy(true); try { await action(); await resource.reload(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }
+  async function photo(id: number) {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.65 });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 4 * 1024 * 1024) throw new Error('Selecciona una foto menor de 4 MB.');
+    const body = new FormData(); body.append('descripcion', 'Evidencia de reparación');
+    body.append('file', { uri: asset.uri, name: asset.fileName || 'reparacion.jpg', type: asset.mimeType || 'image/jpeg' } as unknown as Blob);
+    await request(`/api/mechanic/works/${id}/images`, 'POST', body);
+  }
+  return <Page title={`Cita #${route.params.id}`} subtitle="Detalle técnico e historial">{error && <ErrorText message={error} />}<ResourceState {...resource} reload={resource.reload}>{resource.value && <><Card><Copy large>{resource.value.vehiculo?.placa}</Copy><Copy>{resource.value.vehiculo?.marca} {resource.value.vehiculo?.modelo}</Copy><Copy>{resource.value.cliente?.nombre} {resource.value.cliente?.apellido}</Copy><Copy muted>{resource.value.fecha} · {resource.value.hora} · {label(resource.value.estado)}</Copy><Copy>{resource.value.motivo || 'Sin falla reportada'}</Copy><Copy muted>{resource.value.observaciones || 'Sin observaciones de la cita'}</Copy></Card>{resource.value.diagnosticos.map(item => <Card key={item.id}><Copy large>Diagnóstico #{item.id}</Copy><Copy>{item.descripcion}</Copy><Copy muted>{item.observaciones || 'Sin observaciones'}</Copy><Copy>{item.solucion_recomendada}</Copy></Card>)}{!resource.value.diagnosticos.length && <Card><Copy large>Registrar diagnóstico</Copy><Input label="Descripción obligatoria" value={descripcion} onChangeText={setDescripcion} multiline /><Input label="Observaciones de revisión" value={observaciones} onChangeText={setObservaciones} multiline /><Input label="Solución recomendada" value={solucion} onChangeText={setSolucion} multiline /><Button title="Guardar diagnóstico" busy={busy} onPress={() => { if (!descripcion.trim()) return setError('Describe el diagnóstico.'); void run(() => api.diagnostic({ cita_id: route.params.id, descripcion: descripcion.trim(), observaciones, solucion_recomendada: solucion, estado: 'pendiente' })); }} /></Card>}{!!resource.value.diagnosticos.length && <Card><Copy large>Agregar servicio realizado</Copy><ResourceState {...services} empty={!services.value?.length} reload={services.reload}>{services.value?.map(item => <Button key={item.id} secondary title={`${Number(service) === item.id ? '✓ ' : ''}${item.name} · ${money(item.price)}`} onPress={() => { setService(String(item.id)); setPrice(String(item.price)); }} />)}</ResourceState><Input label="Descripción del trabajo" value={workDescription} onChangeText={setWorkDescription} multiline /><Input label="Cantidad" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" /><Input label="Precio unitario (COP)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" /><Copy>Total: {money(Number(quantity) * Number(price))}</Copy><Button title="Guardar trabajo" busy={busy} onPress={() => { const diagnostic = resource.value?.diagnosticos[0]; if (!diagnostic || !service || !workDescription.trim() || !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || !Number.isFinite(Number(price)) || Number(price) < 0 || !/^\d+(\.\d{1,2})?$/.test(price)) return setError('Selecciona servicio, descripción, cantidad positiva y precio con máximo 2 decimales.'); void run(() => api.work({ diagnostico_id: diagnostic.id, servicio_id: Number(service), descripcion: workDescription.trim(), cantidad: Number(quantity), precio: Number(price) })); }} /></Card>}{resource.value.trabajos.map(item => <Card key={item.id}><Copy large>Trabajo #{item.id}</Copy><Copy>{item.descripcion}</Copy><Copy muted>{label(item.estado)} · {money(item.subtotal)}</Copy><Button secondary title="Agregar foto de reparación" busy={busy} onPress={() => void run(() => photo(item.id))} /></Card>)}{resource.value.imagenes.map(item => <Card key={item.id}><Image accessibilityLabel={item.descripcion || 'Evidencia de reparación'} source={{ uri: `${API_URL}/api/mechanic/images/${item.id}`, headers: { Authorization: `Bearer ${token || ''}` } }} style={{ width: '100%', height: 200 }} /><Copy>{item.descripcion}</Copy></Card>)}</>}</ResourceState></Page>;
+}
+export function MechanicOrdersScreen() {
+  const resource = useResource(api.mechanicOrders); const [filter, setFilter] = useState('todos');
+  const items = resource.value?.filter(item => filter === 'todos' || item.estado === filter);
+  return <Page title="Órdenes vinculadas" subtitle="Órdenes relacionadas con tus trabajos asignados"><Choices values={['todos', 'pendiente', 'en_diagnostico', 'en_reparacion', 'terminada', 'entregada', 'cancelada']} value={filter} onChange={setFilter} /><ResourceState {...resource} empty={!items?.length} reload={resource.reload}>{items?.map(item => <Card key={item.id}><Copy large>Orden #{item.id} · {item.vehiculo.placa}</Copy><Copy>{item.cliente.nombre} {item.cliente.apellido}</Copy><Copy>{item.problema_reportado}</Copy><Copy muted>{label(item.estado)}</Copy><Copy>{item.observaciones}</Copy><Copy>{item.diagnostico}</Copy><Copy>{item.trabajo_realizado}</Copy></Card>)}</ResourceState></Page>;
+}

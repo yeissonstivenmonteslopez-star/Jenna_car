@@ -4,7 +4,7 @@ from ..services import usuarios_s as user_service
 
 def admin_usuarios(): return jsonify({'data': user_service.list_admin()})
 def cambiar_rol_usuario(usuario_id):
-    data, error, status = user_service.change_role(usuario_id, (request.get_json(silent=True) or {}).get('rol'))
+    data, error, status = user_service.change_role(usuario_id, (request.get_json(silent=True) or {}).get('rol'), request.current_user.id)
     return (jsonify({'error': error}), status) if error else jsonify(data)
 def eliminar_usuarios():
     data, error, status = user_service.delete_bulk((request.get_json(silent=True) or {}).get('ids'), request.current_user.id)

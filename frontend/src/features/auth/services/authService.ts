@@ -45,6 +45,15 @@ export async function resetPassword(data: { email: string; code: string; passwor
   return handleResponse(res, 'No fue posible actualizar la contraseña.')
 }
 
+export async function verifyResetCode(email: string, code: string) {
+  const res = await fetch(getApiUrl('/api/auth/password-reset/verify'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+  return handleResponse(res, 'No fue posible validar el código.')
+}
+
 export async function getMe(token?: string) {
   const res = await fetch(getApiUrl('/api/auth/me'), {
     headers: { ...authHeaders(token) },

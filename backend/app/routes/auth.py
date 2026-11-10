@@ -38,3 +38,8 @@ def request_password_reset():
 @auth_bp.post('/password-reset/confirm')
 def confirm_password_reset_route():
     return auth_controller.confirm_password_reset_route()
+
+
+@auth_bp.post('/password-reset/verify')
+def verify_password_reset_code():
+    return auth_controller.verify_password_reset_code()

@@ -1,0 +1,66 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-jenna_car}
+      MYSQL_USER: ${DB_USER:-jenna_car_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Configura DB_PASSWORD en .env.production}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Configura DB_ROOT_PASSWORD en .env.production}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u\"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  backend:
+    image: jenna-car-backend:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DATABASE_URL: ""
+      MYSQL_URL: ""
+      FLASK_DEBUG: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - profile_uploads:/app/backend/uploads
+      - repair_uploads:/app/backend/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/services')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  web:
+    image: jenna-car-web:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: web
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - repair_uploads:/var/www/repairs:ro
+
+volumes:
+  mysql_data:
+  profile_uploads:
+  repair_uploads:

@@ -1,4 +1,6 @@
-from flask import Blueprint
+from flask import Blueprint, request, jsonify
+from ..services import citas_s as appointment_service
+from ..controllers.citas_controller import _service_response
 
 from ..auth.decorators import jwt_required
 from ..controllers import citas_controller
@@ -58,4 +60,13 @@ def crear_cita_admin():
 @citas_bp.put('/admin/<int:cita_id>/estado')
 @jwt_required(roles=['admin'])
 def actualizar_estado_cita(cita_id):
-    return citas_controller.actualizar_estado_cita(cita_id)
+    estado = (request.get_json(silent=True) or {}).get('estado')
+    data, error, status = appointment_service.set_state(cita_id, estado)
+    return _service_response(data, error, status)
+
+
+@citas_bp.put('/admin/<int:cita_id>/asignar-mecanico')
+@jwt_required(roles=['admin'])
+def admin_asignar_mecanico(cita_id):
+    data, error, status = appointment_service.assign_mechanic_to_appointment(cita_id, request.get_json(silent=True).get('mecanico_id'))
+    return _service_response(data, error, status)
