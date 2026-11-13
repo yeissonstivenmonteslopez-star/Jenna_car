@@ -22,6 +22,7 @@ def verificar_disponibilidad():
 
 
 @citas_bp.get('/horas-disponibles')
+@citas_bp.get('/disponibilidad')
 @jwt_required()
 def horas_disponibles():
     return citas_controller.horarios_disponibles()

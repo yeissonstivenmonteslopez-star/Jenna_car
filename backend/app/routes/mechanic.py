@@ -5,6 +5,31 @@ from ..services import mechanic_s as mechanic_service
 mechanic_bp = Blueprint('mechanic', __name__)
 
 
+@mechanic_bp.post('/orders/<int:order_id>/revise-quote')
+@jwt_required(roles=['mecanico'])
+def revise_quote(order_id):
+    from ..services.quote_revision import revise
+    data, error, status = revise(request.current_user, order_id, request.get_json(silent=True) or {})
+    return (jsonify({'error': error}), status) if error else (jsonify({'data': data}), status)
+
+
+@mechanic_bp.post('/works/<int:work_id>/updates')
+@jwt_required(roles=['mecanico'])
+def publish_update(work_id):
+    from ..services.repair_updates import publish
+    payload = request.form.to_dict() if request.mimetype == 'multipart/form-data' else request.get_json(silent=True) or {}
+    data, error, status = publish(request.current_user, work_id, payload, request.files.getlist('files'))
+    return (jsonify({'error': error}), status) if error else (jsonify({'data': data}), status)
+
+
+@mechanic_bp.post('/updates/<int:notification_id>/retry-email')
+@jwt_required(roles=['mecanico'])
+def retry_update_email(notification_id):
+    from ..services.repair_updates import deliver
+    data, error, status = deliver(notification_id, request.current_user)
+    return (jsonify({'error': error}), status) if error else (jsonify({'data': data}), status)
+
+
 # Dashboard
 @mechanic_bp.get('/dashboard')
 @jwt_required(roles=['mecanico'])
@@ -107,4 +132,7 @@ def repair_image(image_id):
     if request.current_user.rol == 'usuario' and image.trabajo.diagnostico.cita.vehiculo.usuario_id != request.current_user.id:
         return jsonify({'error': 'Imagen no encontrada'}), 404
     directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads', 'reparaciones'))
-    return send_from_directory(directory, os.path.basename(image.ruta_imagen))
+    response = send_from_directory(directory, os.path.basename(image.ruta_imagen))
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response

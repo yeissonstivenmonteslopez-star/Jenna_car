@@ -96,7 +96,9 @@ def run_migrations_online():
 
     connectable = get_engine()
 
-    with connectable.connect() as connection:
+    # Only the explicit Alembic connection may execute DDL. Web requests keep
+    # their schema guard; starting Flask never runs migrations automatically.
+    with connectable.connect().execution_options(jenna_schema_migration=True) as connection:
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

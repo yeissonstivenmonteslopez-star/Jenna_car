@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { buildAssetUrl } from '@/services/apiClient'
 import NotificationBell from './notification-bell'
+import InternalWorkspace from './internal-workspace'
 
 export default function SiteShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
@@ -21,6 +22,9 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem('jenna_car_user') || 'null')) } catch { setUser(null) }
     setMounted(true)
+    const refreshProfile = (event: Event) => setUser((event as CustomEvent).detail)
+    window.addEventListener('jenna-profile-updated', refreshProfile)
+    return () => window.removeEventListener('jenna-profile-updated', refreshProfile)
   }, [])
 
   useEffect(() => {
@@ -43,6 +47,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   }
 
   const avatar = buildAssetUrl(user?.foto_perfil)
+  const internal = pathname.startsWith('/admin') || ['/profile', '/mechanic', '/citas', '/mis-citas', '/mis-recibos', '/mis-reparaciones', '/notificaciones'].includes(pathname)
 
   return (
     <>
@@ -89,13 +94,13 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
         <div className="absolute right-8 top-7 z-40">
           <a
             href="/sign-in"
-            className="inline-flex items-center justify-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/85 transition-colors duration-200 hover:text-red-400"
+            className={pathname === '/' ? 'inline-flex min-h-11 items-center justify-center rounded-md border border-red-500/40 bg-[#111111] px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:border-red-500 hover:bg-[#991B1B] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500' : 'inline-flex items-center justify-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/85 transition-colors duration-200 hover:text-red-400'}
           >
             INICIAR SESIÓN
           </a>
         </div>
       ) : null}
-      {children}
+      {internal ? <InternalWorkspace role={user?.rol}>{children}</InternalWorkspace> : children}
     </>
   )
 }

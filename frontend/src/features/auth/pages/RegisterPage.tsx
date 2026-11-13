@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, UserRound } from 'lucide-react'
+import Loader from '@/components/Loader'
 import { googleAuth, register } from '@/features/auth/services/authService'
 import { GoogleLogin } from '@react-oauth/google'
 import { getGoogleClientId } from '@/services/apiClient'
@@ -13,6 +14,7 @@ export default function RegisterPage() {
   const googleClientId = getGoogleClientId()
 
   async function handleGoogleCallback(response: { credential?: string }) {
+    if (loading) return
     if (!response.credential) return
     setError('')
     setLoading(true)
@@ -31,6 +33,7 @@ export default function RegisterPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (loading) return
     setError('')
     const form = new FormData(event.currentTarget)
     const password = String(form.get('password') || '')
@@ -67,6 +70,7 @@ export default function RegisterPage() {
 
   return (
     <main className="min-h-screen bg-[#090909] text-white">
+      {loading && <Loader text="Creando tu cuenta" />}
       <div className="grid min-h-screen lg:grid-cols-[0.82fr_1.18fr]">
         <section className="relative hidden overflow-hidden border-r border-red-950/60 lg:block">
           <img src="/jenna-car-hero.png" alt="Vehículo premium en Jenna Car" className="absolute inset-0 h-full w-full object-cover opacity-55" />

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 
 def validar_placa(placa: str) -> str:
@@ -33,6 +33,6 @@ def validar_fecha_cita(fecha: str, *, permitir_pasada: bool = False):
         fecha_obj = datetime.strptime(str(fecha), '%Y-%m-%d').date()
     except (TypeError, ValueError):
         raise ValueError('La fecha debe tener formato YYYY-MM-DD')
-    if not permitir_pasada and fecha_obj < datetime.now().date():
+    if not permitir_pasada and fecha_obj < datetime.now(timezone(timedelta(hours=-5))).date():
         raise ValueError('No se pueden crear citas en fechas pasadas')
     return fecha_obj

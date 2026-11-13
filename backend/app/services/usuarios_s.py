@@ -75,7 +75,25 @@ def update_profile(user, payload):
 
 
 def save_photo(user, photo, upload_path):
-    if not photo or not photo.filename: return None, 'Selecciona una imagen para continuar.', 400
-    extension = os.path.splitext(photo.filename)[1].lower()
-    if extension not in {'.jpg', '.jpeg', '.png', '.webp'}: return None, 'La imagen debe ser JPG, PNG o WEBP.', 400
-    os.makedirs(upload_path, exist_ok=True); filename = f'{user.id}-{secrets.token_urlsafe(12)}{extension}'; photo.save(os.path.join(upload_path, filename)); user.foto_perfil = f'/uploads/profile-photos/{filename}'; user_repository.commit(); return {'user': user.to_public_dict()}, None, None
+    from pathlib import Path
+    from ..utils.images import prepare_photo
+
+    if not photo or not photo.filename:
+        return None, 'Selecciona una imagen para continuar.', 400
+    if Path(photo.filename).suffix.lower() not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        return None, 'La imagen debe ser JPG, PNG o WEBP.', 400
+    try:
+        data, extension = prepare_photo(photo, max_bytes=5 * 1024 * 1024)
+    except ValueError as exc:
+        return None, str(exc), 400
+    path = Path(upload_path) / f'{user.id}-{secrets.token_urlsafe(12)}{extension}'
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        user.foto_perfil = f'/uploads/profile-photos/{path.name}'
+        user_repository.commit()
+    except Exception:
+        user_repository.rollback()
+        path.unlink(missing_ok=True)
+        return None, 'No fue posible guardar la foto. Intenta nuevamente.', 409
+    return {'user': user.to_public_dict()}, None, None

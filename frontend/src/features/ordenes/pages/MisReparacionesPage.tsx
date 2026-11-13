@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Check, Clock3, X } from 'lucide-react'
+import { Check, Clock3, X } from 'lucide-react'
 import { authHeaders, getApiUrl } from '@/services/apiClient'
 import { formatCop } from '@/lib/utils'
 
@@ -9,7 +9,8 @@ type RepairOrder = {
   fecha_ingreso: string | null
   problema_reportado: string
   estado: string
-  estado_aprobacion: 'pendiente' | 'aprobado' | 'rechazado'
+  observaciones?: string | null
+  estado_aprobacion: 'pendiente' | 'aprobado' | 'rechazado' | null
   vehiculo: { marca: string; modelo: string; placa: string }
   total: number
   recibo: { id: number; estado: string; enviado_cliente: boolean } | null
@@ -18,6 +19,7 @@ type RepairOrder = {
     id: number
     descripcion: string
     estado: string
+    updated_at?: string | null
     cantidad: number
     subtotal: number
     diagnostico: { descripcion: string; observaciones: string | null; solucion_recomendada: string | null } | null
@@ -67,6 +69,13 @@ export default function MisReparacionesPage() {
   }, [token, loadOrders])
 
   useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void loadOrders() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) }
+  }, [loadOrders])
+
+  useEffect(() => {
     let active = true
     const objectUrls: string[] = []
     async function loadImages() {
@@ -104,7 +113,7 @@ export default function MisReparacionesPage() {
       })
       setNotice(decision === 'aprobado'
         ? 'Aprobaste la cotización. Administración te enviará el recibo.'
-        : 'Rechazaste la cotización. El taller recibió tu respuesta.')
+        : 'Has rechazado la propuesta. El taller recibió tu respuesta.')
       await loadOrders()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible registrar tu decisión.')
@@ -118,11 +127,11 @@ export default function MisReparacionesPage() {
   return (
     <main className="min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-12">
       <div className="mx-auto max-w-5xl">
-        <a href="/profile" className="inline-flex items-center gap-2 text-xs text-white/55 transition hover:text-white"><ArrowLeft size={14} /> Volver al perfil</a>
-        <header className="mb-8 mt-6 border-b border-white/10 pb-6">
+        <header className="mb-8 border-b border-white/10 pb-6">
           <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Jenna Car / Taller</p>
-          <h1 className="mt-2 font-serif text-4xl text-white sm:text-5xl">Mis reparaciones</h1>
+          <h1 className="mt-2 font-serif text-4xl text-white sm:text-5xl">Seguimiento de mi vehículo</h1>
           <p className="mt-2 text-sm text-white/50">Revisa el diagnóstico, sigue los avances y aprueba la cotización antes del recibo.</p>
+          <button type="button" onClick={() => void loadOrders()} disabled={loading} className="mt-4 rounded border border-white/20 px-4 py-2 text-xs disabled:opacity-50">Actualizar seguimiento</button>
         </header>
 
         {error && <p role="alert" className="mb-4 border border-red-400/25 bg-red-950/25 p-3 text-sm text-red-200">{error}</p>}
@@ -133,7 +142,7 @@ export default function MisReparacionesPage() {
           <div className="grid gap-5">
             {orders.map((order) => {
               const hasDiagnosis = order.trabajos.some((work) => work.diagnostico)
-              const canApprove = order.estado_aprobacion !== 'aprobado' && !order.recibo?.enviado_cliente
+              const canApprove = order.estado_aprobacion === 'pendiente' && !order.recibo?.enviado_cliente
                 && hasDiagnosis && order.servicios.length > 0 && order.total > 0
               return (
                 <article key={order.id} className="rounded-2xl border border-white/10 bg-[#121212] p-5 sm:p-6">
@@ -144,9 +153,22 @@ export default function MisReparacionesPage() {
                       <p className="mt-1 text-xs text-white/50">{order.vehiculo.placa} · {order.problema_reportado}</p>
                     </div>
                     <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/65">
-                      Aprobación: {order.estado_aprobacion}
+                      {order.estado_aprobacion === null ? 'Seguimiento del taller' : `Aprobación: ${order.estado_aprobacion}`}
                     </span>
                   </div>
+
+                  <section aria-label="Estado actual de la orden" className="mt-5 border-b border-white/10 pb-5">
+                    <p className="mb-3 text-xs text-white/55">Estado registrado de la orden; las etapas no representan porcentajes.</p>
+                    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {[
+                        ['pendiente', 'Recibido'], ['en_diagnostico', 'En diagnóstico'],
+                        ['en_reparacion', 'En reparación'], ['terminada', 'Trabajo terminado'], ['entregada', 'Entregado'],
+                      ].map(([state, label]) => <li key={state} aria-current={order.estado === state ? 'step' : undefined} className={`rounded border px-3 py-3 text-xs ${order.estado === state ? 'border-red-400 bg-red-950/40 text-white' : 'border-white/10 text-white/40'}`}>{label}{order.estado === state && <span className="mt-1 block text-[10px] text-red-300">Estado actual</span>}</li>)}
+                    </ol>
+                    {order.estado === 'cancelada' && <p className="mt-3 text-sm text-red-300">Orden cancelada</p>}
+                    {order.estado === 'terminada' && <p className="mt-3 text-sm text-emerald-200">El trabajo de esta orden está terminado. Consulta con el taller la entrega.</p>}
+                    {order.observaciones && <p className="mt-3 whitespace-pre-wrap text-sm text-white/70">Observaciones de la orden: {order.observaciones}</p>}
+                  </section>
 
                   <div className="mt-4 grid gap-5 md:grid-cols-2">
                     <section>
@@ -180,20 +202,21 @@ export default function MisReparacionesPage() {
                       ) : order.estado_aprobacion === 'aprobado' && !order.recibo?.enviado_cliente ? (
                         <p className="mt-4 text-xs text-emerald-200/80">Aprobada. Administración enviará el recibo cuando esté listo.</p>
                       ) : order.estado_aprobacion === 'rechazado' ? (
-                        <p className="mt-4 text-xs text-amber-200/80">Cotización rechazada. Espera una actualización del taller.</p>
+                        <p className="mt-4 text-xs text-amber-200/80">Has rechazado la propuesta. Espera una actualización del taller.</p>
                       ) : null}
                     </section>
 
                     <section>
                       <h3 className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/65"><Clock3 size={14} /> Avances del taller</h3>
+                      <div className="mt-3 space-y-3">{order.trabajos.map((work) => <article key={work.id} className="border-l-2 border-red-500/50 pl-3"><p className="text-sm">{work.descripcion}</p><p className="mt-1 text-xs text-red-300">Estado real: {work.estado.replace('_', ' ')}</p>{work.updated_at && <p className="mt-1 text-[11px] text-white/45">Última modificación: {new Date(work.updated_at).toLocaleString('es-CO')}</p>}</article>)}</div>
                       {order.trabajos.flatMap((work) => work.imagenes).length === 0 ? (
                         <p className="mt-3 text-sm text-white/45">El mecánico aún no ha enviado avances con foto.</p>
                       ) : (
                         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          {order.trabajos.flatMap((work) => work.imagenes).map((image) => (
+                          {order.trabajos.flatMap((work) => work.imagenes).sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).map((image) => (
                             <figure key={image.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
                               {photoUrls[image.id] ? <img src={photoUrls[image.id]} alt={image.descripcion || 'Avance del vehículo'} className="aspect-square w-full object-cover" /> : <div className="aspect-square animate-pulse bg-white/5" />}
-                              <figcaption className="p-2 text-[11px] text-white/60">{image.descripcion || 'Avance de reparación'}</figcaption>
+                              <figcaption className="p-2 text-[11px] text-white/60">{image.descripcion || 'Avance de reparación'}{image.created_at && <time dateTime={image.created_at} className="mt-1 block text-white/40">{new Date(image.created_at).toLocaleString('es-CO')}</time>}</figcaption>
                             </figure>
                           ))}
                         </div>

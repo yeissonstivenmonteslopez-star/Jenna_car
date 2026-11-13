@@ -16,6 +16,25 @@ services:
       retries: 20
       start_period: 30s
 
+  migrate:
+    image: jenna-car-backend:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: backend
+    command: ["flask", "--app", "app", "db", "upgrade"]
+    restart: "no"
+    env_file: .env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DATABASE_URL: ""
+      MYSQL_URL: ""
+      FLASK_DEBUG: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     image: jenna-car-backend:1.0
     build:
@@ -33,11 +52,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - profile_uploads:/app/backend/uploads
       - repair_uploads:/app/backend/app/uploads
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/services')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/services', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 5

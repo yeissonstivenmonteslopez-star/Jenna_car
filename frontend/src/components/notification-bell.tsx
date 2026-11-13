@@ -59,7 +59,7 @@ export default function NotificationBell() {
       if (abierto) fetchNotificaciones()
     }, 30000)
     return () => clearInterval(interval)
-  }, [token, abierto, fetchNoLeidas])
+  }, [token, abierto, fetchNoLeidas, fetchNotificaciones])
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {

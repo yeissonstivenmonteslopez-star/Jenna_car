@@ -11,7 +11,8 @@ import secrets  # noqa: F401 - compatibilidad con tests (backend_app.secrets)
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-from sqlalchemy import text
+from sqlalchemy import event
+from .schema_guard import prevent_schema_changes
 from .auth.password import hash_password as generate_password_hash  # noqa: F401 - compatibilidad con tests
 from google.oauth2 import id_token as google_id_token  # noqa: F401 - compatibilidad con tests
 
@@ -29,34 +30,8 @@ from .routes.payments import payment_bp
 
 
 def _initialize_database(app):
-    if os.getenv('SKIP_DB_INIT') == '1':
-        return
-    with app.app_context():
-        if not db.inspect(db.engine).has_table('usuarios'):
-            db.create_all()
-        try:
-            inspector = db.inspect(db.engine)
-            if inspector.has_table('usuarios'):
-                columns = {column['name'] for column in inspector.get_columns('usuarios')}
-                if 'foto_perfil' not in columns:
-                    db.session.execute(text('ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(500)'))
-                    db.session.commit()
-                if 'google_id' not in columns:
-                    db.session.execute(text('ALTER TABLE usuarios ADD COLUMN google_id VARCHAR(255)'))
-                    db.session.commit()
-            if inspector.has_table('pagos'):
-                columns = {column['name'] for column in inspector.get_columns('pagos')}
-                for column, definition in [('usuario_id', 'INT UNSIGNED NULL'), ('numero_nequi', 'VARCHAR(20) NULL'), ('creado_en', 'DATETIME NULL')]:
-                    if column not in columns:
-                        try:
-                            db.session.execute(text(f'ALTER TABLE pagos ADD COLUMN {column} {definition}'))
-                            db.session.commit()
-                        except Exception:
-                            db.session.rollback()
-        except Exception:
-            db.session.rollback()
-        if seed_services(Servicio, db.session):
-            db.session.commit()
+    """Existing databases are managed externally; startup never changes schema/data."""
+    return
 
 
 def create_app(config=None):
@@ -77,6 +52,8 @@ def create_app(config=None):
 
     CORS(app, resources={r'/api/*': {'origins': app.config['CORS_ORIGINS']}})
     db.init_app(app)
+    with app.app_context():
+        event.listen(db.engine, 'before_cursor_execute', prevent_schema_changes)
     migrate.init_app(app, db)
 
     _initialize_database(app)

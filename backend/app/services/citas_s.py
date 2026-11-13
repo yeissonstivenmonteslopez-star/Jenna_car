@@ -7,6 +7,7 @@ from ..schemas.serializers import cita_to_dict
 from ..utils.email import enviar_correo
 from ..utils.notifications import notificacion_por_usuario
 from ..utils.validation import validar_fecha_cita, validar_hora_cita
+from .appointment_slots import serialize_booking, slot_status
 
 STATES = {'pendiente', 'confirmada', 'atendida', 'cancelada'}
 
@@ -38,6 +39,7 @@ def _send_appointment_confirmation(user, vehicle, service, fecha, hora):
         enviar_correo(user.email, 'Confirmación de cita | Jenna Car', message)
 
 
+@serialize_booking
 def create_for_user(user, payload):
     if not all(payload.get(key) for key in ('vehiculo_id', 'servicio_id', 'fecha', 'hora')):
         return _error('Vehículo, servicio, fecha y hora son obligatorios', 400)
@@ -54,10 +56,12 @@ def create_for_user(user, payload):
         hora = validar_hora_cita(payload['hora'])
     except ValueError as exc:
         return _error(str(exc), 400)
-    if occupied(fecha, hora):
+    available, mechanic_id = slot_status(fecha, hora, servicio.id, vehiculo.id, payload.get('mecanico_id'), locking=True)
+    if not available:
         return _error('La fecha y hora seleccionadas ya están ocupadas. Selecciona otro horario.', 409)
     cita = Cita(vehiculo_id=vehiculo.id, servicio_id=servicio.id, fecha=fecha, hora=hora, motivo=payload.get('motivo') or payload.get('observaciones') or '', observaciones=payload.get('observaciones') or '', estado='pendiente')
     db.session.add(cita)
+    cita.mecanico_id = mechanic_id
     db.session.commit()
     notificacion_por_usuario(usuario_id=user.id, titulo='Cita agendada', mensaje=f'Tu cita del {payload["fecha"]} a las {payload["hora"]} ha sido registrada exitosamente.', tipo='cita', link=f'/citas/{cita.id}')
     _send_appointment_confirmation(user, vehiculo, servicio, fecha, hora)
@@ -74,19 +78,21 @@ def parse_slot(payload):
 
 
 def occupied(fecha, hora, excluding=None):
-    query = Cita.query.filter(Cita.fecha == fecha, Cita.hora == hora, Cita.estado != 'cancelada')
-    if excluding:
-        query = query.filter(Cita.id != excluding)
-    return query.first() is not None
+    return not slot_status(fecha, hora, excluding=excluding)[0]
 
 
-def available_times(fecha_value):
+def available_times(fecha_value, servicio_id=None, vehiculo_id=None, mecanico_id=None, detailed=False):
     try:
         fecha = validar_fecha_cita(fecha_value)
     except ValueError as exc:
         return None, str(exc), 400
     slots = [datetime.strptime(f'{hour:02d}:00', '%H:%M').time() for hour in range(8, 19)]
-    return [slot.strftime('%H:%M') for slot in slots if not occupied(fecha, slot)], None, None
+    if servicio_id:
+        service = db.session.get(Servicio, servicio_id)
+        if not service or service.estado != 'activo':
+            return None, 'Servicio no disponible', 400
+    result = [{'hora': slot.strftime('%H:%M'), 'disponible': slot_status(fecha, slot, servicio_id, vehiculo_id, mecanico_id)[0]} for slot in slots]
+    return (result if detailed else [item['hora'] for item in result if item['disponible']]), None, None
 
 
 def user_appointments(user):
@@ -94,10 +100,11 @@ def user_appointments(user):
     return [{'id': c.id, 'fecha': str(c.fecha), 'hora': str(c.hora), 'vehiculo': {'id': c.vehiculo.id, 'marca': c.vehiculo.marca, 'modelo': c.vehiculo.modelo, 'placa': c.vehiculo.placa}, 'servicio': {'id': c.servicio.id, 'name': c.servicio.nombre}, 'motivo': c.motivo, 'observaciones': c.observaciones, 'estado': c.estado, 'mecanico_id': c.mecanico_id} for c in citas], None, None
 
 
+@serialize_booking
 def assign_mechanic_to_appointment(cita_id, mecanico_id):
     """Asignar un mecanico a una cita. Solo admin o el mecanico propio puede hacerlo."""
     from ..models import Usuario
-    cita = db.session.get(Cita, cita_id)
+    cita = Cita.query.filter_by(id=cita_id).with_for_update().populate_existing().first()
     if not cita: return None, 'Cita no encontrada', 404
     if mecanico_id in (None, ''):
         cita.mecanico_id = None
@@ -106,6 +113,8 @@ def assign_mechanic_to_appointment(cita_id, mecanico_id):
     mecanico = db.session.get(Usuario, mecanico_id)
     if not mecanico: return None, 'Mecánico no encontrado', 404
     if mecanico.rol != 'mecanico': return None, 'El usuario no tiene rol de mecánico', 400
+    if cita.estado != 'cancelada' and not slot_status(cita.fecha, cita.hora, cita.servicio_id, cita.vehiculo_id, mecanico.id, cita.id, locking=True)[0]:
+        return None, 'El mecánico no está disponible para ese intervalo', 409
     cita.mecanico_id = mecanico.id
     db.session.commit()
     return cita_to_dict(cita), None, None
@@ -119,11 +128,12 @@ def get_for_user(user, cita_id):
     return (cita_to_dict(cita), None, None) if cita else _error('Cita no encontrada', 404)
 
 
+@serialize_booking
 def cancel(user, cita_id):
     query = Cita.query.filter_by(id=cita_id)
     if user.rol != 'admin':
         query = query.join(Cita.vehiculo).filter(Vehiculo.usuario_id == user.id)
-    cita = query.first()
+    cita = query.with_for_update().populate_existing().first()
     if not cita:
         return _error('Cita no encontrada', 404)
     if cita.estado == 'cancelada':
@@ -188,10 +198,17 @@ def admin_payload(payload, cita=None):
 
 def admin_get(cita_id): return db.session.get(Cita, cita_id)
 
+@serialize_booking
 def save_admin(cita, payload, creating=False):
+    if cita is not None:
+        db.session.refresh(cita)
     values, error, status = admin_payload(payload, cita)
     if error: return None, error, status
-    if values.get('estado', cita.estado if cita else 'pendiente') != 'cancelada' and occupied(values.get('fecha', cita.fecha if cita else None), values.get('hora', cita.hora if cita else None), None if creating else cita.id): return None, 'La fecha y hora seleccionadas ya están ocupadas. Selecciona otro horario.', 409
+    if values.get('estado', cita.estado if cita else 'pendiente') != 'cancelada':
+        available, mechanic_id = slot_status(values.get('fecha', cita.fecha if cita else None), values.get('hora', cita.hora if cita else None), values.get('servicio_id', cita.servicio_id if cita else None), values.get('vehiculo_id', cita.vehiculo_id if cita else None), values.get('mecanico_id', cita.mecanico_id if cita else None), None if creating else cita.id, locking=True)
+        if not available:
+            return None, 'La fecha y hora seleccionadas ya están ocupadas. Selecciona otro horario.', 409
+        values['mecanico_id'] = mechanic_id
     if creating: cita = Cita(**values); db.session.add(cita)
     else:
         for field, value in values.items(): setattr(cita, field, value)
@@ -201,10 +218,13 @@ def save_admin(cita, payload, creating=False):
     return cita_to_dict(cita), None, 201 if creating else None
 
 
+@serialize_booking
 def set_state(cita_id, state):
-    cita = db.session.get(Cita, cita_id)
+    cita = Cita.query.filter_by(id=cita_id).with_for_update().populate_existing().first()
     if not cita: return None, 'Cita no encontrada', 404
     if state not in STATES: return None, 'Estado inválido', 400
+    if state in {'pendiente', 'confirmada'} and not slot_status(cita.fecha, cita.hora, cita.servicio_id, cita.vehiculo_id, cita.mecanico_id, cita.id, locking=True)[0]:
+        return None, 'El cupo ya no está disponible', 409
     cita.estado = state; db.session.commit()
     return cita_to_dict(cita), None, None
 

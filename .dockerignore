@@ -1,4 +1,7 @@
 .git
+.test-deps
+.local-backups
+.test-tmp*
 .venv
 **/node_modules
 **/__pycache__
@@ -6,6 +9,11 @@
 **/.env
 **/.env.*
 **/env.local
+**/env
+**/env.*
+!backend/migrations/env.py
+**/*.p12
+**/*.pfx
 **/*.pem
 **/*.key
 **/*client_secret*.json

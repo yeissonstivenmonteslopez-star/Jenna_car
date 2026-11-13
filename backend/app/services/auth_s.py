@@ -25,12 +25,21 @@ def google_identity(token):
     identity = None
     for client_id in client_ids:
         try:
-            candidate = google_id_token.verify_oauth2_token(token, google_requests.Request(), audience=client_id)
-            if candidate and candidate.get('aud') == client_id:
+            candidate = google_id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                audience=client_id,
+                clock_skew_in_seconds=60,
+            )
+            if candidate and (candidate.get('aud') == client_id or candidate.get('azp') == client_id):
                 identity = candidate
                 break
-        except Exception:
+        except Exception as exc:
             # Never expose token/provider details and never decode unverified JWTs.
+            try:
+                current_app.logger.warning('Fallo verificando token de Google con client_id %s: %s', client_id, exc)
+            except Exception:
+                pass
             continue
     if not identity or not identity.get('sub'):
         return None, 'No fue posible verificar la cuenta de Google.', 401

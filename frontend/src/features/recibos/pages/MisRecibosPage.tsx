@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CreditCard, Download, Eye, Landmark, Printer, ReceiptText, ShieldAlert, Sparkles } from 'lucide-react'
-import { getMisPagos, createPago, getPagoConfig } from '@/features/recibos/services/pagosService'
+import { CreditCard, Download, Eye, Landmark, Printer, ReceiptText, ShieldAlert } from 'lucide-react'
+import SimulatedCheckout from './SimulatedCheckout'
+import { getMisPagos } from '@/features/recibos/services/pagosService'
 import { getMisRecibos, getReciboPdf } from '@/features/recibos/services/recibosService'
 import { formatCop } from '@/lib/utils'
 
@@ -36,7 +37,7 @@ export default function MisRecibos() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string>('')
   const [openPay, setOpenPay] = useState(false)
-  const [simulated, setSimulated] = useState<boolean | null>(null)
+  const simulated = true
   const [pagoData, setPagoData] = useState<{
     recibo_id: number | null
     monto: number
@@ -96,9 +97,6 @@ export default function MisRecibos() {
     if (!token) return
     fetchRecibos()
     fetchPagos()
-    getPagoConfig(token)
-      .then((result) => setSimulated(result.data.simulacion === true))
-      .catch((error: unknown) => setMessage((error as Error).message))
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePagar = (recibo: Recibo) => {
@@ -109,33 +107,6 @@ export default function MisRecibos() {
       referencia: '',
     })
     setOpenPay(true)
-  }
-
-  const handleConfirmarPago = async () => {
-    if (loading || !pagoData?.recibo_id) return
-    const { recibo_id } = pagoData
-
-    setMessage('')
-    setLoading(true)
-
-    try {
-      const data = await createPago({ recibo_id }, token)
-      if (data.data.simulacion === true) {
-        setOpenPay(false)
-        await Promise.all([fetchRecibos(), fetchPagos()])
-        setMessage(data.data.mensaje || 'Pago simulado registrado. No se ha cobrado dinero real.')
-        return
-      }
-      const checkout = new URL(data.data.url_redireccion)
-      if (checkout.protocol !== 'https:' || !/(^|\.)mercadopago\.com(\.[a-z]{2})?$/.test(checkout.hostname)) {
-        throw new Error('La pasarela no devolvió un enlace de pago válido')
-      }
-      window.location.assign(checkout.href)
-    } catch (err: unknown) {
-      setMessage((err as Error).message || 'Error de conexión con el servidor')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const formatDate = (dateStr: string) => {
@@ -178,11 +149,11 @@ export default function MisRecibos() {
   const recibosPendientes = recibos.filter((recibo) => recibo.estado === 'pendiente')
   const recibosHistorial = recibos.filter((recibo) => recibo.estado !== 'pendiente')
   const pdfActions = (reciboId: number) => (
-    <div className="flex items-center gap-1">
+    <details className="document-menu"><summary><ReceiptText size={15} /> Documento</summary><div className="document-menu-actions">
       <button type="button" onClick={() => void handlePdf(reciboId, 'view')} aria-label={`Ver recibo ${reciboId}`} title="Ver recibo" className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-white/55 transition hover:border-white/25 hover:bg-white/5 hover:text-white"><Eye size={16} /></button>
       <button type="button" onClick={() => void handlePdf(reciboId, 'print')} aria-label={`Imprimir recibo ${reciboId}`} title="Imprimir recibo" className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-white/55 transition hover:border-white/25 hover:bg-white/5 hover:text-white"><Printer size={16} /></button>
       <button type="button" onClick={() => void handlePdf(reciboId, 'download')} aria-label={`Descargar recibo ${reciboId}`} title="Descargar PDF" className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-white/55 transition hover:border-red-500/40 hover:bg-red-950/30 hover:text-red-200"><Download size={16} /></button>
-    </div>
+    </div></details>
   )
 
   if (!token) return <main className="min-h-screen bg-[#090909] p-12 text-white">Cargando sesión…</main>
@@ -197,7 +168,6 @@ export default function MisRecibos() {
             <h1 className="mt-2 font-serif text-4xl text-white sm:text-5xl">Mis recibos</h1>
             <p className="mt-2 max-w-xl text-sm text-white/50">Consulta tus cobros, descarga comprobantes y revisa tus pagos.</p>
           </div>
-          <a href="/" className="inline-flex h-10 items-center justify-center rounded-md border border-white/15 px-4 text-xs font-semibold text-white/70 transition hover:border-red-400/50 hover:text-white">Inicio</a>
         </header>
 
         {simulated && (
@@ -325,42 +295,12 @@ export default function MisRecibos() {
         </section>
       </div>
 
-      {openPay && pagoData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md border border-red-900/50 bg-[#151515] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.5)]">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#70e9d2]">{simulated ? 'Demostración' : 'Mercado Pago'}</p>
-                <h2 className="mt-3 font-serif text-3xl text-white">{simulated ? 'Simular pago' : 'Pagar recibo'}</h2>
-              </div>
-              <button onClick={() => setOpenPay(false)} className="text-white/60 hover:text-[#70e9d2]">✕</button>
-            </div>
+      {openPay && pagoData?.recibo_id && <SimulatedCheckout
+        receiptId={pagoData.recibo_id} amount={pagoData.monto} token={token}
+        onClose={() => setOpenPay(false)}
+        onPaid={async () => { await Promise.all([fetchRecibos(), fetchPagos()]) }}
+      />}
 
-            <div className="mt-6">
-              <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Recibo #{pagoData.recibo_id}</p>
-                <p className="mt-2 font-serif text-2xl text-[#70e9d2]">{formatCop(pagoData.monto)}</p>
-              </div>
-
-              <div className="mb-6 rounded-2xl border border-[#70e9d2]/20 bg-[#70e9d2]/5 p-4">
-                <div className="mb-2 flex items-center gap-2 text-[#70e9d2]">
-                  <ShieldAlert size={16} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">{simulated ? 'Pago simulado' : 'Pago seguro'}</span>
-                </div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d6fff9]">{simulated ? 'NO ES UNA TRANSACCIÓN REAL' : 'Completa el pago en Mercado Pago'}</p>
-                <p className="mt-2 text-xs text-white/60">{simulated ? 'Se registrará un pago de demostración y el recibo quedará pagado en la aplicación. No se realizarán cobros ni transferencias.' : 'Elige entre los medios disponibles en la pasarela. El recibo se actualizará al recibir la confirmación del pago.'}</p>
-              </div>
-
-              <form onSubmit={(event) => { event.preventDefault(); handleConfirmarPago() }} className="grid gap-4">
-                {message && <p role="alert" className="text-sm text-red-300">{message}</p>}
-                <button type="submit" disabled={loading} className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#70e9d2] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#07131b] transition hover:bg-[#8ff6e4]">
-                  <Sparkles size={15} /> {loading ? 'Procesando…' : simulated ? 'Confirmar pago simulado' : 'Continuar a Mercado Pago'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

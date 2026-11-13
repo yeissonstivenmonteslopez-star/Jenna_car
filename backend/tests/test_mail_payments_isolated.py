@@ -34,6 +34,7 @@ for name in ['OrdenTrabajo', 'Pago', 'Recibo', 'Usuario', 'Vehiculo']:
     setattr(models, name, MagicMock())
 sys.modules[models.__name__] = models
 serializer = load('isolated.utils.payments', ROOT / 'utils/payments.py')
+load('isolated.services.payment_queries', ROOT / 'services/payment_queries.py')
 mail = load('isolated.utils.email', ROOT / 'utils/email.py')
 flask_stub = types.ModuleType('flask')
 flask_stub.current_app = MagicMock()
@@ -46,6 +47,11 @@ class IsolatedTests(unittest.TestCase):
         self.env = patch.dict(os.environ, {}, clear=True)
         self.env.start()
         self.addCleanup(self.env.stop)
+        # TLS itself is outside these isolated SMTP contract tests. Avoid access
+        # to the Windows certificate store with a deliberately empty environment.
+        tls = patch.object(mail.ssl, 'create_default_context', return_value=object())
+        tls.start()
+        self.addCleanup(tls.stop)
         extensions.db.reset_mock()
         models.Pago.reset_mock()
 

@@ -17,14 +17,19 @@ def create_appointment():
 
 
 def verificar_disponibilidad():
-    slot, error, status = appointment_service.parse_slot(request.get_json(silent=True) or {})
+    payload = request.get_json(silent=True) or {}
+    slot, error, status = appointment_service.parse_slot(payload)
     if error:
         return jsonify({'error': error}), status
-    return jsonify({'data': not appointment_service.occupied(*slot)})
+    return jsonify({'data': appointment_service.slot_status(*slot, payload.get('servicio_id'), payload.get('vehiculo_id'), payload.get('mecanico_id'))[0]})
 
 
 def horarios_disponibles():
-    slots, error, status = appointment_service.available_times(request.args.get('fecha', '').strip())
+    slots, error, status = appointment_service.available_times(
+        request.args.get('fecha', '').strip(), request.args.get('servicio_id', type=int),
+        request.args.get('vehiculo_id', type=int), request.args.get('mecanico_id', type=int),
+        detailed=request.path.endswith('/disponibilidad'),
+    )
     if error:
         return jsonify({'error': error}), status
     return jsonify({'data': slots})

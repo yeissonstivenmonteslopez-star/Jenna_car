@@ -11,21 +11,20 @@ import urllib.request
 from types import SimpleNamespace
 from flask import current_app
 from ..extensions import db
-from ..models import OrdenTrabajo, Pago, Recibo, Usuario, Vehiculo
+from ..models import OrdenTrabajo, Pago, Recibo, Vehiculo
 from ..utils.payments import payment_to_dict
+
+from .payment_queries import (
+    payment_query as payment_query,
+    admin_list as admin_list,
+    get as get,
+    get_for_user as get_for_user,
+    list_for_user as list_for_user,
+)
 
 
 def simulation_enabled():
     return os.getenv('PAYMENTS_SIMULATED', 'false').lower() in {'1', 'true', 'yes'}
-
-
-def payment_query():
-    # Local simulation also works before adding the provider tracking columns.
-    from sqlalchemy.orm import defer
-    query = Pago.query
-    if simulation_enabled():
-        query = query.options(defer(Pago.mercado_pago_payment_id), defer(Pago.mercado_pago_status), defer(Pago.mercado_pago_reference))
-    return query
 
 
 def create_simulated(user, receipt_id):
@@ -63,6 +62,74 @@ def create_simulated(user, receipt_id):
     return data, None, 201
 
 
+def simulate_checkout(user, payload):
+    """Academic checkout: never calls a provider and never accepts card secrets."""
+    import re
+    from .schema_compat import optional_read
+    if not isinstance(payload, dict) or set(payload) - {'recibo_id', 'metodo', 'franquicia', 'resultado', 'idempotencia'}:
+        return None, 'Envía solamente datos del simulador; no envíes tarjeta ni CVV', 400
+    method = payload.get('metodo')
+    brand = payload.get('franquicia', '') if method == 'tarjeta' else 'nequi'
+    outcome = payload.get('resultado')
+    key = payload.get('idempotencia', '')
+    if method not in {'tarjeta', 'nequi'} or brand not in {'visa', 'mastercard', 'amex', 'nequi'} or outcome not in {'aprobado', 'rechazado', 'pendiente'}:
+        return None, 'Método o resultado de simulación inválidos', 400
+    if not isinstance(key, str) or not re.fullmatch(r'[a-zA-Z0-9-]{16,64}', key):
+        return None, 'Falta una clave de idempotencia válida', 400
+    try:
+        receipt_id = int(str(payload.get('recibo_id', '')))
+        if receipt_id <= 0:
+            raise ValueError()
+    except (ValueError, TypeError):
+        return None, 'Recibo inválido', 400
+    receipt = (Recibo.query.options(*optional_read(Recibo, 'enviado_cliente'))
+               .join(Recibo.orden_trabajo).join(OrdenTrabajo.vehiculo)
+               .filter(Recibo.id == receipt_id, Vehiculo.usuario_id == user.id)
+               .with_for_update().populate_existing().first())
+    if not receipt:
+        db.session.rollback()
+        return None, 'Recibo no encontrado', 404
+    reference = 'SIM-' + hashlib.sha256(f'{user.id}:{receipt.id}:{key}'.encode()).hexdigest()[:48].upper()
+    # Only original columns are selected/inserted: no provider tracking fields.
+    existing = db.session.execute(db.text(
+        'SELECT id, recibo_id, usuario_id, monto, metodo_pago, referencia, estado, fecha_pago '
+        'FROM pagos WHERE referencia=:reference FOR UPDATE'
+    ), {'reference': reference}).mappings().first()
+    state = {'aprobado': 'completado', 'rechazado': 'anulado', 'pendiente': 'pendiente'}[outcome]
+    if existing:
+        if existing['metodo_pago'] != method or existing['estado'] != state:
+            db.session.rollback()
+            return None, 'La clave ya se utilizó con otro resultado o método', 409
+        data = payment_to_dict(SimpleNamespace(recibo=receipt, **existing))
+        db.session.rollback()
+        return data, None, 200
+    if receipt.estado != 'pendiente' or receipt.enviado_cliente is False or receipt.total <= 0:
+        db.session.rollback()
+        return None, 'El recibo no está disponible para pago', 409
+    prior = db.session.execute(db.text(
+        "SELECT id FROM pagos WHERE recibo_id=:id AND estado IN ('completado','pendiente') LIMIT 1 FOR UPDATE"
+    ), {'id': receipt.id}).first()
+    if prior:
+        db.session.rollback()
+        return None, 'Este recibo ya tiene un pago completado o pendiente', 409
+    values = dict(recibo_id=receipt.id, usuario_id=user.id, monto=str(receipt.total),
+                  metodo_pago=method, referencia=reference, estado=state, fecha_pago=datetime.now(timezone.utc))
+    try:
+        result = db.session.execute(db.text(
+            'INSERT INTO pagos (recibo_id,usuario_id,monto,metodo_pago,referencia,estado,fecha_pago) '
+            'VALUES (:recibo_id,:usuario_id,:monto,:metodo_pago,:referencia,:estado,:fecha_pago)'
+        ), values)
+        if state == 'completado':
+            receipt.estado = 'pagado'
+        data = payment_to_dict(SimpleNamespace(id=result.lastrowid, recibo=receipt, **values))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return None, 'No fue posible registrar la simulación', 409
+    data['resultado_simulado'] = outcome
+    return data, None, 201
+
+
 def mp_api(path, method='GET', body=None):
     token = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
     if not token:
@@ -79,21 +146,6 @@ def mp_api(path, method='GET', body=None):
     except (urllib.error.URLError, OSError, ValueError):
         current_app.logger.error('No se pudo completar la consulta a Mercado Pago')
         return None, 'No se pudo conectar con Mercado Pago', 502
-
-
-def admin_list(filters):
-    query, reference, client, state, date = (filters.get(key, '') for key in ('q', 'referencia', 'cliente', 'estado', 'fecha'))
-    base = payment_query().join(Pago.recibo).join(Recibo.orden_trabajo).join(OrdenTrabajo.vehiculo).join(Vehiculo.cliente)
-    if query: base = base.filter((Pago.referencia.ilike(f'%{query}%')) | (Usuario.nombre.ilike(f'%{query}%')) | (Usuario.apellido.ilike(f'%{query}%')) | (Usuario.email.ilike(f'%{query}%')))
-    if reference: base = base.filter(Pago.referencia.ilike(f'%{reference}%'))
-    if client: base = base.filter((Usuario.nombre.ilike(f'%{client}%')) | (Usuario.apellido.ilike(f'%{client}%')) | (Usuario.email.ilike(f'%{client}%')))
-    if state: base = base.filter(Pago.estado.ilike(f'%{state}%'))
-    if date: base = base.filter(db.func.date(Pago.fecha_pago) == date)
-    return [payment_to_dict(item) for item in base.order_by(Pago.fecha_pago.desc(), Pago.id.desc()).all()]
-
-
-def get(payment_id):
-    return payment_query().filter(Pago.id == payment_id).first()
 
 
 def create(user, payload):
@@ -149,18 +201,6 @@ def create(user, payload):
     data = payment_to_dict(payment)
     data.update(url_redireccion=checkout_url, mensaje='Continúa en Mercado Pago para completar el pago.')
     return data, None, 201
-
-
-def get_for_user(user_id, payment_id):
-    payment = (payment_query().join(Pago.recibo).join(Recibo.orden_trabajo)
-               .join(OrdenTrabajo.vehiculo).filter(Pago.id == payment_id, Vehiculo.usuario_id == user_id).first())
-    return (payment_to_dict(payment), None, None) if payment else (None, 'Pago no encontrado', 404)
-
-
-def list_for_user(user_id):
-    payments = (payment_query().join(Pago.recibo).join(Recibo.orden_trabajo).join(OrdenTrabajo.vehiculo)
-                .filter(Vehiculo.usuario_id == user_id).order_by(Pago.fecha_pago.desc(), Pago.id.desc()).all())
-    return [payment_to_dict(item) for item in payments], None, None
 
 
 def validate_mp_webhook_signature(data_id, signature, request_id):

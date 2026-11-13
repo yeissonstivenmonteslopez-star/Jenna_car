@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CalendarDays, CarFront, Clock3, Wrench } from 'lucide-react'
+import { CalendarDays, CarFront, Clock3, Wrench } from 'lucide-react'
 import { getMisCitas } from '@/features/citas/services/citasService'
 
 type Cita = {
@@ -60,14 +60,7 @@ export default function MisCitasPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_24%),_linear-gradient(180deg,_#0a0a0a_0%,_#111111_100%)] px-4 py-10 text-white sm:px-6 lg:px-10">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <a href="/" className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/70 transition hover:text-white">
-            <ArrowLeft size={14} /> Volver al inicio
-          </a>
-          <div className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-red-300">
-            Jenna Car Studio
-          </div>
-        </div>
+
 
         <section className="rounded-[28px] border border-red-500/20 bg-[#141414]/90 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.5)] backdrop-blur-sm sm:p-8">
           <div className="mb-8 flex items-start justify-between gap-4">
@@ -87,9 +80,6 @@ export default function MisCitasPage() {
           {!error && citas.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-red-500/25 bg-[#1a1a1a] p-8 text-center">
               <p className="text-lg font-medium text-white">Todavía no tienes citas agendadas.</p>
-              <a href="/citas" className="mt-5 inline-flex rounded-xl bg-red-600 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-red-500">
-                Agendar ahora
-              </a>
             </div>
           ) : null}
 

@@ -1,7 +1,10 @@
+import BackLink from '@/components/BackLink'
 
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { ArrowLeft, BadgeCheck, CalendarDays, Camera, Mail, Phone, ReceiptText, ShieldCheck, UserRound, Wrench } from 'lucide-react'
+import { BadgeCheck, CalendarDays, Camera, Mail, Phone, ReceiptText, ShieldCheck, CarFront, Wrench, ArrowUpRight, Plus } from 'lucide-react'
+import { getMisCitas } from '@/features/citas/services/citasService'
+import { getVehiculos } from '@/features/vehiculos/services/vehiculosService'
 import { buildAssetUrl } from '@/services/apiClient'
 import { getPerfil, updatePerfil, uploadFotoPerfil } from '@/features/usuarios/services/usuariosService'
 
@@ -15,9 +18,20 @@ type User = {
   rol?: string
 }
 
+type ProfileVehicle = { id: number; marca: string; modelo: string; placa: string; anio?: number; color?: string; estado?: string }
+type ProfileAppointment = { id: number; fecha: string; hora: string; estado: string; vehiculo: ProfileVehicle; servicio: { name?: string; nombre?: string } }
+
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [tab, setTab] = useState<'actividad' | 'datos'>('actividad')
+  const [vehicles, setVehicles] = useState<ProfileVehicle[]>([])
+  const [appointments, setAppointments] = useState<ProfileAppointment[]>([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [vehicleError, setVehicleError] = useState('')
+  const [appointmentError, setAppointmentError] = useState('')
   const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
 
   useEffect(() => {
@@ -32,111 +46,107 @@ export default function ProfilePage() {
         localStorage.removeItem('jenna_car_token')
         window.location.href = '/sign-in'
       })
-  }, [])
+  }, [token])
+
+  useEffect(() => {
+    if (!token) return
+    let active = true
+    Promise.allSettled([getVehiculos(token), getMisCitas(token)]).then(([cars, visits]) => {
+      if (!active) return
+      if (cars.status === 'fulfilled') setVehicles(cars.value.data || [])
+      else setVehicleError('No fue posible cargar tus vehículos. Intenta de nuevo más tarde.')
+      if (visits.status === 'fulfilled') setAppointments(visits.value.data || [])
+      else setAppointmentError('No fue posible cargar tus citas. Puedes consultarlas en Mis citas.')
+      setActivityLoading(false)
+    })
+    return () => { active = false }
+  }, [token])
+
+  function applyUser(updated: User) {
+    setUser(updated)
+    try { localStorage.setItem('jenna_car_user', JSON.stringify(updated)) } catch { /* Saved on the server; local caching is optional. */ }
+    window.dispatchEvent(new CustomEvent('jenna-profile-updated', { detail: updated }))
+  }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
-    if (!file || !token) return
+    if (!file || !token || saving || uploading) return
+    const input = event.currentTarget
 
     if (file.size > 5 * 1024 * 1024) {
       setMessage('La imagen debe pesar menos de 5MB.')
-      event.target.value = ''
+      input.value = ''
       return
     }
 
+    setUploading(true)
+    setMessage('')
     try {
       const data = await uploadFotoPerfil(file, token)
-      setUser(data.user)
-      localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
+      applyUser(data.user)
       setMessage('Foto actualizada correctamente.')
-      event.target.value = ''
-    } catch {
-      setMessage('No fue posible subir la imagen.')
-      event.target.value = ''
-    }
+      input.value = ''
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No fue posible subir la imagen.')
+    } finally { setUploading(false); input.value = '' }
   }
 
   async function updateProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (saving || uploading) return
     const formData = new FormData(event.currentTarget)
     const telefono = String(formData.get('telefono') || '').trim()
     if (!/^\d{10}$/.test(telefono)) {
       setMessage('El teléfono debe tener exactamente 10 números.')
       return
     }
+    setSaving(true)
+    setMessage('')
     try {
       const data = await updatePerfil(formData, token)
-      setUser(data.user)
-      localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
+      applyUser(data.user)
       setMessage('Perfil actualizado correctamente.')
-    } catch {
-      setMessage('Error al actualizar el perfil.')
-    }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Error al actualizar el perfil.')
+    } finally { setSaving(false) }
   }
 
   if (!user) return <main className="min-h-screen bg-primary p-12 text-primary-foreground">Cargando perfil...</main>
 
   const avatar = buildAssetUrl(user.foto_perfil)
 
-  return (
-    <main
-      className="min-h-screen bg-[#0b0b0b] px-4 py-8 text-white sm:px-6 sm:py-12"
-      style={{ backgroundImage: 'radial-gradient(circle at top, rgba(239, 68, 68, 0.12), transparent 32%), linear-gradient(180deg, #0b0b0b 0%, #111111 100%)' }}
-    >
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex items-center justify-between gap-4">
-          <a href="/" className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 transition hover:text-white">
-            <ArrowLeft size={14} /> Inicio
-          </a>
-          <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">Jenna Car Studio</span>
-        </header>
+  const recent = [...appointments].sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`)).slice(0, 4)
+  const pending = appointments.filter((item) => ['pendiente', 'confirmada'].includes(item.estado)).length
+  const roleLabel = user.rol === 'admin' ? 'Administrador' : user.rol === 'mecanico' ? 'Mecánico' : 'Cliente Jenna Car'
 
-        <div className="grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
-          <aside className="rounded-[28px] border border-red-500/20 bg-[#141414]/90 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-red-400">Cuenta Jenna Car</p>
-            <div className="mt-7 flex flex-col items-center text-center">
-              <div className="relative">
-                {avatar ? (
-                  <img src={avatar} alt="Foto de perfil" className="h-28 w-28 rounded-full border-2 border-red-500/40 object-cover shadow-[0_0_0_7px_rgba(239,68,68,0.08)]" />
-                ) : (
-                  <span className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-800 text-4xl font-semibold text-white shadow-[0_0_0_7px_rgba(239,68,68,0.08)]">
-                    {user.nombre.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <label className="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-red-300/40 bg-red-600 text-white shadow-lg transition hover:bg-red-500" title="Cambiar foto">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={upload} />
-                  <Camera size={15} />
-                </label>
-              </div>
-              <h1 className="mt-6 font-serif text-3xl text-white">{user.nombre} {user.apellido}</h1>
-              <p className="mt-2 flex items-center gap-2 text-sm text-white/55"><Mail size={14} className="text-red-400" /> {user.email}</p>
-              <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-200">
-                <BadgeCheck size={14} className="text-red-400" /> {user.rol === 'admin' ? 'Administrador' : 'Cliente verificado'}
-              </span>
-            </div>
+  return <main className="profile-social">
+    <div className="profile-container">
+      <BackLink />
+      <section className="profile-identity" aria-label="Mi perfil">
+        <div className="profile-identity-body">
+          <div className="profile-avatar-wrap">
+            {avatar ? <img src={avatar} alt={`Foto de ${user.nombre}`} className="profile-avatar" /> : <span className="profile-avatar profile-initial">{user.nombre.charAt(0).toUpperCase()}</span>}
+            <label className="profile-camera" title="Cambiar foto de perfil"><input disabled={saving || uploading} type="file" aria-label="Cambiar foto de perfil" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={upload} /><Camera size={17} /></label>{uploading && <span role="status" className="profile-photo-status">Guardando foto…</span>}
+          </div>
+          <div className="profile-name"><h1>{user.nombre} {user.apellido}</h1><p><BadgeCheck size={15} /> {roleLabel}</p></div>
+          {tab === 'actividad' && <button type="button" className="profile-outline" onClick={() => setTab('datos')}>Editar perfil <ArrowUpRight size={15} /></button>}
+        </div>
+        <div className="profile-summary" aria-label="Resumen de mi cuenta">
+          <div><strong>{activityLoading || vehicleError ? '—' : vehicles.length}</strong><span>Vehículos</span></div>
+          <div><strong>{activityLoading || appointmentError ? '—' : appointments.length}</strong><span>Citas registradas</span></div>
+          <div><strong>{activityLoading || appointmentError ? '—' : pending}</strong><span>Citas activas</span></div>
+        </div>
 
-            <div className="mt-8 border-t border-white/10 pt-6">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Accesos rápidos</p>
-              <div className="grid gap-2">
-                <a href="/mis-citas" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><CalendarDays size={16} className="text-red-400" /> Mis citas</span><span className="text-red-400">→</span></a>
-                <a href="/mis-reparaciones" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><Wrench size={16} className="text-red-400" /> Mis reparaciones</span><span className="text-red-400">→</span></a>
-                <a href="/mis-recibos" className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white"><span className="flex items-center gap-3"><ReceiptText size={16} className="text-red-400" /> Recibos y pagos</span><span className="text-red-400">→</span></a>
-                {user.rol === 'admin' && <a href="/admin/dashboard" className="flex items-center justify-between rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-100 transition hover:bg-red-500/20"><span className="flex items-center gap-3"><ShieldCheck size={16} className="text-red-400" /> Panel administrativo</span><span className="text-red-300">→</span></a>}
-              </div>
-            </div>
-          </aside>
-
-          <section className="rounded-[28px] border border-red-500/20 bg-[#141414]/90 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-8">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-400"><UserRound size={21} /></div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-red-400">Información personal</p>
-                <h2 className="mt-2 font-serif text-3xl text-white sm:text-4xl">Tu perfil</h2>
-                <p className="mt-2 text-sm text-white/55">Mantén tus datos de contacto actualizados para una atención más ágil.</p>
-              </div>
-            </div>
-
-            <form onSubmit={updateProfile} className="mt-8 grid gap-5">
+      </section>
+      {message && <p role="status" className="profile-notice">{message}</p>}
+      <div className="profile-columns">
+        <aside className="profile-side">
+          <section className="profile-panel"><h2>Sobre mí</h2><p className="profile-muted">Tu información de contacto con el taller.</p><p className="profile-contact"><Mail size={16} /><span>{user.email}</span></p><p className="profile-contact"><Phone size={16} /><span>{user.telefono || 'Agrega tu teléfono en Datos personales'}</span></p></section>
+          <section className="profile-panel"><h2>Mi taller, a un clic</h2><div className="profile-shortcuts"><a href="/mis-reparaciones"><Wrench size={17} /> Seguir reparaciones <ArrowUpRight size={14} /></a><a href="/mis-recibos"><ReceiptText size={17} /> Recibos y pagos <ArrowUpRight size={14} /></a>{user.rol === 'admin' && <a href="/admin/dashboard"><ShieldCheck size={17} /> Administración <ArrowUpRight size={14} /></a>}{user.rol === 'mecanico' && <a href="/mechanic"><Wrench size={17} /> Panel mecánico <ArrowUpRight size={14} /></a>}</div></section>
+        </aside>
+        <div className="profile-feed">
+          {tab === 'datos' ? <section className="profile-panel"><button type="button" className="profile-text-link" onClick={() => setTab('actividad')}>← Volver a mi perfil</button><p className="profile-eyebrow">INFORMACIÓN PERSONAL</p><h2>Tu perfil</h2><p className="profile-muted">Actualiza tus datos para mantenerte en contacto con el taller.</p>
+            <form key={`${user.nombre}-${user.apellido}-${user.telefono}`} onSubmit={updateProfile} className="mt-8 grid gap-5" aria-busy={saving}><fieldset disabled={saving || uploading} className="contents">
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
                   Nombre
@@ -160,14 +170,21 @@ export default function ProfilePage() {
 
               <div className="mt-2 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-white/45">Tu información está protegida y solo se usa para gestionar tu servicio.</p>
-                <button type="submit" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_12px_30px_rgba(220,38,38,0.28)] transition hover:bg-red-500"><BadgeCheck size={15} /> Guardar cambios</button>
+                <button type="submit" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_12px_30px_rgba(220,38,38,0.28)] transition hover:bg-red-500"><BadgeCheck size={15} /> {saving ? 'Guardando…' : 'Guardar cambios'}</button>
               </div>
-            </form>
+            </fieldset></form>
+          </section> : <>
+            {tab === 'actividad' && <section className="profile-panel"><div className="profile-section-heading"><div><p className="profile-eyebrow">TU AGENDA</p><h2>Citas y actividad reciente</h2></div><a href="/citas" className="profile-primary"><Plus size={15} /> Agendar cita</a></div>
+              {activityLoading ? <p role="status" className="profile-empty">Cargando tus citas…</p> : appointmentError ? <p role="alert" className="profile-empty">{appointmentError}</p> : recent.length ? <div className="profile-activity">{recent.map((item) => <article key={item.id}><div className="profile-activity-icon"><CalendarDays size={19} /></div><div className="profile-activity-content"><span className="profile-status">{item.estado}</span><h3>{item.servicio?.name || item.servicio?.nombre || 'Cita de servicio'}</h3><p>{item.vehiculo?.marca} {item.vehiculo?.modelo} · {item.vehiculo?.placa}</p><time dateTime={`${item.fecha}T${item.hora}`}>{new Date(`${item.fecha}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · {item.hora.slice(0, 5)}</time></div></article>)}</div> : <div className="profile-empty"><CalendarDays size={28} /><h3>Tu próxima visita empieza aquí</h3><p>Aún no tienes citas registradas. Cuando agendes, aparecerán en tu perfil.</p></div>}
+              <a href="/mis-citas" className="profile-text-link">Ver todas mis citas →</a>
+            </section>}
+            <section className="profile-panel"><div className="profile-section-heading"><div><p className="profile-eyebrow">MI GARAJE</p><h2>Mis vehículos</h2></div></div>
+              {activityLoading ? <p role="status" className="profile-empty">Cargando tus vehículos…</p> : vehicleError ? <p role="alert" className="profile-empty">{vehicleError}</p> : vehicles.length ? <div className="profile-garage">{vehicles.map((vehicle) => <article key={vehicle.id} className="profile-vehicle"><div className="profile-vehicle-art"><CarFront size={52} strokeWidth={1.1} /><span>{vehicle.placa}</span></div><h3>{vehicle.marca} {vehicle.modelo}</h3><p>{[vehicle.anio, vehicle.color].filter(Boolean).join(' · ') || 'Vehículo registrado'}{vehicle.estado ? ` · ${vehicle.estado.replace('_', ' ')}` : ''}</p></article>)}</div> : <div className="profile-empty"><CarFront size={30} /><h3>Un espacio para tus vehículos</h3><p>Registra tu vehículo al agendar tu primera cita.</p></div>}
 
-            {message && <p className="mt-6 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">{message}</p>}
-          </section>
+            </section>
+          </>}
         </div>
       </div>
-    </main>
-  )
+    </div>
+  </main>
 }

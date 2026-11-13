@@ -4,7 +4,7 @@ Este paquete incluye el codigo actual del frontend y backend, MySQL y la configu
 
 Requisitos: servidor Linux con Docker Engine y Docker Compose v2. Abre el puerto elegido (80 por defecto).
 
-Validacion local del paquete: las imagenes de web y backend se construyeron correctamente y se iniciaron con Docker Compose. MySQL y backend pasaron sus comprobaciones de salud. El servidor Linux tambien puede construir directamente con las instrucciones siguientes.
+La comprobacion completa de construccion y arranque requiere un motor Docker disponible. El asistente `python deploy/start.py` construye los servicios y espera sus comprobaciones de salud antes de informar que se iniciaron.
 
 ## Iniciar
 
@@ -33,7 +33,7 @@ docker compose --env-file .env.production -f compose.production.yml restart
 docker compose --env-file .env.production -f compose.production.yml down
 ```
 
-MySQL y las fotos persisten en volumenes Docker. No ejecutes `down -v` si quieres conservarlos. Este despliegue crea una base nueva; para trasladar tu informacion actual debes exportarla e importarla por separado. Antes de actualizar una base existente, realiza una copia y revisa las migraciones en `backend/migrations`.
+MySQL y las fotos persisten en volumenes Docker. No ejecutes `down -v` si quieres conservarlos. Este despliegue crea una base nueva; para trasladar tu informacion actual debes exportarla e importarla por separado. El servicio `migrate` ejecuta Alembic antes de iniciar la API. Antes de actualizar una base existente, realiza una copia y revisa `backend/MIGRACIONES.md`; una base importada sin version de Alembic necesita el asistente `deploy/migrate_existing.py` antes del arranque normal.
 
 ## Transferir imagenes ya construidas (opcional)
 

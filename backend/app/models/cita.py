@@ -1,6 +1,8 @@
 from ..extensions import db
 from sqlalchemy.dialects.mysql import INTEGER, TIMESTAMP
-from sqlalchemy import Enum as SaEnum, UniqueConstraint, Index, select
+from sqlalchemy import Enum as SaEnum, UniqueConstraint, Index, select, Computed
+from sqlalchemy.orm import deferred
+from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timezone
 from .vehiculo import Vehiculo
@@ -9,11 +11,12 @@ from .vehiculo import Vehiculo
 class Cita(db.Model):
     __tablename__ = 'citas'
     __table_args__ = (
-        UniqueConstraint('vehiculo_id', 'fecha', 'hora', name='uq_citas_vehiculo_fecha_hora'),
-        UniqueConstraint('mecanico_id', 'fecha', 'hora', name='uq_citas_mecanico_fecha_hora'),
+        UniqueConstraint('vehiculo_id', 'fecha', 'hora', 'cupo_activo', name='uq_citas_vehiculo_slot_activo'),
+        UniqueConstraint('mecanico_id', 'fecha', 'hora', 'cupo_activo', name='uq_citas_mecanico_slot_activo'),
         Index('idx_citas_fecha_hora', 'fecha', 'hora'),
     )
     id = db.Column(INTEGER(unsigned=True), primary_key=True, autoincrement=True)
+    cupo_activo = deferred(db.Column(TINYINT(unsigned=True), Computed("CASE WHEN estado = 'cancelada' THEN NULL ELSE 1 END", persisted=True), nullable=True))
     vehiculo_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('vehiculos.id', name='fk_citas_vehiculo', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False)
     mecanico_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('usuarios.id', ondelete='SET NULL', onupdate='CASCADE'), nullable=True)
     servicio_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('servicios.id', name='fk_citas_servicio', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False)

@@ -6,6 +6,13 @@ from ..services import pagos_s
 pagos_bp = Blueprint('pagos', __name__)
 
 
+@pagos_bp.post('/simulados')
+@jwt_required(roles=['usuario'])
+def simulated_checkout():
+    data, error, status = pagos_s.simulate_checkout(request.current_user, request.get_json(silent=True) or {})
+    return (jsonify({'error': error}), status) if error else (jsonify({'data': data}), status)
+
+
 @pagos_bp.get('/config')
 @jwt_required()
 def payment_config():

@@ -1,7 +1,12 @@
+import BookingVehicleFields from './BookingVehicleFields'
+import BookingSummary from './BookingSummary'
+import type { VehicleOption, ServiceOption } from './bookingTypes'
+import { formatDuration } from './bookingPresentation'
 
 import { useEffect, useMemo, useState } from 'react'
+import AppointmentTimePicker from './AppointmentTimePicker'
 import type { FormEvent } from 'react'
-import { ArrowLeft, CalendarDays, CarFront, CheckCircle2, Clock3, ShieldCheck, Sparkles, Wrench } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ShieldCheck, Sparkles, Wrench } from 'lucide-react'
 import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
 import { getServices } from '@/features/servicios/services/serviciosService'
 import { createCita, getHorasDisponibles } from '@/features/citas/services/citasService'
@@ -20,32 +25,6 @@ function getServiceBadge(serviceName: string) {
   return Wrench
 }
 
-function formatDuration(totalMinutes?: number) {
-  const minutes = Number(totalMinutes || 0)
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-  if (hours && remainingMinutes) return `${hours} h ${remainingMinutes} min`
-  if (hours) return `${hours} h`
-  return `${remainingMinutes} min`
-}
-
-type VehicleOption = {
-  id: number
-  placa: string
-  marca: string
-  modelo: string
-  anio?: number | null
-  color?: string | null
-  tipo_combustible?: string
-}
-
-type ServiceOption = {
-  id: number
-  name: string
-  description?: string | null
-  price?: number
-  duration_minutes?: number
-}
 
 export default function CitasPage() {
   const [loading, setLoading] = useState(true)
@@ -62,6 +41,7 @@ export default function CitasPage() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [slotsError, setSlotsError] = useState('')
+  const [slotsRefresh, setSlotsRefresh] = useState(0)
 
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => String(vehicle.id) === selectedVehicleId) || null,
@@ -108,16 +88,22 @@ export default function CitasPage() {
 
   useEffect(() => {
     setAvailableSlots([])
+    setAppointmentTime('')
     setSlotsError('')
+    setLoadingSlots(false)
     if (!appointmentDate) return
     const token = localStorage.getItem('jenna_car_token') || ''
     if (!token) return
 
     let active = true
     setLoadingSlots(true)
-    getHorasDisponibles(appointmentDate, token)
+    const refresh = () => getHorasDisponibles(appointmentDate, token, selectedServiceId, selectedVehicleId)
       .then((response) => {
-        if (active) setAvailableSlots(response.data || [])
+        if (active) {
+          const slots = (response.data || []).filter((slot) => slot.disponible).map((slot) => slot.hora)
+          setAvailableSlots(slots)
+          setAppointmentTime((previous) => slots.includes(previous) ? previous : '')
+        }
       })
       .catch((error: unknown) => {
         if (active) setSlotsError(error instanceof Error ? error.message : 'No fue posible consultar los horarios.')
@@ -125,8 +111,11 @@ export default function CitasPage() {
       .finally(() => {
         if (active) setLoadingSlots(false)
       })
-    return () => { active = false }
-  }, [appointmentDate])
+    void refresh()
+    const timer = window.setInterval(() => { void refresh() }, 30000)
+    window.addEventListener('focus', refresh)
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh) }
+  }, [appointmentDate, selectedServiceId, selectedVehicleId, slotsRefresh])
 
   async function handleBookingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -199,6 +188,7 @@ export default function CitasPage() {
       }, 1200)
     } catch (error) {
       setMessageBooking(error instanceof Error ? error.message : 'No fue posible agendar la cita.')
+      setSlotsRefresh((value) => value + 1)
     } finally {
       setBookingSaving(false)
     }
@@ -220,14 +210,7 @@ export default function CitasPage() {
       style={{ backgroundImage: 'radial-gradient(circle at top, rgba(239, 68, 68, 0.18), transparent 30%), linear-gradient(180deg, #0a0a0a 0%, #111111 100%)' }}
     >
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <a href="/" className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/70 transition hover:text-white">
-            <ArrowLeft size={14} /> Volver al inicio
-          </a>
-          <div className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-red-300">
-            Jenna Car Studio
-          </div>
-        </div>
+
 
         <div className="grid gap-8 lg:grid-cols-[1.5fr_0.85fr]">
           <section className="rounded-[28px] border border-red-500/20 bg-[#141414] p-6 shadow-[0_25px_80px_rgba(0,0,0,0.55)] backdrop-blur-sm sm:p-8">
@@ -242,56 +225,8 @@ export default function CitasPage() {
             </div>
 
             <form onSubmit={handleBookingSubmit} className="grid gap-6">
-              <div className="grid gap-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Vehículo</p>
-                {vehicles.length > 0 ? (
-                  <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">
-                    <span>Selecciona tu coche</span>
-                    <select
-                      value={showNewVehicleForm ? 'new' : selectedVehicleId}
-                      onChange={(event) => {
-                        const nextValue = event.target.value
-                        const isNewVehicle = nextValue === 'new'
-                        setShowNewVehicleForm(isNewVehicle)
-                        setSelectedVehicleId(isNewVehicle ? 'new' : nextValue)
-                      }}
-                      className="rounded-2xl border border-red-500/30 bg-[#1d1d1d] px-4 py-3.5 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/30"
-                    >
-                      {vehicles.map((vehicle) => (
-                        <option key={vehicle.id} value={vehicle.id} className="bg-[#1d1d1d] text-white">
-                          {vehicle.marca} {vehicle.modelo} · {vehicle.placa}
-                        </option>
-                      ))}
-                      <option value="new" className="bg-[#1d1d1d] text-white">Registrar otro vehículo</option>
-                    </select>
-                  </label>
-                ) : null}
-
-                {(showNewVehicleForm || vehicles.length === 0) && (
-                  <div className="grid gap-3 rounded-2xl border border-dashed border-red-500/30 bg-[#171717] p-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Nuevo vehículo</p>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input name="placa" required placeholder="Placa" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                      <input name="marca" required placeholder="Marca" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input name="modelo" required placeholder="Modelo" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                      <input name="anio" type="number" placeholder="Año" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input name="color" placeholder="Color" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                      <input name="kilometraje" type="number" min="0" placeholder="Kilometraje" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                    </div>
-                    <select name="tipo_combustible" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition focus:border-red-400">
-                      <option value="gasolina" className="bg-[#0f0f0f] text-white">Gasolina</option>
-                      <option value="diesel" className="bg-[#0f0f0f] text-white">Diesel</option>
-                      <option value="hibrido" className="bg-[#0f0f0f] text-white">Híbrido</option>
-                      <option value="electrico" className="bg-[#0f0f0f] text-white">Eléctrico</option>
-                      <option value="gas" className="bg-[#0f0f0f] text-white">Gas</option>
-                    </select>
-                  </div>
-                )}
-              </div>
+              <BookingVehicleFields vehicles={vehicles} selectedVehicleId={selectedVehicleId} showNewVehicleForm={showNewVehicleForm}
+                setSelectedVehicleId={setSelectedVehicleId} setShowNewVehicleForm={setShowNewVehicleForm} />
 
               <div className="grid gap-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Servicio</p>
@@ -334,20 +269,9 @@ export default function CitasPage() {
                     />
                   </div>
                 </label>
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">Hora disponible</p>
-                    <span className="text-[10px] text-white/35">08:00 - 19:00</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {loadingSlots ? <p className="col-span-full py-3 text-xs text-white/45">Consultando disponibilidad…</p> : slotsError ? <p className="col-span-full py-3 text-xs text-red-300">{slotsError}</p> : availableSlots.length ? availableSlots.map((slot) => (
-                      <button key={slot} type="button" onClick={() => setAppointmentTime(slot)} className={`rounded-lg border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-red-400 bg-red-500/15 text-red-200' : 'border-white/10 bg-[#0f0f0f] text-white/60 hover:border-red-400/50 hover:text-white'}`}>
-                        <Clock3 size={12} className="mx-auto mb-1" />{slot}
-                      </button>
-                    )) : appointmentDate ? <p className="col-span-full py-3 text-xs text-white/45">No quedan horarios libres para esta fecha.</p> : null}
-                  </div>
-                  {!appointmentDate && <p className="mt-2 text-xs text-white/35">Primero elige un día para ver los horarios.</p>}
-                </div>
+                <AppointmentTimePicker date={appointmentDate} value={appointmentTime} available={availableSlots}
+                  loading={loadingSlots} error={slotsError} onChange={setAppointmentTime}
+                  onRetry={() => setSlotsRefresh((value) => value + 1)} />
               </div>
 
               <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">
@@ -363,7 +287,7 @@ export default function CitasPage() {
 
               <button
                 type="submit"
-                disabled={bookingSaving}
+                disabled={bookingSaving || loadingSlots || !availableSlots.includes(appointmentTime)}
                 className="mt-2 flex items-center justify-center gap-3 rounded-2xl bg-red-600 px-5 py-4 text-[10px] font-semibold tracking-[0.18em] text-white shadow-[0_14px_35px_rgba(239,68,68,0.35)] transition hover:bg-red-500 disabled:opacity-60"
               >
                 {bookingSaving ? 'AGENDANDO…' : 'SOLICITAR CITA'} <CalendarDays size={15} />
@@ -371,53 +295,7 @@ export default function CitasPage() {
             </form>
           </section>
 
-          <aside className="rounded-[28px] border border-red-500/20 bg-[#141414] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/15 text-red-400">
-                <CarFront size={18} />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Resumen</p>
-                <h2 className="font-serif text-2xl text-white">Tu cita</h2>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-red-500/20 bg-[#1b1b1b] p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">Vehículo</p>
-                <p className="mt-2 text-base font-medium text-white">
-                  {selectedVehicle ? `${selectedVehicle.marca} ${selectedVehicle.modelo}` : 'Añadir vehículo'}
-                </p>
-                <p className="mt-1 text-sm text-white/60">{selectedVehicle ? selectedVehicle.placa : 'Pendiente'}</p>
-              </div>
-
-              <div className="rounded-2xl border border-red-500/20 bg-[#1b1b1b] p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">Servicio</p>
-                <p className="mt-2 text-base font-medium text-white">
-                  {selectedService ? selectedService.name : 'Sin seleccionar'}
-                </p>
-                <p className="mt-1 text-sm text-white/60">
-                  {selectedService?.duration_minutes ? formatDuration(selectedService.duration_minutes) : 'Personalizado'}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-red-500/20 bg-[#1b1b1b] p-4">
-                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/55">
-                  <Clock3 size={12} /> Disponibilidad
-                </p>
-                <p className="mt-2 text-sm text-white/75">{appointmentDate && appointmentTime ? `${appointmentDate} a las ${appointmentTime}` : 'Selecciona un día y una hora para continuar.'}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-2xl bg-red-500/10 p-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-red-300">Proceso</p>
-              <ol className="mt-3 space-y-2 text-sm text-white/75">
-                <li>1. Selecciona tu vehículo.</li>
-                <li>2. Elige el servicio.</li>
-                <li>3. Confirma fecha y hora.</li>
-              </ol>
-            </div>
-          </aside>
+          <BookingSummary selectedVehicle={selectedVehicle} selectedService={selectedService} appointmentDate={appointmentDate} appointmentTime={appointmentTime} />
         </div>
       </div>
     </main>

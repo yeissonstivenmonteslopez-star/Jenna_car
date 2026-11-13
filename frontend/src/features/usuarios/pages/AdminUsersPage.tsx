@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Search, ShieldCheck, Trash2, Users } from 'lucide-react'
 import { buildAssetUrl } from '@/services/apiClient'
 import { getAdminUsuarios, bulkDeleteUsuarios, updateUsuarioRol } from '@/features/usuarios/services/usuariosService'
-import AdminBackLink from '@/components/admin-back-link'
 
 const protectedEmails = new Set(['yeisson@gmail.com', 'admin3@jenna.com'])
 
@@ -23,6 +22,13 @@ interface User {
 export default function AdminUsuarios() {
   const [users, setUsers] = useState<User[]>([])
   const [token] = useState<string>(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('jenna_car_user') || '{}')
+    } catch {
+      return {}
+    }
+  }, [])
   const [message, setMessage] = useState('')
   const [editing, setEditing] = useState<number | null>(null)
   const [newRol, setNewRol] = useState<string>('usuario')
@@ -37,14 +43,14 @@ export default function AdminUsuarios() {
 
   useEffect(() => {
     if (!token) { window.location.href = '/sign-in'; return }
-  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token])
 
   useEffect(() => {
     if (!token) return
     getAdminUsuarios(token)
       .then((data) => setUsers(data.data || []))
       .catch(() => setMessage('Error al cargar usuarios'))
-  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token])
 
   const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true
@@ -91,7 +97,6 @@ export default function AdminUsuarios() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#f87171]">Administración</p>
             <h1 className="mt-3 font-serif text-4xl text-white md:text-5xl">Usuarios</h1>
           </div>
-          <AdminBackLink />
         </header>
 
         {message && (
@@ -194,26 +199,30 @@ export default function AdminUsuarios() {
                         </span>
                       </td>
                       <td className="p-4">
-                        {editing === user.id ? (
+                        {user.id === currentUser?.id ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-300">
+                            <ShieldCheck size={13} className="text-red-400" /> Tu cuenta (admin)
+                          </span>
+                        ) : editing === user.id ? (
                           <div className="flex flex-col gap-2 md:flex-row">
                             <select
                               value={newRol}
                               onChange={(event) => setNewRol(event.target.value)}
-                              className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#f87171]/60"
+                              className="rounded-lg border border-white/15 bg-[#141414] px-3 py-2 text-sm text-white outline-none focus:border-red-500"
                             >
                               <option value="usuario" className="bg-[#141414]">Usuario</option>
-                              <option value="mecanico" className="bg-[#141414]">Mecanico</option>
+                              <option value="mecanico" className="bg-[#141414]">Mecánico</option>
                               <option value="admin" className="bg-[#141414]">Administrador</option>
                             </select>
                             <button
                               onClick={() => handleCambiarRol(user.id)}
-                              className="rounded-lg bg-[#f87171] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#1a0909] transition hover:bg-[#fca5a5]"
+                              className="rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] text-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em] shadow-md shadow-red-950/50 border border-red-500/40 transition-all duration-150 active:scale-95"
                             >
                               Aplicar
                             </button>
                             <button
                               onClick={() => setEditing(null)}
-                              className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70 hover:bg-white/5"
+                              className="rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80 transition"
                             >
                               Cancelar
                             </button>
@@ -224,7 +233,7 @@ export default function AdminUsuarios() {
                               setEditing(user.id)
                               setNewRol(user.rol)
                             }}
-                            className="inline-flex items-center gap-2 rounded-lg border border-[#f87171]/40 bg-[#f87171]/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f87171]"
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300 transition"
                           >
                             <ShieldCheck size={14} /> Cambiar rol
                           </button>

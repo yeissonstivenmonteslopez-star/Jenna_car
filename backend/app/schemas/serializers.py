@@ -43,6 +43,7 @@ def cita_to_dict(cita):
     return {
         'id': cita.id, 'cliente_id': cita.cliente_id, 'vehiculo_id': cita.vehiculo_id,
         'servicio_id': cita.servicio_id,
+        'mecanico_id': cita.mecanico_id,
         'cliente': {'id': cita.cliente.id, 'nombre': cita.cliente.usuario.nombre, 'apellido': cita.cliente.usuario.apellido} if cita.cliente and cita.cliente.usuario else None,
         'vehiculo': {'id': cita.vehiculo.id, 'marca': cita.vehiculo.marca, 'modelo': cita.vehiculo.modelo, 'placa': cita.vehiculo.placa} if cita.vehiculo else None,
         'servicio': {'id': cita.servicio.id, 'name': cita.servicio.nombre} if cita.servicio else None,

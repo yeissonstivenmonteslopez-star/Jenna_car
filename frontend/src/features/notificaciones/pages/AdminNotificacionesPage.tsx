@@ -145,7 +145,6 @@ export default function AdminNotificacionesPage() {
             <Bell className="text-accent" size={24} />
             <h1 className="font-serif text-2xl tracking-[0.18em]">Notificaciones · Admin</h1>
           </div>
-          <a href="/admin/dashboard" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition">← Panel</a>
         </div>
       </header>
 

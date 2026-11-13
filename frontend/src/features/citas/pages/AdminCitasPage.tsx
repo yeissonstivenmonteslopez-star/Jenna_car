@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, CalendarClock, Check, PencilLine, Search, X } from 'lucide-react'
+import { CalendarCheck2, PencilLine, Search } from 'lucide-react'
 import { asignarMecanico, getAdminCitas, updateCitaEstado } from '@/features/citas/services/citasService'
-import AdminBackLink from '@/components/admin-back-link'
 import { getAdminUsuarios } from '@/features/usuarios/services/usuariosService'
 
 interface Cita {
@@ -36,7 +35,6 @@ export default function AdminCitas() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [newEstado, setNewEstado] = useState<string>('pendiente')
   const [search, setSearch] = useState('')
-  const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [assigningId, setAssigningId] = useState<number | null>(null)
 
   const summary = useMemo(() => ({
@@ -45,12 +43,11 @@ export default function AdminCitas() {
     canceladas: citas.filter((cita) => cita.estado === 'cancelada').length,
   }), [citas])
 
-  const pendientes = useMemo(() => citas.filter((c) => c.estado === 'pendiente'), [citas])
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''
     if (!token) { window.location.href = '/sign-in'; return }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchCitas = async (authToken: string) => {
     const [citaData, userData] = await Promise.all([getAdminCitas(authToken), getAdminUsuarios(authToken)])
@@ -62,9 +59,9 @@ export default function AdminCitas() {
     setAssigningId(citaId)
     setMessage('')
     try {
-      await asignarMecanico(citaId, value ? Number(value) : null, token)
+      const response = await asignarMecanico(citaId, value ? Number(value) : null, token)
+      setCitas((previous) => previous.map((cita) => cita.id === citaId ? { ...cita, ...response.data } : cita))
       setMessage(value ? `Mecánico asignado a la cita #${citaId}.` : `Mecánico retirado de la cita #${citaId}.`)
-      await fetchCitas(token)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No fue posible asignar el mecánico.')
     } finally {
@@ -75,21 +72,7 @@ export default function AdminCitas() {
   useEffect(() => {
     if (!token) return
     fetchCitas(token).catch(() => setMessage('Error al cargar citas'))
-  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const cambiarEstadoRapido = async (citaId: number, estado: 'confirmada' | 'cancelada') => {
-    if (!token) return
-    setActionLoading(citaId)
-    setMessage('')
-    try {
-      const data = await updateCitaEstado(citaId, estado, token).catch((err: any) => ({ error: err.message }))
-      if ((data as any).error) { setMessage((data as any).error); return }
-      setMessage(`Cita #${citaId} → ${estado}`)
-      await fetchCitas(token)
-    } finally {
-      setActionLoading(null)
-    }
-  }
+  }, [token])
 
   const handleCambiarEstado = async (citaId: number) => {
     if (!token) return
@@ -132,7 +115,6 @@ export default function AdminCitas() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#f87171]">Administración</p>
             <h1 className="mt-3 font-serif text-4xl text-white md:text-5xl">Citas</h1>
           </div>
-          <AdminBackLink />
         </header>
 
         {message && (
@@ -141,88 +123,11 @@ export default function AdminCitas() {
           </div>
         )}
 
-        {/* ── Contadores ── */}
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Pendientes</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.pendientes}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Confirmadas</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.confirmadas}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Canceladas</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.canceladas}</p>
-          </div>
+        <div className="mb-6 flex flex-wrap gap-5 text-xs text-white/60" aria-label="Resumen de citas">
+          <span>Pendientes <strong className="ml-1 text-white">{summary.pendientes}</strong></span>
+          <span>Confirmadas <strong className="ml-1 text-white">{summary.confirmadas}</strong></span>
+          <span>Canceladas <strong className="ml-1 text-white">{summary.canceladas}</strong></span>
         </div>
-
-        {/* ── Sección: Citas pendientes con acciones rápidas ── */}
-        <section className="mb-8 overflow-hidden rounded-2xl border border-yellow-400/20 bg-yellow-400/5 shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-          <div className="flex items-center gap-3 border-b border-yellow-400/15 p-5">
-            <div className="rounded-lg bg-yellow-400/10 p-2 text-yellow-300">
-              <CalendarClock size={18} />
-            </div>
-            <h2 className="font-serif text-2xl text-white">Citas pendientes</h2>
-            {pendientes.length > 0 && (
-              <span className="ml-auto rounded-full bg-yellow-400/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                {pendientes.length} por atender
-              </span>
-            )}
-          </div>
-
-          {pendientes.length === 0 ? (
-            <div className="p-10 text-center text-sm text-white/50">No hay citas pendientes en este momento.</div>
-          ) : (
-            <div className="divide-y divide-yellow-400/10">
-              {pendientes.map((cita) => (
-                <div key={cita.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-                  {/* Info de la cita */}
-                  <div className="flex flex-1 flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300">#{cita.id}</span>
-                      <span className="text-sm font-semibold text-white">
-                        {cita.cliente.nombre} {cita.cliente.apellido}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/60">
-                      {cita.vehiculo.marca} {cita.vehiculo.modelo}
-                      <span className="ml-2 text-white/40">{cita.vehiculo.placa}</span>
-                      <span className="mx-2 text-white/25">·</span>
-                      {cita.servicio.name}
-                    </p>
-                    <p className="text-xs text-white/50">
-                      {cita.fecha} a las {cita.hora}
-                      {cita.motivo && <span className="ml-2 text-white/40">— {cita.motivo}</span>}
-                    </p>
-                  </div>
-
-                  {/* Botones de acción rápida */}
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      disabled={actionLoading === cita.id}
-                      onClick={() => cambiarEstadoRapido(cita.id, 'confirmada')}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#f87171] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#1a0909] transition hover:bg-[#fca5a5] disabled:opacity-50"
-                    >
-                      <Check size={14} />
-                      {actionLoading === cita.id ? '…' : 'Confirmar'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={actionLoading === cita.id}
-                      onClick={() => cambiarEstadoRapido(cita.id, 'cancelada')}
-                      className="inline-flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-500/10 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
-                    >
-                      <X size={14} />
-                      {actionLoading === cita.id ? '…' : 'Cancelar'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
 
         {/* ── Tabla completa de todas las citas ── */}
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414] shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
@@ -283,7 +188,7 @@ export default function AdminCitas() {
                         </span>
                       </td>
                       <td className="p-4">
-                        <select
+                        {editingId === cita.id ? <div className="flex flex-col items-start gap-2"><select
                           value={cita.mecanico_id ? String(cita.mecanico_id) : ''}
                           disabled={assigningId === cita.id}
                           aria-label={`Mecánico asignado a la cita ${cita.id}`}
@@ -295,6 +200,11 @@ export default function AdminCitas() {
                             <option key={mecanico.id} value={mecanico.id} className="bg-[#141414]">{mecanico.nombre} {mecanico.apellido}</option>
                           ))}
                         </select>
+                        </div> : <div className="flex flex-col items-start gap-2">
+                          <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(cita.mecanico_id ? 'confirmada' : 'pendiente')}`}>
+                            {cita.mecanico_id ? 'Asignado' : 'Sin asignar'}
+                          </span>
+                        </div>}
                       </td>
                       <td className="p-4">
                         {editingId === cita.id ? (
@@ -310,7 +220,7 @@ export default function AdminCitas() {
                             </select>
                             <button
                               onClick={() => handleCambiarEstado(cita.id)}
-                              className="rounded-lg bg-[#f87171] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#1a0909] transition hover:bg-[#fca5a5]"
+                              className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                             >
                               Guardar
                             </button>

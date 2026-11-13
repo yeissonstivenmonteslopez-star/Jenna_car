@@ -2,7 +2,7 @@ def payment_to_dict(payment):
     metodo = (payment.metodo_pago or 'otro').lower()
     nombre_metodo = 'Nequi' if metodo in {'otro', 'nequi', 'transferencia'} else metodo.capitalize()
     simulated = str(payment.referencia or '').startswith(('NEQUI-', 'SIM-'))
-    if str(payment.referencia or '').startswith('SIM-'): nombre_metodo = 'Simulación'
+    if str(payment.referencia or '').startswith('SIM-'): nombre_metodo = 'Tarjeta' if metodo == 'tarjeta' else 'Nequi' if metodo == 'nequi' else 'Simulación'
     if metodo == 'mercado_pago': nombre_metodo = 'Mercado Pago'
     orden_id = payment.recibo.orden_id if payment.recibo else None
     recibo_obj = {

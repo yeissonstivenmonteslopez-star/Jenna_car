@@ -1,12 +1,19 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import SiteShell from './components/site-shell'
-import AppRoutes from './routes/AppRoutes'
+import Loader from './components/Loader'
+import NavigationRefresh from './components/NavigationRefresh'
+
+const AppRoutes = lazy(() => import('./routes/AppRoutes'))
 
 export default function App() {
   return (
     <BrowserRouter>
+      <NavigationRefresh />
       <SiteShell>
-        <AppRoutes />
+        <Suspense fallback={<Loader text="Cargando JENNACAR…" />}>
+          <AppRoutes />
+        </Suspense>
       </SiteShell>
     </BrowserRouter>
   )

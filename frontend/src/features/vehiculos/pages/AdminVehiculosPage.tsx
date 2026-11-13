@@ -1,34 +1,55 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import VehicleEditor from './VehicleEditor'
+import type { Vehicle, ClientOption, VehicleForm } from './vehicleTypes'
 import type { FormEvent } from 'react'
-import { CarFront, Fuel, Gauge, PencilLine, Plus, Search, ShieldCheck, Trash2, UserRound } from 'lucide-react'
-import { getAdminVehiculos, createAdminVehiculo, updateAdminVehiculo, deleteAdminVehiculo, searchClientes } from '@/features/vehiculos/services/vehiculosService'
-// ShieldCheck re-used for the activate/deactivate toggle
+import {
+  Car,
+  CarFront,
+  CheckCircle2,
+  Gauge,
+  Fuel,
+  PencilLine,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  Wrench,
+  X,
+} from 'lucide-react'
+import {
+  getAdminVehiculos,
+  createAdminVehiculo,
+  updateAdminVehiculo,
+  deleteAdminVehiculo,
+} from '@/features/vehiculos/services/vehiculosService'
+import { getAdminUsuarios } from '@/features/usuarios/services/usuariosService'
 
-type Vehicle = {
-  id: number
-  cliente_id: number
-  cliente?: { id: number; nombre: string; apellido: string; email: string } | null
-  placa: string
-  marca: string
-  modelo: string
-  anio: number | null
-  color: string | null
-  kilometraje: number
-  tipo_combustible: string
-  estado: string
+function getStatusBadge(estado: string) {
+  switch (estado) {
+    case 'activo':
+      return {
+        label: 'Activo',
+        className: 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30',
+      }
+    case 'en_mantenimiento':
+      return {
+        label: 'En mantenimiento',
+        className: 'bg-amber-950/40 text-amber-300 border-amber-500/30',
+      }
+    case 'inactivo':
+      return {
+        label: 'Inactivo',
+        className: 'bg-red-950/40 text-red-300 border-red-500/30',
+      }
+    default:
+      return {
+        label: estado,
+        className: 'bg-white/5 text-white/60 border-white/10',
+      }
+  }
 }
-
-type ClientOption = {
-  id: number
-  nombre: string
-  apellido: string
-  email: string
-}
-
-const combustibleOptions = ['gasolina', 'diesel', 'hibrido', 'electrico', 'gas']
-const estadoOptions = ['activo', 'en_mantenimiento', 'inactivo']
 
 export default function AdminVehiculosPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -38,7 +59,9 @@ export default function AdminVehiculosPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
-  const [form, setForm] = useState({
+  const [messageType, setMessageType] = useState<'success' | 'error'>('error')
+
+  const [form, setForm] = useState<VehicleForm>({
     cliente_id: '',
     placa: '',
     marca: '',
@@ -51,44 +74,68 @@ export default function AdminVehiculosPage() {
   })
 
   const summary = useMemo(() => ({
+    total: vehicles.length,
     activos: vehicles.filter((v) => v.estado === 'activo').length,
     mantenimiento: vehicles.filter((v) => v.estado === 'en_mantenimiento').length,
     inactivos: vehicles.filter((v) => v.estado === 'inactivo').length,
   }), [vehicles])
 
-  async function loadClients(authToken: string) {
-    const data = await searchClientes('', authToken)
-    setClients((data.data?.clientes || []).map((item: Record<string, unknown>) => ({
-      id: item.id,
-      nombre: item.nombre,
-      apellido: item.apellido,
-      email: item.email,
-    })))
-  }
+  const loadClients = useCallback(async (authToken: string) => {
+    try {
+      const data = await getAdminUsuarios(authToken)
+      if (data?.data && Array.isArray(data.data)) {
+        setClients(
+          data.data.map((item: any) => ({
+            id: item.id,
+            nombre: item.nombre,
+            apellido: item.apellido,
+            email: item.email,
+          }))
+        )
+      }
+    } catch (err: any) {
+      console.error('Error al cargar clientes:', err)
+    }
+  }, [])
 
-  async function loadVehicles(authToken: string) {
-    const data = await getAdminVehiculos({ q: search }, authToken)
-    setVehicles(data.data || [])
-  }
+  const loadVehicles = useCallback(async (authToken: string) => {
+    try {
+      const data = await getAdminVehiculos({ q: search }, authToken)
+      setVehicles(data.data || [])
+    } catch (err: any) {
+      setMessage(err.message || 'No fue posible cargar los vehículos.')
+      setMessageType('error')
+    }
+  }, [search])
 
   useEffect(() => {
     if (!token) {
       window.location.href = '/sign-in'
       return
     }
-
-    Promise.all([loadClients(token), loadVehicles(token)])
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los datos.'))
-      .finally(() => setLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    loadClients(token)
+  }, [token, loadClients])
 
   useEffect(() => {
     if (!token) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial necesaria
+    let active = true
     setLoading(true)
-    loadVehicles(token)
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los vehículos.'))
-      .finally(() => setLoading(false))
+    getAdminVehiculos({ q: search }, token)
+      .then((data) => {
+        if (active) setVehicles(data.data || [])
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setMessage(error instanceof Error ? error.message : 'No fue posible cargar los vehículos.')
+          setMessageType('error')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [search, token])
 
   function resetForm() {
@@ -119,46 +166,81 @@ export default function AdminVehiculosPage() {
       tipo_combustible: vehicle.tipo_combustible,
       estado: vehicle.estado,
     })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage('')
 
+    if (!form.cliente_id) {
+      setMessage('Debes seleccionar un cliente propietario para el vehículo.')
+      setMessageType('error')
+      return
+    }
+
+    const placaLimpia = form.placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (!/^[A-Z]{3}[0-9]{3}$/.test(placaLimpia)) {
+      setMessage('La placa debe tener exactamente 3 letras y 3 números (por ejemplo: ABC123).')
+      setMessageType('error')
+      return
+    }
+
+    if (!form.marca.trim()) {
+      setMessage('La marca del vehículo es obligatoria.')
+      setMessageType('error')
+      return
+    }
+
+    if (!form.modelo.trim()) {
+      setMessage('El modelo del vehículo es obligatorio.')
+      setMessageType('error')
+      return
+    }
+
     const payload = {
       cliente_id: Number(form.cliente_id),
-      placa: form.placa,
-      marca: form.marca,
-      modelo: form.modelo,
+      placa: placaLimpia,
+      marca: form.marca.trim(),
+      modelo: form.modelo.trim(),
       anio: form.anio ? Number(form.anio) : null,
-      color: form.color || null,
-      kilometraje: Number(form.kilometraje),
+      color: form.color ? form.color.trim() : null,
+      kilometraje: Number(form.kilometraje || 0),
       tipo_combustible: form.tipo_combustible,
       estado: form.estado,
     }
 
     try {
-      if (selectedId) await updateAdminVehiculo(selectedId, payload, token)
-      else await createAdminVehiculo(payload, token)
+      if (selectedId) {
+        await updateAdminVehiculo(selectedId, payload, token)
+      } else {
+        await createAdminVehiculo(payload, token)
+      }
     } catch (err: any) {
       setMessage(err.message || 'No fue posible guardar el vehículo.')
+      setMessageType('error')
       return
     }
 
-    setMessage(selectedId ? 'Vehículo actualizado correctamente.' : 'Vehículo creado correctamente.')
+    setMessage(selectedId ? 'Vehículo actualizado correctamente.' : 'Vehículo registrado correctamente.')
+    setMessageType('success')
     resetForm()
     await loadVehicles(token)
   }
 
   async function removeVehicle(vehicleId: number) {
-    const confirmed = window.confirm('¿Deseas eliminar este vehículo? Si tiene citas u órdenes asociadas, se desactivará en su lugar.')
+    const confirmed = window.confirm(
+      '¿Deseas eliminar este vehículo? Si tiene órdenes o citas vinculadas, se desactivará en su lugar.'
+    )
     if (!confirmed) return
 
     try {
       const data = await deleteAdminVehiculo(vehicleId, token)
       setMessage((data as any).message || 'Vehículo actualizado.')
+      setMessageType('success')
     } catch (err: any) {
       setMessage(err.message || 'No fue posible eliminar el vehículo.')
+      setMessageType('error')
       return
     }
     resetForm()
@@ -169,8 +251,10 @@ export default function AdminVehiculosPage() {
     try {
       const data = await updateAdminVehiculo(vehicleId, { estado: nextState }, token)
       setMessage((data as any).message || 'Estado del vehículo actualizado.')
+      setMessageType('success')
     } catch (err: any) {
       setMessage(err.message || 'No fue posible cambiar el estado del vehículo.')
+      setMessageType('error')
       return
     }
     await loadVehicles(token)
@@ -179,242 +263,233 @@ export default function AdminVehiculosPage() {
   return (
     <main className="min-h-screen bg-[#0a0a0a] px-6 py-8 text-white lg:px-10">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-col gap-6 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.25)] md:flex-row md:items-end md:justify-between">
+        {/* Header */}
+        <header className="mb-8 flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#f87171]">Administración</p>
-            <h1 className="mt-3 font-serif text-4xl text-white md:text-5xl">Vehículos</h1>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600/15 text-red-500 border border-red-500/25">
+                <CarFront size={14} />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">
+                Flota e Inventario
+              </p>
+            </div>
+            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-white md:text-5xl">
+              Vehículos
+            </h1>
+            <p className="mt-1 text-xs text-white/50">
+              Gestiona los automóviles registrados, propietarios y estados de servicio.
+            </p>
           </div>
-          <a href="/admin/dashboard" className="inline-flex items-center gap-2 rounded-full border border-[#f87171]/50 bg-[#f87171]/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f87171]">
-            Dashboard
-          </a>
         </header>
 
+        {/* Feedback Message */}
         {message && (
-          <div className="mb-6 rounded-xl border border-[#f87171]/30 bg-[#f87171]/10 p-4 text-sm text-[#d6fff9]">
-            {message}
+          <div
+            role="alert"
+            className={`mb-6 flex items-center justify-between gap-3 rounded-2xl border p-4 text-sm font-medium ${
+              messageType === 'success'
+                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300'
+                : 'border-red-500/40 bg-red-950/40 text-red-300'
+            }`}
+          >
+            <span>{message}</span>
+            <button
+              type="button"
+              onClick={() => setMessage('')}
+              className="rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-white transition"
+            >
+              <X size={15} />
+            </button>
           </div>
         )}
 
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Activos</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.activos}</p>
+        {/* Metrics Grid */}
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Total Registrados</p>
+              <Car size={16} className="text-white/40" />
+            </div>
+            <p className="mt-4 font-serif text-3xl font-bold text-white tabular-nums">{summary.total}</p>
+            <p className="mt-1 text-[11px] text-white/40">Vehículos en el taller</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Mantenimiento</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.mantenimiento}</p>
+
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-5 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Activos</p>
+              <CheckCircle2 size={16} className="text-emerald-400" />
+            </div>
+            <p className="mt-4 font-serif text-3xl font-bold text-white tabular-nums">{summary.activos}</p>
+            <p className="mt-1 text-[11px] text-emerald-300/60">Disponibles / al día</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Inactivos</p>
-            <p className="mt-4 font-serif text-3xl text-white">{summary.inactivos}</p>
+
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-5 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Mantenimiento</p>
+              <Wrench size={16} className="text-amber-400" />
+            </div>
+            <p className="mt-4 font-serif text-3xl font-bold text-white tabular-nums">{summary.mantenimiento}</p>
+            <p className="mt-1 text-[11px] text-amber-300/60">En taller actualmente</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Inactivos</p>
+              <ShieldAlert size={16} className="text-white/40" />
+            </div>
+            <p className="mt-4 font-serif text-3xl font-bold text-white tabular-nums">{summary.inactivos}</p>
+            <p className="mt-1 text-[11px] text-white/40">Deshabilitados</p>
           </div>
         </div>
 
+        {/* Main Content Layout: Grid with Inventory & Form */}
         <div className="grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
-          <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414] shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-            <div className="flex flex-col gap-4 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between">
+          
+          {/* Inventory Section */}
+          <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414] shadow-2xl shadow-black/50">
+            {/* Table / List Header */}
+            <div className="flex flex-col gap-4 border-b border-white/10 bg-white/[0.02] p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-[#f87171]/10 p-2 text-[#f87171]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/15 text-red-500 border border-red-500/20">
                   <CarFront size={18} />
                 </div>
-                <h2 className="font-serif text-2xl text-white">Inventario</h2>
+                <div>
+                  <h2 className="font-serif text-xl font-medium text-white">Inventario de Autos</h2>
+                  <p className="text-[11px] text-white/45">Filtra y administra cada vehículo registrado</p>
+                </div>
               </div>
-              <div className="relative w-full max-w-md">
-                <Search size={16} className="absolute left-3 top-3.5 text-white/40" />
+
+              <div className="relative w-full sm:max-w-xs">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar vehículo"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#f87171]/60"
+                  placeholder="Buscar por placa, marca..."
+                  className="w-full rounded-xl border border-white/15 bg-[#181818] py-2.5 pl-9 pr-3 text-xs text-white placeholder:text-white/40 outline-none transition focus:border-red-500"
                 />
               </div>
             </div>
 
+            {/* List */}
             {loading ? (
-              <div className="p-6 text-sm text-white/60">Cargando vehículos...</div>
+              <div className="p-12 text-center text-sm text-white/50">Cargando vehículos registrados...</div>
             ) : vehicles.length === 0 ? (
-              <div className="p-6 text-sm text-white/60">No hay vehículos registrados.</div>
+              <div className="flex flex-col items-center justify-center p-12 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-white/30">
+                  <CarFront size={28} />
+                </div>
+                <h3 className="text-base font-medium text-white/80">No hay vehículos registrados</h3>
+                <p className="mt-1 max-w-sm text-xs text-white/45">
+                  Utiliza el formulario de la derecha para registrar el primer vehículo en el sistema.
+                </p>
+              </div>
             ) : (
-              <div className="divide-y divide-white/10">
-                {vehicles.map((vehicle) => (
-                  <article key={vehicle.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="rounded-xl bg-[#f87171]/10 p-3 text-[#f87171]">
-                        <CarFront size={18} />
-                      </div>
-                      <div>
-                        <p className="text-lg font-semibold text-white">{vehicle.marca} {vehicle.modelo}</p>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-white/60">
-                          <span className="rounded-full bg-white/5 px-2 py-1">{vehicle.placa}</span>
-                          <span className="rounded-full bg-white/5 px-2 py-1">{vehicle.tipo_combustible}</span>
-                          <span className="rounded-full bg-white/5 px-2 py-1">{vehicle.kilometraje} km</span>
+              <div className="divide-y divide-white/[0.08]">
+                {vehicles.map((vehicle) => {
+                  const status = getStatusBadge(vehicle.estado)
+                  return (
+                    <article
+                      key={vehicle.id}
+                      className="flex flex-col gap-4 p-5 transition-colors hover:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-red-400">
+                          <CarFront size={20} />
                         </div>
-                        <p className="mt-2 text-sm text-white/70">
-                          {vehicle.cliente ? `${vehicle.cliente.nombre} ${vehicle.cliente.apellido}` : `Cliente #${vehicle.cliente_id}`} · {vehicle.estado}
-                        </p>
-                      </div>
-                    </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-md border border-red-500/30 bg-red-950/30 px-2 py-0.5 text-xs font-mono font-bold tracking-wider text-red-300">
+                              {vehicle.placa}
+                            </span>
+                            <h3 className="truncate font-semibold text-white">
+                              {vehicle.marca} {vehicle.modelo} {vehicle.anio ? `(${vehicle.anio})` : ''}
+                            </h3>
+                          </div>
 
-                    <div className="flex flex-wrap gap-2 md:justify-end">
-                      <button type="button" onClick={() => selectVehicle(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-[#f87171]/40 bg-[#f87171]/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f87171]">
-                        <PencilLine size={14} /> Editar
-                      </button>
-                      <button type="button" onClick={() => toggleStatus(vehicle.id, vehicle.estado === 'activo' ? 'inactivo' : 'activo')} className="inline-flex items-center gap-2 rounded-lg border border-yellow-400/40 bg-yellow-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                        <ShieldCheck size={14} /> {vehicle.estado === 'activo' ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button type="button" onClick={() => removeVehicle(vehicle.id)} className="inline-flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-200">
-                        <Trash2 size={14} /> Eliminar
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5 text-[11px]">
+                              <Fuel size={12} className="text-white/40" />
+                              <span className="capitalize">{vehicle.tipo_combustible}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5 text-[11px]">
+                              <Gauge size={12} className="text-white/40" />
+                              {Number(vehicle.kilometraje || 0).toLocaleString('es-CO')} km
+                            </span>
+                            {vehicle.color && (
+                              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px]">
+                                Color: {vehicle.color}
+                              </span>
+                            )}
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${status.className}`}
+                            >
+                              {status.label}
+                            </span>
+                          </div>
+
+                          <p className="mt-2 text-xs text-white/50">
+                            Propietario:{' '}
+                            <strong className="text-white/80">
+                              {vehicle.cliente
+                                ? `${vehicle.cliente.nombre} ${vehicle.cliente.apellido} (${vehicle.cliente.email})`
+                                : `Cliente #${vehicle.cliente_id}`}
+                            </strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() => selectVehicle(vehicle)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:border-white/30 hover:bg-white/10 hover:text-white transition"
+                        >
+                          <PencilLine size={13} /> Editar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toggleStatus(vehicle.id, vehicle.estado === 'activo' ? 'inactivo' : 'activo')
+                          }
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition ${
+                            vehicle.estado === 'activo'
+                              ? 'border-amber-500/30 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40'
+                              : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40'
+                          }`}
+                        >
+                          <ShieldCheck size={13} />
+                          {vehicle.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => removeVehicle(vehicle.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-1.5 text-[11px] font-semibold text-red-300 hover:border-red-500/40 hover:bg-red-950/40 transition"
+                        >
+                          <Trash2 size={13} /> Eliminar
+                        </button>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             )}
           </section>
 
-          <aside className="rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-[#f87171]/10 p-2 text-[#f87171]">
-                  {selectedId ? <PencilLine size={18} /> : <Plus size={18} />}
-                </div>
-                <h2 className="font-serif text-2xl text-white">{selectedId ? `Editar #${selectedId}` : 'Nuevo'}</h2>
-              </div>
-              {selectedId && (
-                <button type="button" onClick={resetForm} className="text-xs uppercase tracking-[0.18em] text-[#f87171]">Nuevo</button>
-              )}
-            </div>
-
-            <form onSubmit={submit} className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Cliente
-                <select
-                  required
-                  value={form.cliente_id}
-                  onChange={(event) => setForm({ ...form, cliente_id: event.target.value })}
-                  className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                >
-                  <option value="">Selecciona un cliente</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>{client.nombre} {client.apellido}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Placa
-                <input
-                  required
-                  value={form.placa}
-                  onChange={(event) => setForm({ ...form, placa: event.target.value })}
-                  className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                  placeholder="ABC123"
-                />
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Marca
-                  <input
-                    required
-                    value={form.marca}
-                    onChange={(event) => setForm({ ...form, marca: event.target.value })}
-                    className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                  />
-                </label>
-
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Modelo
-                  <input
-                    required
-                    value={form.modelo}
-                    onChange={(event) => setForm({ ...form, modelo: event.target.value })}
-                    className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Año
-                  <input
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    value={form.anio}
-                    onChange={(event) => setForm({ ...form, anio: event.target.value })}
-                    className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                  />
-                </label>
-
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Color
-                  <input
-                    value={form.color}
-                    onChange={(event) => setForm({ ...form, color: event.target.value })}
-                    className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                  />
-                </label>
-              </div>
-
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Kilometraje
-                <div className="mt-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-                  <Gauge size={15} className="text-[#f87171]" />
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    value={form.kilometraje}
-                    onChange={(event) => setForm({ ...form, kilometraje: event.target.value })}
-                    className="w-full bg-transparent text-sm text-white outline-none"
-                  />
-                </div>
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Combustible
-                  <div className="mt-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-                    <Fuel size={15} className="text-[#f87171]" />
-                    <select
-                      value={form.tipo_combustible}
-                      onChange={(event) => setForm({ ...form, tipo_combustible: event.target.value })}
-                      className="w-full bg-transparent text-sm text-white outline-none"
-                    >
-                      {combustibleOptions.map((option) => (
-                        <option key={option} value={option} className="bg-[#141414]">{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                </label>
-
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Estado
-                  <div className="mt-1 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-                    <ShieldCheck size={15} className="text-[#f87171]" />
-                    <select
-                      value={form.estado}
-                      onChange={(event) => setForm({ ...form, estado: event.target.value })}
-                      className="w-full bg-transparent text-sm text-white outline-none"
-                    >
-                      {estadoOptions.map((option) => (
-                        <option key={option} value={option} className="bg-[#141414]">{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                </label>
-              </div>
-
-              <button type="submit" className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#f87171] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a0909] transition hover:bg-[#fca5a5]">
-                <UserRound size={15} />
-                {selectedId ? 'Guardar cambios' : 'Crear vehículo'}
-              </button>
-            </form>
-          </aside>
+          {/* Vehicle Creation / Editing Panel */}
+          <VehicleEditor
+            form={form}
+            setForm={setForm}
+            selectedId={selectedId}
+            clients={clients}
+            resetForm={resetForm}
+            onSubmit={submit}
+          />
         </div>
       </div>
     </main>
   )
 }
-

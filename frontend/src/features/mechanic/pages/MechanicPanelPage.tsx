@@ -1,5 +1,10 @@
+import BackLink from '@/components/BackLink'
+import QuoteRevision from './QuoteRevision'
+import MechanicPhotoGallery from './MechanicPhotoGallery'
+import { formatCop } from '@/lib/utils'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Camera, ClipboardList, LogOut, RefreshCw } from 'lucide-react'
+import { ClipboardList, LogOut, RefreshCw } from 'lucide-react'
+import RepairPublisher from './RepairPublisher'
 import { useNavigate } from 'react-router-dom'
 import { getMe } from '@/features/auth/services/authService'
 import { authHeaders, getApiUrl } from '@/services/apiClient'
@@ -46,7 +51,7 @@ type MechanicDetail = {
   servicio: string | null
   diagnosticos: Diagnostic[]
   trabajos: MechanicWork[]
-  ordenes: Array<{ id: number; estado: string; total: number }>
+  ordenes: Array<{ id: number; estado: string; estado_aprobacion?: string; subtotal: number; total: number }>
   imagenes: Array<{ id: number; descripcion: string | null; created_at: string | null }>
 }
 
@@ -68,7 +73,6 @@ export default function MechanicPanelPage() {
   const [services, setServices] = useState<ServiceOption[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detail, setDetail] = useState<MechanicDetail | null>(null)
-  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({})
   const [query, setQuery] = useState('')
   const [diagnosis, setDiagnosis] = useState({ descripcion: '', observaciones: '', solucion_recomendada: '' })
   const [workDescription, setWorkDescription] = useState('')
@@ -76,7 +80,6 @@ export default function MechanicPanelPage() {
   const [selectedOrderId, setSelectedOrderId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
-  const [progressNote, setProgressNote] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
@@ -108,10 +111,18 @@ export default function MechanicPanelPage() {
     }
   }, [token])
 
+  useEffect(() => {
+    if (!authorized) return
+    const refresh = () => { void loadAppointments() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) }
+  }, [authorized, loadAppointments])
+
   const loadDetail = useCallback(async (appointmentId: number) => {
     if (!token) return
     setSelectedId(appointmentId)
-    setDetail(null)
+    setDetail((previous) => previous?.id === appointmentId ? previous : null)
     setSelectedOrderId('')
     setError('')
     try {
@@ -123,33 +134,7 @@ export default function MechanicPanelPage() {
     }
   }, [token])
 
-  useEffect(() => {
-    let active = true
-    const objectUrls: string[] = []
-    async function loadImages() {
-      if (!detail?.imagenes.length || !token) {
-        setPhotoUrls({})
-        return
-      }
-      const entries = await Promise.all(detail.imagenes.map(async (image) => {
-        try {
-          const response = await fetch(getApiUrl(`/api/mechanic/images/${image.id}`), { headers: authHeaders(token) })
-          if (!response.ok) return null
-          const url = URL.createObjectURL(await response.blob())
-          objectUrls.push(url)
-          return [image.id, url] as const
-        } catch {
-          return null
-        }
-      }))
-      if (active) setPhotoUrls(Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)))
-    }
-    void loadImages()
-    return () => {
-      active = false
-      objectUrls.forEach(URL.revokeObjectURL)
-    }
-  }, [detail?.imagenes, token])
+
 
   function chooseService(serviceId: string) {
     setSelectedServiceId(serviceId)
@@ -159,10 +144,15 @@ export default function MechanicPanelPage() {
 
   async function submitWork() {
     const diagnostic = detail?.diagnosticos[0]
-    if (!diagnostic || !selectedOrderId || !selectedServiceId || !workDescription.trim() || !Number.isInteger(Number(quantity)) || Number(quantity) < 1 || !Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0) {
-      setError('Selecciona una orden y un servicio, e ingresa descripción y cantidad válidas.')
-      return
-    }
+    const validationError = !diagnostic ? 'Primero guarda el diagnóstico de esta cita.'
+      : !selectedOrderId ? 'Selecciona la orden de trabajo.'
+      : !detail?.ordenes.some((order) => order.id === Number(selectedOrderId)) ? 'La orden seleccionada ya no está disponible. Selecciona otra orden.'
+      : !selectedServiceId ? 'Selecciona el servicio que vas a realizar.'
+      : !workDescription.trim() ? 'Escribe la descripción del trabajo que vas a realizar.'
+      : !quantity.trim() || !Number.isInteger(Number(quantity)) || Number(quantity) < 1 ? 'La cantidad debe ser un número entero mayor o igual a 1.'
+      : !unitPrice.trim() || !Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0 ? 'El servicio no tiene un precio válido. Selecciónalo nuevamente.'
+      : ''
+    if (validationError) { setError(validationError); return }
     setBusy(true)
     setError('')
     setNotice('')
@@ -171,7 +161,7 @@ export default function MechanicPanelPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          diagnostico_id: diagnostic.id,
+          diagnostico_id: diagnostic!.id,
           orden_id: Number(selectedOrderId),
           servicio_id: Number(selectedServiceId),
           descripcion: workDescription.trim(),
@@ -213,33 +203,7 @@ export default function MechanicPanelPage() {
     })
   }, [token, navigate, loadAppointments])
 
-  useEffect(() => {
-    let active = true
-    const objectUrls: string[] = []
-    async function loadImages() {
-      if (!detail?.imagenes.length || !token) {
-        setPhotoUrls({})
-        return
-      }
-      const entries = await Promise.all(detail.imagenes.map(async (image) => {
-        try {
-          const response = await fetch(getApiUrl(`/api/mechanic/images/${image.id}`), { headers: authHeaders(token) })
-          if (!response.ok) return null
-          const url = URL.createObjectURL(await response.blob())
-          objectUrls.push(url)
-          return [image.id, url] as const
-        } catch {
-          return null
-        }
-      }))
-      if (active) setPhotoUrls(Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)))
-    }
-    void loadImages()
-    return () => {
-      active = false
-      objectUrls.forEach(URL.revokeObjectURL)
-    }
-  }, [detail?.imagenes, token])
+
 
   function signOut() {
     localStorage.removeItem('jenna_car_token')
@@ -251,6 +215,7 @@ export default function MechanicPanelPage() {
 
   return (
     <main className="min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-10">
+      <BackLink />
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -284,6 +249,7 @@ export default function MechanicPanelPage() {
                     </span>
                     <span className="mt-1 block truncate text-xs text-white/55">{appointment.marca} {appointment.modelo} · {appointment.placa}</span>
                     <span className="mt-1 block truncate text-xs text-white/40">{appointment.fecha} · {appointment.hora} · {appointment.servicio}</span>
+                    <span className="mt-2 block text-xs text-red-400">Asignado · {appointment.estado}</span>
                   </button>
                 ))}
               </div>
@@ -309,6 +275,25 @@ export default function MechanicPanelPage() {
                   {detail.motivo && <p className="mt-3 text-sm text-white/75">{detail.motivo}</p>}
                 </section>
 
+                    <section id="repair-photos" className="grid gap-3 border-y border-white/10 py-5">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Trabajos y avances para el cliente</h3>
+                        <p className="mt-1 text-xs text-white/45">Publica el estado, las observaciones actuales y varias fotos en una sola actualización.</p>
+                      </div>
+                      {!detail.trabajos.length && <div className="grid gap-3">
+                        <p className="text-sm text-white/65">{!detail.diagnosticos.length ? 'Primero guarda el diagnóstico y registra un trabajo para adjuntar las fotos del vehículo.' : !detail.ordenes.length ? 'Solicita a administración una orden activa y registra el trabajo para adjuntar fotografías.' : 'Registra el trabajo en «Proponer trabajo y cotización» para adjuntar sus fotografías.'}</p>
+                        <button type="button" disabled className="justify-self-start rounded bg-red-600 px-4 py-3 text-sm text-white disabled:opacity-45">Seleccionar fotografías</button>
+                      </div>}
+                      {detail.trabajos.map((work) => (
+                        <article key={work.id} className="border-b border-white/10 py-4">
+                          <p className="text-sm text-white">{work.descripcion}</p>
+                          <p className="mt-1 text-xs text-white/45">{work.estado} · {work.cantidad} un. · {formatCop(work.subtotal)}</p>
+                          <RepairPublisher work={work} token={token} onSaved={() => loadDetail(detail.id)} />
+                        </article>
+                      ))}
+                    </section>
+
+                {detail.ordenes.filter((order) => order.estado_aprobacion === 'rechazado').map((order) => <QuoteRevision key={order.id} order={order} token={token} onSaved={() => loadDetail(detail.id)} />)}
                 {!detail.diagnosticos.length ? (
                   <section className="grid gap-3">
                     <h3 className="text-sm font-semibold text-white">Registrar diagnóstico</h3>
@@ -338,64 +323,33 @@ export default function MechanicPanelPage() {
                         <>
                           <label className="grid gap-2 text-xs text-white/55">Orden de trabajo
                             <select value={selectedOrderId} onChange={(event) => setSelectedOrderId(event.target.value)} className="h-11 w-full rounded-md border border-white/10 bg-[#111] px-3 text-sm text-white outline-none focus:border-red-500/60">
-                              {detail.ordenes.map((order) => <option key={order.id} value={order.id}>Orden #{order.id} · ${Number(order.total).toFixed(2)}</option>)}
+                              <option value="">Selecciona la orden de trabajo</option>
+                              {detail.ordenes.map((order) => <option key={order.id} value={order.id}>Orden #{order.id} · {formatCop(order.total)}</option>)}
                             </select>
                           </label>
                           <label className="grid gap-2 text-xs text-white/55">Servicio
                             <select value={selectedServiceId} onChange={(event) => chooseService(event.target.value)} className="h-11 w-full rounded-md border border-white/10 bg-[#111] px-3 text-sm text-white outline-none focus:border-red-500/60">
                               <option value="">Selecciona servicio</option>
-                              {services.map((service) => <option key={service.id} value={service.id}>{service.name} · ${Number(service.price).toFixed(2)}</option>)}
+                              {services.map((service) => <option key={service.id} value={service.id}>{service.name} · {formatCop(service.price)}</option>)}
                             </select>
                           </label>
-                          <label className="grid gap-2 text-xs text-white/55">Descripción del trabajo
-                            <textarea value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} rows={2} className="w-full rounded-md border border-white/10 bg-[#111] px-3 py-2 text-sm text-white outline-none focus:border-red-500/60" />
+                          <label className="grid gap-2 text-xs text-white/55">Descripción del trabajo (obligatoria)
+                            <textarea placeholder="Ej.: revisar frenos y sustituir pastillas delanteras" value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} rows={2} className="w-full rounded-md border border-white/10 bg-[#111] px-3 py-2 text-sm text-white outline-none focus:border-red-500/60" />
                           </label>
                           <div className="grid grid-cols-2 gap-3">
                             <label className="grid gap-2 text-xs text-white/55">Cantidad
                               <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="h-11 w-full rounded-md border border-white/10 bg-[#111] px-3 text-sm text-white outline-none focus:border-red-500/60" />
                             </label>
                             <div className="grid gap-2 text-xs text-white/55">Precio unitario
-                              <p className="flex h-11 items-center border border-white/10 bg-[#111] px-3 text-sm text-white">${Number(unitPrice || 0).toFixed(2)}</p>
+                              <p className="flex h-11 items-center border border-white/10 bg-[#111] px-3 text-sm text-white">{formatCop(unitPrice)}</p>
                             </div>
                           </div>
-                          <p className="text-right text-sm font-semibold text-white">Total del trabajo: ${(Number(unitPrice || 0) * Number(quantity || 0)).toFixed(2)}</p>
+                          <p className="text-right text-sm font-semibold text-white">Total del trabajo: {formatCop(Number(unitPrice || 0) * Number(quantity || 0))}</p>
                           <button type="button" disabled={busy || !selectedOrderId || !selectedServiceId} onClick={() => void submitWork()} className="h-10 rounded-md bg-red-600 px-4 text-xs font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40">Guardar propuesta y enviar al cliente</button>
                         </>
                       )}
                     </section>
-                    <div className="grid gap-3 border-t border-white/10 pt-5">
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">Trabajos y avances para el cliente</h3>
-                        <p className="mt-1 text-xs text-white/45">Cada foto se enviará como una nueva notificación. Puedes publicar tantos avances como necesites.</p>
-                      </div>
-                      <textarea value={progressNote} onChange={(event) => setProgressNote(event.target.value)} placeholder="Describe qué estás revisando o reparando" rows={2} className="w-full rounded-md border border-white/10 bg-[#111] px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-red-500/60" />
-                      {detail.trabajos.map((work) => (
-                        <article key={work.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-3">
-                          <div><p className="text-sm text-white">{work.descripcion}</p><p className="mt-1 text-xs text-white/45">{work.estado} · {work.cantidad} un. · ${Number(work.subtotal).toFixed(2)}</p></div>
-                          <label className={`inline-flex h-9 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-white/70 transition hover:border-red-400/50 hover:text-white ${busy || !progressNote.trim() ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'}`}>
-                            <Camera size={14} /> Subir foto
-                            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy || !progressNote.trim()} onChange={async (event) => {
-                              const file = event.target.files?.[0]
-                              event.target.value = ''
-                              if (!file) return
-                              if (file.size > 4 * 1024 * 1024) { setError('La foto debe pesar menos de 4 MB.'); return }
-                              const body = new FormData()
-                              body.append('file', file)
-                              body.append('descripcion', progressNote.trim())
-                              setBusy(true)
-                              try {
-                                await requestData(`/api/mechanic/works/${work.id}/images`, token, { method: 'POST', body })
-                                setProgressNote('')
-                                await loadDetail(detail.id)
-                                setNotice('Avance enviado y notificado al cliente.')
-                              } catch (caught) { setError(caught instanceof Error ? caught.message : 'No fue posible subir la foto.') }
-                              finally { setBusy(false) }
-                            }} />
-                          </label>
-                        </article>
-                      ))}
-                    </div>
-                    {detail.imagenes.length > 0 && <div className="flex flex-wrap gap-3">{detail.imagenes.map((image) => <div key={image.id} className="grid gap-1">{photoUrls[image.id] ? <img src={photoUrls[image.id]} alt={image.descripcion || 'Evidencia de reparación'} className="h-24 w-24 rounded-md border border-white/10 object-cover" /> : <div className="flex h-24 w-24 items-center justify-center rounded-md border border-white/10 text-xs text-white/40">Cargando foto</div>}<span className="max-w-24 truncate text-[10px] text-white/45">{image.descripcion || 'Evidencia'}</span></div>)}</div>}
+                    <MechanicPhotoGallery images={detail.imagenes} token={token} />
                   </section>
                 )}
               </div>

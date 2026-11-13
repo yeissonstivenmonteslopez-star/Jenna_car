@@ -13,7 +13,8 @@ def allowed(path):
     name = path.name.lower()
     if any(part in excluded_dirs for part in relative.parts):
         return False
-    if name.startswith('.env') or name == 'env.local':
+    migration_environment = relative.as_posix() == 'backend/migrations/env.py'
+    if not migration_environment and (name.startswith('.env') or name == 'env' or name.startswith('env.')):
         return False
     if any(marker in name for marker in ('client_secret', 'credentials', 'service_account')):
         return False
@@ -21,7 +22,7 @@ def allowed(path):
 
 
 files = [root / name for name in (
-    'Dockerfile.production', 'compose.production.yml', '.dockerignore', '.env.production.example',
+    'Dockerfile.production', 'compose.production.yml', '.dockerignore', '.env.production.example', 'README.md',
 )]
 for folder in ('backend', 'frontend', 'deploy'):
     files.extend(path for path in (root / folder).rglob('*') if path.is_file() and allowed(path))
@@ -32,5 +33,6 @@ with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
 with zipfile.ZipFile(output) as archive:
     assert archive.testzip() is None
     assert '.env.production.example' in archive.namelist()
-    assert not any(Path(name).name == '.env' for name in archive.namelist())
+    assert 'backend/migrations/env.py' in archive.namelist()
+    assert not any(Path(name).name in {'.env', 'env', 'env.local', '.env.production'} for name in archive.namelist())
     print(f'{output}: {len(archive.namelist())} files, {output.stat().st_size:,} bytes; ZIP verified')

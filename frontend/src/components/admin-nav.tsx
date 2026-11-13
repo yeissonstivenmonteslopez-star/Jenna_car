@@ -1,4 +1,7 @@
 import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  ArrowLeft,
   Bell,
   CalendarDays,
   Car,
@@ -28,41 +31,31 @@ function handleSignOut() {
   window.location.href = '/'
 }
 
-export default function AdminNav() {
-  return (
-    <nav className="border-b border-red-900/30 bg-black/70">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-        <a href="/" className="font-serif text-lg tracking-[0.18em] text-white">
-          JENNA <span className="text-red-500">CAR</span>
-        </a>
-
-        <div className="flex flex-wrap items-center gap-1">
-          {sections.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  isActive
-                    ? 'bg-red-950/40 text-red-300'
-                    : 'text-white/55 hover:bg-white/5 hover:text-white'
-                }`
-              }
-            >
-              <Icon size={13} />
-              {label}
-            </NavLink>
-          ))}
-        </div>
-
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 self-start rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-red-500/50 hover:text-red-300 lg:self-auto"
-        >
-          <LogOut size={13} />
-          Salir
-        </button>
-      </div>
-    </nav>
-  )
+export default function AdminNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  return <aside className={`admin-sidebar ${collapsed ? 'is-collapsed' : ''}`}>
+    <div className="admin-sidebar-brand"><a href="/" aria-label="Jenna Car, inicio"><span className="brand-monogram">J<span>C</span></span><span className="sidebar-label">JENNA<span className="brand-red">CAR</span><small>ADMINISTRACIÓN</small></span></a></div>
+    <button type="button" onClick={onToggle} className="sidebar-toggle" aria-label={collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'} aria-expanded={!collapsed} aria-controls="admin-navigation">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}<span className="sidebar-label">Contraer menú</span></button>
+    <nav aria-label="Administración" id="admin-navigation">{[
+      { label: 'General', links: sections.slice(0, 1) },
+      { label: 'Operaciones', links: sections.slice(1, 5) },
+      { label: 'Administración', links: sections.slice(5) },
+    ].map((group) => <div key={group.label} className="sidebar-group"><p className="sidebar-label">{group.label}</p>{group.links.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} title={label} aria-label={label} className={({ isActive }) => `sidebar-link ${isActive ? 'is-active' : ''}`}><Icon size={18} /><span className="sidebar-label">{label}</span></NavLink>)}</div>)}</nav>
+    <div className="sidebar-footer">
+      <span className="sidebar-label">Espacio de administración</span>
+      <a
+        href="/"
+        className="sidebar-link mt-2 text-white/80 hover:text-white"
+        style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}
+        title="Volver a la página principal de Jenna Car"
+        aria-label="Volver a la página principal"
+      >
+        <ArrowLeft size={17} className="text-red-400" />
+        <span className="sidebar-label font-medium">Volver a la web</span>
+      </a>
+      <button type="button" onClick={handleSignOut} aria-label="Cerrar sesión">
+        <LogOut size={16} />
+        <span className="sidebar-label">Cerrar sesión</span>
+      </button>
+    </div>
+  </aside>
 }

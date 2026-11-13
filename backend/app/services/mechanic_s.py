@@ -1,121 +1,16 @@
-"""Mechanic dashboard and appointment queries."""
-from datetime import datetime
+"""Mechanic write operations and public service entrypoints."""
+from ..utils.money import format_cop
 from ..extensions import db
-from ..models import Cita, Servicio, Usuario, Vehiculo, Diagnostico, Trabajo, ImagenTrabajo, OrdenTrabajo, ReciboDetalle
-from ..schemas.serializers import cita_to_dict, diagnostico_to_dict, trabajo_to_dict
+from ..models import Cita, Servicio, Diagnostico, Trabajo, ImagenTrabajo, OrdenTrabajo, ReciboDetalle
+from ..schemas.serializers import diagnostico_to_dict, trabajo_to_dict
 from ..utils.notifications import notificacion_por_usuario
-
-
-def mechanic_dashboard(user):
-    """Dashboard completo para el mecánico."""
-    # Total de citas asignadas
-    total_citas = Cita.query.filter(Cita.mecanico_id == user.id).count()
-    # Citas pendientes (asignadas pero no atendidas)
-    pendientes = Cita.query.filter(Cita.mecanico_id == user.id, Cita.estado == 'pendiente').count()
-    # Citas confirmadas
-    confirmadas = Cita.query.filter(Cita.mecanico_id == user.id, Cita.estado == 'confirmada').count()
-    # Reparaciones en proceso
-    en_proceso = db.session.query(Trabajo).join(Trabajo.diagnostico).filter(
-        Diagnostico.mecanico_id == user.id, Trabajo.estado == 'en_proceso'
-    ).count()
-    # Trabajos completados
-    completados = db.session.query(Trabajo).join(Trabajo.diagnostico).filter(
-        Diagnostico.mecanico_id == user.id, Trabajo.estado == 'completado'
-    ).count()
-    # Ultimas reparaciones
-    ultimas_reparaciones = db.session.query(Trabajo).join(Trabajo.diagnostico).filter(
-        Diagnostico.mecanico_id == user.id
-    ).order_by(Trabajo.created_at.desc()).limit(5).all()
-    ultimas = [trabajo_to_dict(t) for t in ultimas_reparaciones]
-
-    return {
-        'total_citas': total_citas,
-        'pendientes': pendientes,
-        'confirmadas': confirmadas,
-        'en_proceso': en_proceso,
-        'completados': completados,
-        'ultimas_reparaciones': ultimas,
-    }, None, None
-
-
-def mechanic_appointments(user):
-    """Citas asignadas al mecanico autenticado."""
-    citas = Cita.query.filter(Cita.mecanico_id == user.id).order_by(Cita.fecha.desc(), Cita.hora.desc()).all()
-    result = []
-    for c in citas:
-        vehiculo = c.vehiculo
-        cliente = vehiculo.cliente if vehiculo else None
-        result.append({
-            'id': c.id,
-            'fecha': str(c.fecha),
-            'hora': str(c.hora),
-            'cliente_nombre': f"{cliente.nombre} {cliente.apellido}" if cliente else 'Desconocido',
-            'placa': vehiculo.placa if vehiculo else 'N/A',
-            'marca': vehiculo.marca if vehiculo else 'N/A',
-            'modelo': vehiculo.modelo if vehiculo else 'N/A',
-            'anio': vehiculo.anio if vehiculo else 'N/A',
-            'servicio': c.servicio.nombre if c.servicio else 'N/A',
-            'motivo': c.motivo,
-            'observaciones': c.observaciones,
-            'estado': c.estado,
-            'mecanico_id': c.mecanico_id,
-        })
-    return result, None, None
-
-
-def mechanic_appointment_detail(user, cita_id):
-    """Detalle de una cita asignada al mecanico."""
-    cita = Cita.query.filter_by(id=cita_id).first()
-    if not cita: return None, 'Cita no encontrada', 404
-    # Verificar que la cita sea del mecanico
-    if cita.mecanico_id != user.id:
-        return None, 'No tienes permisos para ver esta cita', 403
-    vehiculo = cita.vehiculo
-    cliente = vehiculo.cliente if vehiculo else None
-    diagnosticos = Diagnostico.query.filter_by(cita_id=cita.id).all()
-    trabajos = Trabajo.query.join(Trabajo.diagnostico).filter(
-        Diagnostico.cita_id == cita.id
-    ).all()
-    ordenes = OrdenTrabajo.query.filter(
-        OrdenTrabajo.vehiculo_id == cita.vehiculo_id,
-        ~OrdenTrabajo.estado.in_({'cancelada', 'entregada'}),
-    ).order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc()).all()
-    ordenes_facturables = [
-        orden for orden in ordenes
-        if not orden.recibo or orden.recibo.estado == 'pendiente'
-    ]
-    imagenes = ImagenTrabajo.query.filter(ImagenTrabajo.trabajo_id.in_([t.id for t in trabajos])).all() if trabajos else []
-
-    return {
-        'id': cita.id,
-        'fecha': str(cita.fecha),
-        'hora': str(cita.hora),
-        'cliente': {
-            'nombre': cliente.nombre,
-            'apellido': cliente.apellido,
-            'email': cliente.email,
-        } if cliente else None,
-        'vehiculo': {
-            'placa': vehiculo.placa,
-            'marca': vehiculo.marca,
-            'modelo': vehiculo.modelo,
-            'anio': vehiculo.anio,
-        } if vehiculo else None,
-        'servicio': cita.servicio.nombre if cita.servicio else None,
-        'motivo': cita.motivo,
-        'observaciones': cita.observaciones,
-        'estado': cita.estado,
-        'mecanico_id': cita.mecanico_id,
-        'diagnosticos': [diagnostico_to_dict(d) for d in diagnosticos],
-        'trabajos': [trabajo_to_dict(t) for t in trabajos],
-        'ordenes': [{'id': order.id, 'estado': order.estado, 'total': float(order.total or 0)} for order in ordenes_facturables],
-        'imagenes': [{
-            'id': img.id,
-            'ruta': img.ruta_imagen,
-            'descripcion': img.descripcion,
-            'created_at': img.created_at.isoformat() if img.created_at else None,
-        } for img in imagenes],
-    }, None, None
+from .mechanic_queries import (
+    mechanic_dashboard as mechanic_dashboard,
+    mechanic_appointments as mechanic_appointments,
+    mechanic_appointment_detail as mechanic_appointment_detail,
+    mechanic_works_history as mechanic_works_history,
+    client_repair_progress as client_repair_progress,
+)
 
 
 def register_diagnostico(user, cita_id, payload):
@@ -144,6 +39,7 @@ def register_diagnostico(user, cita_id, payload):
     db.session.add(diagnostico)
     db.session.commit()
     return diagnostico_to_dict(diagnostico), None, None
+
 
 
 def register_trabajo(user, payload):
@@ -206,7 +102,6 @@ def register_trabajo(user, payload):
     line_total = cantidad * precio
     previous_subtotal = Decimal(str(order.subtotal or 0))
     previous_total = Decimal(str(order.total or 0))
-    discount = max(previous_subtotal - previous_total, Decimal('0.00'))
     trabajo = Trabajo(
         diagnostico_id=diagnostico_id,
         servicio_id=servicio_id,
@@ -243,7 +138,7 @@ def register_trabajo(user, payload):
     notificacion_por_usuario(
         cita.vehiculo.usuario_id,
         f'Diagnóstico y cotización de la orden #{order.id}',
-        f'El mecánico registró observaciones y una cotización por ${float(order.total):.2f}. '
+        f'El mecánico registró observaciones y una cotización por {format_cop(order.total)}. '
         'Revisa los detalles y aprueba o rechaza el trabajo.',
         tipo='diagnostico',
         link='/mis-reparaciones',
@@ -251,144 +146,22 @@ def register_trabajo(user, payload):
     return trabajo_to_dict(trabajo), None, None
 
 
+
 def update_trabajo_status(user, trabajo_id, nuevo_estado):
-    """Actualizar el estado de un trabajo."""
-    from ..models import Trabajo
-    trabajo = db.session.get(Trabajo, trabajo_id)
-    if not trabajo: return None, 'Trabajo no encontrado', 404
-    if trabajo.mecanico_id != user.id:
-        return None, 'No tienes permisos para modificar este trabajo', 403
-    valid_states = {'pendiente', 'en_proceso', 'completado', 'cancelado'}
-    if nuevo_estado not in valid_states:
-        return None, 'Estado inválido', 400
-    if nuevo_estado in {'en_proceso', 'completado'} and trabajo.orden and trabajo.orden.estado_aprobacion != 'aprobado':
-        return None, 'El cliente debe aprobar la cotización antes de iniciar el trabajo', 409
-    if nuevo_estado == 'en_proceso' and not trabajo.fecha_inicio:
-        trabajo.fecha_inicio = datetime.now()
-    if nuevo_estado == 'completado':
-        trabajo.fecha_fin = datetime.now()
-    trabajo.estado = nuevo_estado
-    db.session.commit()
-    return trabajo_to_dict(trabajo), None, None
+    from .repair_updates import publish
+    data, error, status = publish(user, trabajo_id, {'estado': nuevo_estado})
+    return (None, error, status) if error else (data['trabajo'], None, None)
+
 
 
 def upload_repair_image(user, payload, file):
-    """Subir fotografia para un trabajo de reparacion usando imagenes_trabajo."""
-    from ..models import Trabajo, Diagnostico
-    trabajo_id = payload.get('trabajo_id')
-
-    # Verificar que el trabajo existe y es del mecanico
-    trabajo = db.session.get(Trabajo, trabajo_id)
-    if not trabajo: return None, 'Trabajo no encontrado', 404
-    # Verificar tramite el diagnostico
-    diagnostico = db.session.get(Diagnostico, trabajo.diagnostico_id)
-    if diagnostico.mecanico_id != user.id:
-        return None, 'No tienes permisos para subir imagen a este trabajo', 403
-
+    from .repair_updates import publish
     if not file or not file.filename:
-        return None, 'No se selecciono ninguna imagen', 400
-
-    import os, secrets
-    from werkzeug.utils import secure_filename
-
-    extension = os.path.splitext(file.filename)[1].lower()
-    if extension not in {'.jpg', '.jpeg', '.png', '.webp'}:
-        return None, 'La imagen debe ser JPG, PNG o WEBP', 400
-
-    # Generar nombre de archivo unico
-    filename = f'{user.id}-{trabajo_id}-{secrets.token_urlsafe(8)}{extension}'
-    upload_dir = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'uploads', 'reparaciones'
-    )
-    os.makedirs(upload_dir, exist_ok=True)
-
-    # Guardar archivo
-    file.save(os.path.join(upload_dir, filename))
-    ruta_imagen = f'/uploads/reparaciones/{filename}'
-
-    # Guardar en base de datos imagenes_trabajo
-    from ..models import ImagenTrabajo
-    descripcion = (payload.get('descripcion') or '').strip()[:255]
-    imagen = ImagenTrabajo(
-        trabajo_id=trabajo_id,
-        usuario_id=user.id,
-        ruta_imagen=ruta_imagen,
-        descripcion=descripcion or 'Avance de reparación',
-    )
-    db.session.add(imagen)
-    db.session.commit()
-    cliente = trabajo.diagnostico.cita.vehiculo.cliente
-    if cliente:
-        notificacion_por_usuario(
-            cliente.usuario_id,
-            f'Nuevo avance de tu vehículo {trabajo.diagnostico.cita.vehiculo.placa}',
-            imagen.descripcion,
-            tipo='reparacion_en_proceso',
-            link='/mis-reparaciones',
-        )
-
-    return {
-        'id': imagen.id,
-        'ruta_imagen': imagen.ruta_imagen,
-        'descripcion': imagen.descripcion,
-        'created_at': imagen.created_at.isoformat() if imagen.created_at else None,
-    }, None, None
-
-
-def mechanic_works_history(user):
-    """Historial de trabajos del mecanico."""
-    trabajos = Trabajo.query.filter_by(mecanico_id=user.id).order_by(Trabajo.created_at.desc()).all()
-    return [trabajo_to_dict(t) for t in trabajos], None, None
-
-
-def client_repair_progress(vehiculo_id, user):
-    """Obtener progreso de reparacion para un cliente."""
-    from ..models import Cita, Diagnostico, Trabajo, ImagenTrabajo
-
-    # Obtener vehiculo y sus citas
-    vehiculo = db.session.get(Vehiculo, vehiculo_id)
-    if not vehiculo or vehiculo.usuario_id != user.id: return None, 'Vehiculo no encontrado', 404
-
-    citas = Cita.query.filter_by(vehiculo_id=vehiculo.id).all()
-    progress = []
-
-    for cita in citas:
-        diagnosticos = Diagnostico.query.filter_by(cita_id=cita.id).all()
-        cita_progress = {
-            'cita_id': cita.id,
-            'fecha': str(cita.fecha),
-            'hora': str(cita.hora),
-            'estado': cita.estado,
-            'diagnosticos': [],
-            'trabajos': [],
-            'imagenes': [],
-        }
-
-        for d in diagnosticos:
-            d_trabajos = Trabajo.query.filter_by(diagnostico_id=d.id).all()
-            d_imagenes = ImagenTrabajo.query.filter(
-                ImagenTrabajo.trabajo_id.in_([t.id for t in d_trabajos if t.id])
-            ).all() if d_trabajos else []
-
-            cita_progress['diagnosticos'].append({
-                'id': d.id,
-                'descripcion': d.descripcion,
-                'observaciones': d.observaciones,
-                'solucion_recomendada': d.solucion_recomendada,
-                'estado': d.estado,
-                'fecha_diagnostico': d.fecha_diagnostico.isoformat() if d.fecha_diagnostico else None,
-                'trabajos': [trabajo_to_dict(t) for t in d_trabajos],
-                'imagenes': [{
-                    'id': img.id,
-                    'ruta': img.ruta_imagen,
-                    'descripcion': img.descripcion,
-                } for img in d_imagenes],
-            })
-
-            for t in d_trabajos:
-                cita_progress['trabajos'].append(trabajo_to_dict(t))
-
-        progress.append(cita_progress)
-
-    return progress, None, None
+        return None, 'No se seleccionó ninguna imagen', 400
+    data, error, status = publish(user, payload.get('trabajo_id'), payload, [file])
+    if error:
+        return None, error, status
+    image = ImagenTrabajo.query.filter_by(trabajo_id=payload['trabajo_id']).order_by(ImagenTrabajo.id.desc()).first()
+    return {'id': image.id, 'ruta_imagen': image.ruta_imagen, 'descripcion': image.descripcion,
+            'created_at': image.created_at.isoformat() if image.created_at else None,
+            'correo_enviado': data.get('correo_enviado'), 'notificacion_id': data.get('notificacion_id')}, None, None

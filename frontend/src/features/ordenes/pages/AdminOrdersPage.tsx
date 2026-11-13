@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import AdminBackLink from '@/components/admin-back-link'
 import { getReciboPdfUrl } from '@/features/recibos/services/recibosService'
 import { getOrdenes, createOrden, updateOrden, deleteOrden, enviarReciboOrden } from '@/features/recibos/services/pagosService'
 import { getAdminServicios } from '@/features/servicios/services/serviciosService'
@@ -154,11 +153,9 @@ export default function AdminOrdersPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-red-900/50 pb-8">
           <div>
-            <AdminBackLink />
-            <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Operacion / Taller</p>
+              <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Operacion / Taller</p>
             <h1 className="mt-3 font-serif text-5xl text-white">Ordenes de trabajo.</h1>
           </div>
-          <a href="/admin/search" className="border border-red-900/50 px-4 py-2 text-xs text-red-300 transition hover:border-red-500 hover:text-white">Busqueda avanzada</a>
         </div>
 
         {message && <p className="mt-6 border border-red-500/30 bg-red-950/30 p-4 text-sm text-red-200">{message}</p>}
@@ -198,7 +195,7 @@ export default function AdminOrdersPage() {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-400">Editor</p>
                 <h2 className="mt-2 font-serif text-2xl">{selectedId ? `Editar #${selectedId}` : 'Nueva orden'}</h2>
               </div>
-              {selectedId && <button type="button" onClick={resetForm} className="text-xs text-red-300 hover:text-white">Nueva</button>}
+              {selectedId && <button type="button" onClick={resetForm} className="text-xs text-red-300 hover:text-white">Cancelar edición</button>}
             </div>
             <form onSubmit={submit} className="mt-6 grid gap-4">
               <label className="grid gap-2 text-xs text-white/70">Cliente

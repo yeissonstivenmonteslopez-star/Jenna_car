@@ -1,4 +1,7 @@
 # Dependencies
+.test-deps/
+.local-backups/
+.test-tmp*/
 dist-deploy/
 node_modules/
 frontend/node_modules/
@@ -44,6 +47,7 @@ mobile/ios/
 mobile/android/
 
 # Local databases and runtime uploads
+backend/app/uploads/
 backend/*.db
 backend/uploads/*
 !backend/uploads/profile-photos/

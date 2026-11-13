@@ -25,11 +25,14 @@ export async function checkDisponibilidad(data: { fecha: string; hora: string },
   return handleResponse(res, 'Horario no disponible')
 }
 
-export async function getHorasDisponibles(fecha: string, token?: string) {
-  const res = await fetch(getApiUrl(`/api/citas/horas-disponibles?fecha=${encodeURIComponent(fecha)}`), {
+export async function getHorasDisponibles(fecha: string, token?: string, servicioId?: string, vehiculoId?: string) {
+  const params = new URLSearchParams({ fecha })
+  if (servicioId) params.set('servicio_id', servicioId)
+  if (vehiculoId && vehiculoId !== 'new') params.set('vehiculo_id', vehiculoId)
+  const res = await fetch(getApiUrl(`/api/citas/disponibilidad?${params}`), {
     headers: { ...authHeaders(token) },
   })
-  return handleResponse<{ data: string[] }>(res, 'No fue posible consultar los horarios.')
+  return handleResponse<{ data: Array<{ hora: string; disponible: boolean }> }>(res, 'No fue posible consultar los horarios.')
 }
 
 export async function getAdminCitas(token?: string) {

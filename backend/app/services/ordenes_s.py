@@ -1,10 +1,12 @@
 """Work-order domain operations."""
+from ..utils.money import format_cop
 from datetime import datetime, timezone
 from ..extensions import db
 from ..models import OrdenTrabajo, Usuario, Vehiculo
 from ..repository import ordenes_r as order_repository
 from ..utils.notifications import notificacion_por_usuario
 from ..utils.orders import apply_order_services, asegurar_recibo_orden, order_to_dict, set_order_amount
+from .schema_compat import optional_read
 
 STATES = {'pendiente', 'en_diagnostico', 'en_reparacion', 'terminada', 'entregada', 'cancelada'}
 
@@ -14,8 +16,12 @@ def list_all():
 
 
 def list_for_client(user_id):
+    from sqlalchemy.orm import selectinload
+    from ..models import Recibo
     orders = (
         OrdenTrabajo.query
+        .options(*optional_read(OrdenTrabajo, 'estado_aprobacion'),
+                 selectinload(OrdenTrabajo.recibo).options(*optional_read(Recibo, 'enviado_cliente')))
         .join(OrdenTrabajo.vehiculo)
         .filter(Vehiculo.usuario_id == user_id)
         .order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc())
@@ -26,6 +32,7 @@ def list_for_client(user_id):
         'fecha_ingreso': order.fecha_ingreso.isoformat() if order.fecha_ingreso else None,
         'problema_reportado': order.problema_reportado,
         'estado': order.estado,
+        'observaciones': order.observaciones,
         'estado_aprobacion': order.estado_aprobacion,
         'vehiculo': {
             'marca': order.vehiculo.marca,
@@ -48,6 +55,7 @@ def list_for_client(user_id):
             'id': work.id,
             'descripcion': work.descripcion,
             'estado': work.estado,
+            'updated_at': work.updated_at.isoformat() if work.updated_at else None,
             'cantidad': work.cantidad,
             'subtotal': float(work.subtotal),
             'diagnostico': {
@@ -182,7 +190,7 @@ def update(order, payload):
         notificacion_por_usuario(
             order.cliente.usuario_id,
             f'Cotización actualizada para la orden #{order.id}',
-            f'El total propuesto es ${float(order.total):.2f}. Revisa los detalles y aprueba o rechaza el trabajo.',
+            f'El total propuesto es {format_cop(order.total)}. Revisa los detalles y aprueba o rechaza el trabajo.',
             tipo='diagnostico',
             link='/mis-reparaciones',
         )
@@ -211,11 +219,17 @@ def approve_by_client(user, order_id, decision, comentario=''):
 
     comentario = comentario.strip() if isinstance(comentario, str) else ''
     admins = Usuario.query.filter_by(rol='admin', estado='activo').all()
+    mechanic_ids = {work.mecanico_id for work in order.trabajos if work.mecanico_id}
+    for mechanic_id in mechanic_ids - {admin.id for admin in admins}:
+        notificacion_por_usuario(mechanic_id,
+            f'Cotización #{order.id}: {decision}',
+            'El cliente ha rechazado la cotización. Puedes enviar otra desde el panel mecánico.' if decision == 'rechazado' else 'El cliente ha aprobado la cotización.',
+            tipo='diagnostico', link='/mechanic')
     for admin in admins:
         notificacion_por_usuario(
             admin.id,
             f'Cotización #{order.id} {decision} por el cliente',
-            f'{user.nombre} {user.apellido} respondió a la cotización de ${float(order.total):.2f}.'
+            f'{user.nombre} {user.apellido} respondió a la cotización de {format_cop(order.total)}.'
             + (f' Comentario: {comentario[:500]}' if comentario else ''),
             tipo='diagnostico',
             link='/admin/orders',
@@ -244,7 +258,7 @@ def send_receipt(order_id):
     notificacion_por_usuario(
         order.vehiculo.usuario_id,
         f'Recibo disponible para la orden #{order.id}',
-        f'Administración envió el recibo de tu reparación por ${float(receipt.total):.2f}. Ya puedes revisarlo y pagarlo.',
+        f'Administración envió el recibo de tu reparación por {format_cop(receipt.total)}. Ya puedes revisarlo y pagarlo.',
         tipo='pago',
         link='/mis-recibos',
     )

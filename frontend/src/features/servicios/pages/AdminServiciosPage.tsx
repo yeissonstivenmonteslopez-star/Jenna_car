@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import ServiceEditor, { estadoOptions } from './ServiceEditor'
+import type { ServiceForm } from './ServiceEditor'
 import type { FormEvent } from 'react'
-import { BadgeDollarSign, CheckCircle2, ClipboardList, Clock3, PencilLine, Plus, Search, ShieldCheck, Sparkles, Trash2, Wrench } from 'lucide-react'
+import { BadgeDollarSign, CheckCircle2, ClipboardList, Clock3, PencilLine, Search, ShieldCheck, Sparkles, Trash2, Wrench } from 'lucide-react'
 import { getAdminServicios, createServicio, updateServicio, deleteServicio } from '@/features/servicios/services/serviciosService'
-import AdminBackLink from '@/components/admin-back-link'
 import { formatCop } from '@/lib/utils'
 
 type Service = {
@@ -16,7 +17,6 @@ type Service = {
   estado: string
 }
 
-const estadoOptions = ['activo', 'inactivo']
 
 export default function AdminServiciosPage() {
   const [services, setServices] = useState<Service[]>([])
@@ -26,7 +26,7 @@ export default function AdminServiciosPage() {
   const [filterEstado, setFilterEstado] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ServiceForm>({
     nombre: '',
     descripcion: '',
     precio: '',
@@ -54,30 +54,22 @@ export default function AdminServiciosPage() {
     }
   }, [services])
 
-  async function loadServices(authToken: string) {
+  const loadServices = useCallback(async (authToken: string) => {
     const data = await getAdminServicios({ q: search || undefined, estado: filterEstado || undefined }, authToken)
     setServices(data.data || [])
-  }
+  }, [search, filterEstado])
 
   useEffect(() => {
-    if (!token) {
-      window.location.href = '/sign-in'
-      return
-    }
-
-    loadServices(token)
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los servicios.'))
-      .finally(() => setLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!token) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial necesaria
+    if (!token) { window.location.href = '/sign-in'; return }
+    let active = true
     setLoading(true)
-    loadServices(token)
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los servicios.'))
-      .finally(() => setLoading(false))
+    getAdminServicios({ q: search || undefined, estado: filterEstado || undefined }, token)
+      .then((data) => { if (active) setServices(data.data || []) })
+      .catch((error: unknown) => { if (active) setMessage(error instanceof Error ? error.message : 'No fue posible cargar los servicios.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [search, filterEstado, token])
+
 
   function resetForm() {
     setSelectedId(null)
@@ -179,7 +171,6 @@ export default function AdminServiciosPage() {
             <h1 className="mt-4 font-serif text-4xl text-white md:text-5xl">Servicios</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/55">Organiza el catálogo que verá tu equipo y define precios, tiempos y disponibilidad.</p>
           </div>
-          <AdminBackLink />
         </header>
 
         {message && (
@@ -279,116 +270,7 @@ export default function AdminServiciosPage() {
             )}
           </section>
 
-          <aside className="rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.2)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-[#f87171]/10 p-2 text-[#f87171]">
-                  {selectedId ? <PencilLine size={18} /> : <Plus size={18} />}
-                </div>
-                <h2 className="font-serif text-2xl text-white">{selectedId ? `Editar #${selectedId}` : 'Nuevo'}</h2>
-              </div>
-              {selectedId && (
-                <button type="button" onClick={resetForm} className="text-xs uppercase tracking-[0.18em] text-[#f87171]">Nuevo</button>
-              )}
-            </div>
-
-            <form onSubmit={submit} className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Nombre
-                <input
-                  required
-                  value={form.nombre}
-                  onChange={(event) => setForm({ ...form, nombre: event.target.value })}
-                  className="mt-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                />
-              </label>
-
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Descripción
-                <textarea
-                  value={form.descripcion}
-                  onChange={(event) => setForm({ ...form, descripcion: event.target.value })}
-                  className="mt-1 min-h-[110px] rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#f87171]/60"
-                />
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  Precio en pesos colombianos (COP)
-                  <div className="mt-1 flex items-center rounded-xl border border-white/10 bg-white/5 focus-within:border-[#f87171]/60">
-                    <span className="pl-3 text-sm text-white/50">COP $</span>
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={form.precio}
-                      onChange={(event) => setForm({ ...form, precio: event.target.value })}
-                      className="w-full bg-transparent px-2 py-2.5 text-sm text-white outline-none"
-                    />
-                  </div>
-                </label>
-
-                <div className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                  <span>Duración estimada</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="relative">
-                      <input
-                        required
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={2}
-                        value={form.duracion_horas}
-                        onChange={(event) => setForm({ ...form, duracion_horas: event.target.value.replace(/\D/g, '') })}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 pr-12 text-sm text-white outline-none focus:border-[#f87171]/60"
-                      />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/35">horas</span>
-                    </label>
-                    <label className="relative">
-                      <input
-                        required
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={2}
-                        value={form.duracion_minutos}
-                        onChange={(event) => setForm({ ...form, duracion_minutos: event.target.value.replace(/\D/g, '') })}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 pr-14 text-sm text-white outline-none focus:border-[#f87171]/60"
-                      />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/35">minutos</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <label className="grid gap-2 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                Estado
-                <div className="mt-1 grid grid-cols-2 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-1">
-                  {estadoOptions.map((option) => {
-                    const isActive = form.estado === option
-                    const isEnabled = option === 'activo'
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setForm({ ...form, estado: option })}
-                        className={`flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${isActive ? (isEnabled ? 'bg-[#70e9d2]/15 text-[#70e9d2] shadow-sm' : 'bg-white/10 text-white/80 shadow-sm') : 'text-white/35 hover:bg-white/5 hover:text-white/70'}`}
-                      >
-                        <span className={`h-2 w-2 rounded-full ${isActive ? (isEnabled ? 'bg-[#70e9d2]' : 'bg-white/50') : 'bg-white/20'}`} />
-                        {isEnabled ? 'Activo' : 'Inactivo'}
-                      </button>
-                    )
-                  })}
-                </div>
-              </label>
-
-              <button type="submit" className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#f87171] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a0909] transition hover:bg-[#fca5a5]">
-                <Sparkles size={15} />
-                {selectedId ? 'Guardar cambios' : 'Crear servicio'}
-              </button>
-            </form>
-          </aside>
+          <ServiceEditor form={form} setForm={setForm} selectedId={selectedId} resetForm={resetForm} onSubmit={submit} />
         </div>
       </div>
     </main>

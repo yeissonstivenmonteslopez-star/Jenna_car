@@ -91,12 +91,12 @@ export default function Page() {
     if (!token) return
     let active = true
     setLoadingSlots(true)
-    getHorasDisponibles(appointmentDate, token)
-      .then((response) => { if (active) setAvailableSlots(response.data || []) })
+    getHorasDisponibles(appointmentDate, token, selectedServiceId, selectedVehicleId)
+      .then((response) => { if (active) setAvailableSlots((response.data || []).filter((slot) => slot.disponible).map((slot) => slot.hora)) })
       .catch((error: unknown) => { if (active) setSlotsError(error instanceof Error ? error.message : 'No fue posible consultar los horarios.') })
       .finally(() => { if (active) setLoadingSlots(false) })
     return () => { active = false }
-  }, [bookingOpen, appointmentDate])
+  }, [bookingOpen, appointmentDate, selectedServiceId, selectedVehicleId])
 
   function requestBooking() {
     const token = localStorage.getItem('jenna_car_token') || ''

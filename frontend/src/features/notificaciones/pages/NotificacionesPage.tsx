@@ -138,7 +138,6 @@ export default function NotificacionesPage() {
                 {marcando ? 'Marcando...' : 'Marcar todas como leídas'}
               </button>
             )}
-            <a href="/" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition">← Inicio</a>
           </div>
         </div>
       </header>

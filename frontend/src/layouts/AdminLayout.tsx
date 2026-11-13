@@ -8,12 +8,8 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [authorized, setAuthorized] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 767px)').matches)
 
-  useEffect(() => {
-    if (location.pathname !== '/') {
-      window.history.replaceState(window.history.state, '', '/')
-    }
-  }, [location.pathname])
 
   useEffect(() => {
     function verifyAuth() {
@@ -56,9 +52,15 @@ export default function AdminLayout() {
   if (!authorized) return <main className="min-h-screen bg-black p-12 text-white">Verificando acceso...</main>
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white">
-      <AdminNav />
-      <Outlet />
+    <div className={`admin-workspace ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
+      <a className="workspace-skip" href="#admin-content">Ir al contenido</a>
+      <AdminNav collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
+      <div className="admin-content" id="admin-content">
+        <header className="admin-topbar">
+          <span>Administración / <strong>{({ dashboard: 'Dashboard', citas: 'Citas', orders: 'Órdenes de trabajo', servicios: 'Servicios', vehiculos: 'Vehículos', users: 'Usuarios', notificaciones: 'Notificaciones', search: 'Búsqueda' } as Record<string, string>)[location.pathname.split('/').pop() || ''] || 'Panel'}</strong></span>
+        </header>
+        <Outlet />
+      </div>
     </div>
   )
 }
