@@ -1,9 +1,10 @@
 """Branded, paginated service receipts with Colombian currency formatting."""
 from io import BytesIO
+from pathlib import Path
 
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.utils import simpleSplit
+from reportlab.lib.utils import simpleSplit, ImageReader
 from reportlab.pdfgen.canvas import Canvas
 
 from ..utils.money import format_cop
@@ -11,21 +12,20 @@ from ..utils.money import format_cop
 MARGIN = 44
 WIDTH, HEIGHT = letter
 INK = HexColor('#171717')
-RED = HexColor('#C62828')
+RED = HexColor('#B52D2D')
 MUTED = HexColor('#666666')
 RULE = HexColor('#E5E5E5')
 
 
 def _header(document, receipt):
-    document.setFillColor(INK)
+    document.setFillColor(HexColor('#F3F0EB'))
     document.roundRect(MARGIN, HEIGHT - 112, WIDTH - 2 * MARGIN, 68, 4, fill=1, stroke=0)
     document.setFillColor(RED)
     document.rect(MARGIN, HEIGHT - 112, 5, 68, fill=1, stroke=0)
-    document.setFillColor(HexColor('#FFFFFF'))
-    document.setFont('Helvetica-Bold', 25)
-    document.drawString(MARGIN + 20, HEIGHT - 78, 'JENNACAR')
-    document.setFont('Helvetica', 8)
-    document.drawString(MARGIN + 21, HEIGHT - 96, 'SERVICIO AUTOMOTRIZ')
+    logo = Path(__file__).resolve().parents[1] / 'assets' / 'logo.png'
+    document.drawImage(ImageReader(str(logo)), MARGIN + 18, HEIGHT - 107,
+                       width=90, height=58, preserveAspectRatio=True, anchor='c', mask='auto')
+    document.setFillColor(INK)
     document.setFont('Helvetica-Bold', 12)
     document.drawRightString(WIDTH - MARGIN - 18, HEIGHT - 76, f'RECIBO #{receipt.id}')
     document.setFont('Helvetica', 8)

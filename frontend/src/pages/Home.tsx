@@ -1,3 +1,7 @@
+import NotchCalendarCard from '@/components/ui/NotchCalendarCard'
+import { useAppointmentCalendar } from '@/features/citas/pages/useAppointmentCalendar'
+import { useFeedback } from '@/components/ui/useFeedback'
+import KeycapAlert from '@/components/ui/KeycapAlert'
 
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, CalendarDays, ChevronDown, Menu, ShieldCheck, Wrench, X, MapPin } from 'lucide-react'
@@ -34,13 +38,13 @@ type ServiceOption = {
 export default function Page() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
-  const [messageBooking, setMessageBooking] = useState('')
+  const agenda = useAppointmentCalendar(bookingOpen)
+  const [messageBooking, setMessageBooking, bookingMessageType] = useFeedback()
   const [vehicles, setVehicles] = useState<VehicleOption[]>([])
   const [servicesList, setServicesList] = useState<ServiceOption[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [selectedServiceId, setSelectedServiceId] = useState('')
   const [bookingSaving, setBookingSaving] = useState(false)
-  const [minBookingDate, setMinBookingDate] = useState('')
   const [showNewVehicleForm, setShowNewVehicleForm] = useState(false)
   const [flippedServices, setFlippedServices] = useState<Record<string, boolean>>({})
   const [appointmentDate, setAppointmentDate] = useState('')
@@ -49,11 +53,7 @@ export default function Page() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [slotsError, setSlotsError] = useState('')
 
-  useEffect(() => {
-    setMinBookingDate(new Date().toISOString().slice(0, 10))
-  }, [])
-
-  async function loadBookingOptions() {
+async function loadBookingOptions() {
     const token = localStorage.getItem('jenna_car_token') || ''
     if (!token) return
 
@@ -166,7 +166,7 @@ export default function Page() {
       setBookingSaving(true)
       await createCita({ vehiculo_id: vehicleId, servicio_id: Number(selectedServiceId), fecha, hora, motivo }, token)
 
-      setMessageBooking('Cita agendada correctamente.')
+      setMessageBooking('Cita agendada correctamente.', 'success')
       setBookingOpen(false)
       window.location.href = '/profile'
     } catch (error) {
@@ -291,22 +291,22 @@ export default function Page() {
                   <option key={service.id} value={service.id}>{service.name} · {formatCop(service.price)}</option>
                 ))}
               </select>
-              <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Día de la cita
-                <input required type="date" id="fechaCita" min={minBookingDate || undefined} value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
-              </label>
+              <NotchCalendarCard events={agenda.events} eventsLoading={agenda.loading} eventsError={agenda.error}
+                value={appointmentDate} disablePast disabled={bookingSaving}
+                onSelectDate={(date) => setAppointmentDate(date)} />
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Hora disponible</label>
                   <span className="text-[10px] text-muted-foreground">08:00–19:00 · cada hora</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  {loadingSlots ? <p className="col-span-full py-3 text-xs text-muted-foreground">Consultando disponibilidad…</p> : slotsError ? <p className="col-span-full py-3 text-xs text-accent">{slotsError}</p> : availableSlots.length ? availableSlots.map((slot) => (
+                  {loadingSlots ? <p className="col-span-full py-3 text-xs text-muted-foreground">Consultando disponibilidad…</p> : slotsError ? <KeycapAlert type="error" className="col-span-full" message={slotsError} /> : availableSlots.length ? availableSlots.map((slot) => (
                     <button key={slot} type="button" onClick={() => setAppointmentTime(slot)} className={`border px-2 py-2.5 text-xs transition ${appointmentTime === slot ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-transparent text-muted-foreground hover:border-accent hover:text-secondary-foreground'}`}>{slot}</button>
                   )) : appointmentDate ? <p className="col-span-full py-3 text-xs text-muted-foreground">No quedan horarios libres para esta fecha.</p> : <p className="col-span-full py-3 text-xs text-muted-foreground">Selecciona una fecha para ver las horas libres.</p>}
                 </div>
               </div>
               <input id="motivoCita" placeholder="Motivo / observaciones (opcional)" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
-              {messageBooking && <p className="text-xs text-accent">{messageBooking}</p>}
+              {messageBooking && <KeycapAlert type={bookingMessageType} message={messageBooking} />}
               <button disabled={bookingSaving || !appointmentTime} className="flex items-center justify-center gap-3 bg-accent px-5 py-4 text-[10px] font-semibold tracking-[0.18em] text-accent-foreground disabled:opacity-50">{bookingSaving ? 'AGENDANDO…' : 'SOLICITAR CITA'} <CalendarDays size={15} /></button>
             </form>
           </div>

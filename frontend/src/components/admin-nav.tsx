@@ -13,6 +13,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import CompanyLogo from './CompanyLogo'
 
 const sections = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,7 +34,7 @@ function handleSignOut() {
 
 export default function AdminNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   return <aside className={`admin-sidebar ${collapsed ? 'is-collapsed' : ''}`}>
-    <div className="admin-sidebar-brand"><a href="/" aria-label="Jenna Car, inicio"><span className="brand-monogram">J<span>C</span></span><span className="sidebar-label">JENNA<span className="brand-red">CAR</span><small>ADMINISTRACIÓN</small></span></a></div>
+    <div className="admin-sidebar-brand"><a href="/" aria-label="Jenna Car, inicio"><CompanyLogo variant="dark" className="admin-company-logo" /><small className="sidebar-label">ADMINISTRACIÓN</small></a></div>
     <button type="button" onClick={onToggle} className="sidebar-toggle" aria-label={collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'} aria-expanded={!collapsed} aria-controls="admin-navigation">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}<span className="sidebar-label">Contraer menú</span></button>
     <nav aria-label="Administración" id="admin-navigation">{[
       { label: 'General', links: sections.slice(0, 1) },

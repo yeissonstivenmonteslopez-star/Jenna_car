@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TODO: futura integración con servicios de Google
 // La lógica de notificaciones administrativas está separada de cualquier integración externa de Google.
@@ -156,7 +157,7 @@ export default function AdminNotificacionesPage() {
             Enviar notificación
           </h2>
           {error && (
-            <div className="mb-4 p-3 border border-red-500/30 bg-red-500/10 rounded text-sm text-red-400">{error}</div>
+            <KeycapAlert type={'error'} message={error} className="mb-4" />
           )}
           {success && (
             <div className="mb-4 p-3 border border-green-500/30 bg-green-500/10 rounded text-sm text-green-400">{success}</div>

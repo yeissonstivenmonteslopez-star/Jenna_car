@@ -1,3 +1,5 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
+import { useFeedback } from '@/components/ui/useFeedback'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -25,7 +27,7 @@ export default function AdminServiciosPage() {
   const [search, setSearch] = useState('')
   const [filterEstado, setFilterEstado] = useState('')
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageType] = useFeedback()
   const [form, setForm] = useState<ServiceForm>({
     nombre: '',
     descripcion: '',
@@ -65,10 +67,10 @@ export default function AdminServiciosPage() {
     setLoading(true)
     getAdminServicios({ q: search || undefined, estado: filterEstado || undefined }, token)
       .then((data) => { if (active) setServices(data.data || []) })
-      .catch((error: unknown) => { if (active) setMessage(error instanceof Error ? error.message : 'No fue posible cargar los servicios.') })
+      .catch((error: unknown) => { if (active) setMessage(error instanceof Error ? error.message : 'No fue posible cargar los servicios.', 'error') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [search, filterEstado, token])
+  }, [search, filterEstado, token, setMessage])
 
 
   function resetForm() {
@@ -108,15 +110,15 @@ export default function AdminServiciosPage() {
     }
 
     if (!form.precio || Number(form.precio) <= 0) {
-      setMessage('Ingresa un precio válido en pesos colombianos.')
+      setMessage('Ingresa un precio válido en pesos colombianos.', 'error')
       return
     }
     if (Number(form.duracion_horas) * 60 + Number(form.duracion_minutos) <= 0) {
-      setMessage('Ingresa una duración mayor a cero.')
+      setMessage('Ingresa una duración mayor a cero.', 'error')
       return
     }
     if (Number(form.duracion_horas) > 24 || Number(form.duracion_minutos) > 59) {
-      setMessage('La duración debe estar entre 0 y 24 horas, y entre 0 y 59 minutos.')
+      setMessage('La duración debe estar entre 0 y 24 horas, y entre 0 y 59 minutos.', 'error')
       return
     }
 
@@ -124,11 +126,11 @@ export default function AdminServiciosPage() {
       if (selectedId) await updateServicio(selectedId, payload, token)
       else await createServicio(payload, token)
     } catch (err: any) {
-      setMessage(err.message || 'No fue posible guardar el servicio.')
+      setMessage(err.message || 'No fue posible guardar el servicio.', 'error')
       return
     }
 
-    setMessage(selectedId ? 'Servicio actualizado correctamente.' : 'Servicio creado correctamente.')
+    setMessage(selectedId ? 'Servicio actualizado correctamente.' : 'Servicio creado correctamente.', 'success')
     resetForm()
     await loadServices(token)
   }
@@ -136,9 +138,9 @@ export default function AdminServiciosPage() {
   async function toggleStatus(serviceId: number, nextState: string) {
     try {
       const data = await updateServicio(serviceId, { estado: nextState }, token)
-      setMessage((data as any).message || 'Estado del servicio actualizado.')
+      setMessage((data as any).message || 'Estado del servicio actualizado.', 'success')
     } catch (err: any) {
-      setMessage(err.message || 'No fue posible cambiar el estado del servicio.')
+      setMessage(err.message || 'No fue posible cambiar el estado del servicio.', 'error')
       return
     }
     await loadServices(token)
@@ -150,9 +152,9 @@ export default function AdminServiciosPage() {
 
     try {
       const data = await deleteServicio(serviceId, token)
-      setMessage((data as any).message || 'Servicio actualizado.')
+      setMessage((data as any).message || 'Servicio actualizado.', 'success')
     } catch (err: any) {
-      setMessage(err.message || 'No fue posible eliminar el servicio.')
+      setMessage(err.message || 'No fue posible eliminar el servicio.', 'error')
       return
     }
     resetForm()
@@ -174,9 +176,7 @@ export default function AdminServiciosPage() {
         </header>
 
         {message && (
-          <div className="mb-6 rounded-xl border border-[#f87171]/30 bg-[#f87171]/10 p-4 text-sm text-[#d6fff9]">
-            {message}
-          </div>
+          <KeycapAlert type={messageType} message={message} className="mb-6" />
         )}
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">

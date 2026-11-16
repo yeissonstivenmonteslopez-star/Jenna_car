@@ -1,7 +1,9 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Clock3, X } from 'lucide-react'
 import { authHeaders, getApiUrl } from '@/services/apiClient'
 import { formatCop } from '@/lib/utils'
+import WorkspaceSummary from '@/components/workspace-summary'
 
 type RepairImage = { id: number; descripcion: string | null; created_at: string | null }
 type RepairOrder = {
@@ -125,19 +127,25 @@ export default function MisReparacionesPage() {
   if (!token) return null
 
   return (
-    <main className="min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-12">
+    <main className="repairs-page min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-12">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 border-b border-white/10 pb-6">
           <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-red-400">Jenna Car / Taller</p>
           <h1 className="mt-2 font-serif text-4xl text-white sm:text-5xl">Seguimiento de mi vehículo</h1>
-          <p className="mt-2 text-sm text-white/50">Revisa el diagnóstico, sigue los avances y aprueba la cotización antes del recibo.</p>
+          <p className="mt-2 text-sm text-white/50">Acompaña cada etapa: diagnóstico, cotización y avances de tu vehículo.</p>
           <button type="button" onClick={() => void loadOrders()} disabled={loading} className="mt-4 rounded border border-white/20 px-4 py-2 text-xs disabled:opacity-50">Actualizar seguimiento</button>
         </header>
 
-        {error && <p role="alert" className="mb-4 border border-red-400/25 bg-red-950/25 p-3 text-sm text-red-200">{error}</p>}
-        {notice && <p role="status" className="mb-4 border border-emerald-400/25 bg-emerald-950/20 p-3 text-sm text-emerald-200">{notice}</p>}
-        {loading ? <p className="py-8 text-sm text-white/50">Cargando reparaciones…</p> : orders.length === 0 ? (
-          <p className="border-y border-white/10 py-8 text-sm text-white/50">Todavía no hay órdenes de trabajo asociadas a tus vehículos.</p>
+        {!loading && !error && <WorkspaceSummary items={[
+          { label: 'En el taller', value: orders.filter((order) => !['entregada', 'cancelada'].includes(order.estado)).length, description: 'Órdenes activas de tus vehículos' },
+          { label: 'Por aprobar', value: orders.filter((order) => order.estado_aprobacion === 'pendiente').length, description: 'Cotizaciones pendientes de tu respuesta' },
+          { label: 'Terminadas', value: orders.filter((order) => ['terminada', 'entregada'].includes(order.estado)).length, description: 'Trabajos finalizados' },
+        ]} />}
+
+        {error && <KeycapAlert type={'error'} message={error} className="mb-4" />}
+        {notice && <KeycapAlert type={'success'} message={notice} className="mb-4" />}
+        {loading ? <p role="status" className="py-8 text-sm text-white/50">Cargando reparaciones…</p> : orders.length === 0 ? (
+          <div className="workspace-empty"><Clock3 size={28} /><h2>Todo el seguimiento, en un solo lugar</h2><p>Cuando el taller registre una reparación, aquí verás su diagnóstico y sus fotografías.</p><a href="/mis-citas" className="profile-text-link">Consultar mis citas →</a></div>
         ) : (
           <div className="grid gap-5">
             {orders.map((order) => {
@@ -165,8 +173,8 @@ export default function MisReparacionesPage() {
                         ['en_reparacion', 'En reparación'], ['terminada', 'Trabajo terminado'], ['entregada', 'Entregado'],
                       ].map(([state, label]) => <li key={state} aria-current={order.estado === state ? 'step' : undefined} className={`rounded border px-3 py-3 text-xs ${order.estado === state ? 'border-red-400 bg-red-950/40 text-white' : 'border-white/10 text-white/40'}`}>{label}{order.estado === state && <span className="mt-1 block text-[10px] text-red-300">Estado actual</span>}</li>)}
                     </ol>
-                    {order.estado === 'cancelada' && <p className="mt-3 text-sm text-red-300">Orden cancelada</p>}
-                    {order.estado === 'terminada' && <p className="mt-3 text-sm text-emerald-200">El trabajo de esta orden está terminado. Consulta con el taller la entrega.</p>}
+                    {order.estado === 'cancelada' && <KeycapAlert type="warning" className="mt-3" message="Orden cancelada" />}
+                    {order.estado === 'terminada' && <KeycapAlert type="success" className="mt-3" message="El trabajo de esta orden está terminado. Consulta con el taller la entrega." />}
                     {order.observaciones && <p className="mt-3 whitespace-pre-wrap text-sm text-white/70">Observaciones de la orden: {order.observaciones}</p>}
                   </section>
 
@@ -200,9 +208,9 @@ export default function MisReparacionesPage() {
                           </button>
                         </div>
                       ) : order.estado_aprobacion === 'aprobado' && !order.recibo?.enviado_cliente ? (
-                        <p className="mt-4 text-xs text-emerald-200/80">Aprobada. Administración enviará el recibo cuando esté listo.</p>
+                        <KeycapAlert type="success" className="mt-4" message="Aprobada. Administración enviará el recibo cuando esté listo." />
                       ) : order.estado_aprobacion === 'rechazado' ? (
-                        <p className="mt-4 text-xs text-amber-200/80">Has rechazado la propuesta. Espera una actualización del taller.</p>
+                        <KeycapAlert type="warning" className="mt-4" message="Has rechazado la propuesta. Espera una actualización del taller." />
                       ) : null}
                     </section>
 

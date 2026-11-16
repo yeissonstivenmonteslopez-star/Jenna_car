@@ -1,4 +1,6 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import BackLink from '@/components/BackLink'
+import WorkspaceSummary from '@/components/workspace-summary'
 import QuoteRevision from './QuoteRevision'
 import MechanicPhotoGallery from './MechanicPhotoGallery'
 import { formatCop } from '@/lib/utils'
@@ -214,7 +216,7 @@ export default function MechanicPanelPage() {
   if (!authorized) return <main className="min-h-screen bg-[#090909] p-8 text-white">Verificando acceso…</main>
 
   return (
-    <main className="min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-10">
+    <main className="mechanic-page min-h-screen bg-[#090909] px-5 py-8 text-white sm:px-8 lg:px-10 lg:py-10">
       <BackLink />
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
@@ -224,13 +226,19 @@ export default function MechanicPanelPage() {
             <p className="mt-2 text-sm text-white/50">Agenda asignada, diagnóstico y evidencia de trabajo.</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => void loadAppointments()} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-white/70 transition hover:border-red-400/50 hover:text-white"><RefreshCw size={14} /> Actualizar</button>
+            <button type="button" disabled={loading} onClick={() => void loadAppointments()} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-white/70 transition hover:border-red-400/50 hover:text-white"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> {loading ? 'Actualizando…' : 'Actualizar'}</button>
             <button type="button" onClick={signOut} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-white/70 transition hover:border-red-400/50 hover:text-white"><LogOut size={14} /> Salir</button>
           </div>
         </header>
 
-        {error && <p role="alert" className="mb-4 border border-red-400/25 bg-red-950/25 p-3 text-sm text-red-200">{error}</p>}
-        {notice && <p role="status" className="mb-4 border border-emerald-400/25 bg-emerald-950/20 p-3 text-sm text-emerald-200">{notice}</p>}
+        <WorkspaceSummary items={[
+          { label: 'Citas asignadas', value: appointments.length, description: 'Tu agenda de atención' },
+          { label: 'Pendientes', value: appointments.filter((item) => item.estado === 'pendiente').length, description: 'Citas por confirmar' },
+          { label: 'Confirmadas', value: appointments.filter((item) => item.estado === 'confirmada').length, description: 'Listas para su atención' },
+        ]} />
+
+        {error && <KeycapAlert type={'error'} message={error} className="mb-4" />}
+        {notice && <KeycapAlert type={'success'} message={notice} className="mb-4" />}
 
         <div className="grid gap-8 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.5fr)]">
           <section aria-label="Agenda asignada">
@@ -238,11 +246,12 @@ export default function MechanicPanelPage() {
               <h2 className="text-sm font-semibold text-white">Citas asignadas</h2>
               <span className="text-xs tabular-nums text-white/40">{appointments.length}</span>
             </div>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente o vehículo" className="mb-3 h-10 w-full rounded-md border border-white/10 bg-[#111] px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-red-500/60" />
-            {loading ? <p className="py-6 text-sm text-white/45">Cargando agenda…</p> : filteredAppointments.length === 0 ? <p className="border-y border-white/10 py-8 text-sm text-white/45">No hay citas asignadas.</p> : (
+            <label htmlFor="mechanic-search" className="mb-2 block text-xs">Buscar en mi agenda</label>
+            <input id="mechanic-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cliente, placa o servicio…" className="mb-3 h-10 w-full rounded-md border border-white/10 bg-[#111] px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-red-500/60" />
+            {loading ? <p role="status" className="py-6 text-sm text-white/45">Cargando agenda…</p> : filteredAppointments.length === 0 ? <div className="workspace-empty"><ClipboardList size={28} /><h3>{query ? 'No encontramos coincidencias' : 'Tu agenda está despejada'}</h3><p>{query ? 'Prueba con otra placa, cliente o servicio.' : 'Las citas que te asignen aparecerán aquí.'}</p>{query && <button type="button" className="profile-text-link" onClick={() => setQuery('')}>Limpiar búsqueda</button>}</div> : (
               <div className="divide-y divide-white/10 border-y border-white/10">
                 {filteredAppointments.map((appointment) => (
-                  <button key={appointment.id} type="button" onClick={() => void loadDetail(appointment.id)} className={`w-full px-3 py-4 text-left transition hover:bg-white/[0.04] ${selectedId === appointment.id ? 'border-l-2 border-red-400 bg-red-950/15' : 'border-l-2 border-transparent'}`}>
+                  <button key={appointment.id} type="button" aria-pressed={selectedId === appointment.id} onClick={() => void loadDetail(appointment.id)} className={`w-full px-3 py-4 text-left transition hover:bg-white/[0.04] ${selectedId === appointment.id ? 'border-l-2 border-red-400 bg-red-950/15' : 'border-l-2 border-transparent'}`}>
                     <span className="flex items-center justify-between gap-3">
                       <span className="truncate text-sm font-medium text-white">{appointment.cliente_nombre}</span>
                       <span className="text-[10px] uppercase text-red-300">#{appointment.id}</span>

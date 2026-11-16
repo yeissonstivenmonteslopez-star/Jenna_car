@@ -1,4 +1,6 @@
 .git
+tmp
+output
 .test-deps
 .local-backups
 .test-tmp*

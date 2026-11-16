@@ -1,9 +1,12 @@
+import CompanyLogo from '@/components/CompanyLogo'
+import '../auth-design.css'
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ArrowUpRight, Eye, EyeOff, LockKeyhole } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Eye, EyeOff } from 'lucide-react'
 import { googleAuth, login } from '@/features/auth/services/authService'
-import { GoogleLogin } from '@react-oauth/google'
+import GoogleAuthButton from '@/components/ui/GoogleAuthButton'
 import { getGoogleClientId } from '@/services/apiClient'
 
 export default function SignInPage() {
@@ -22,6 +25,7 @@ function SignInContent() {
   const googleClientId = getGoogleClientId()
 
   async function handleGoogleCallback(response: { credential?: string }) {
+    if (loading) return
     if (!response.credential) return
     setError('')
     setLoading(true)
@@ -41,6 +45,7 @@ function SignInContent() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (loading) return
     setError('')
     setLoading(true)
     const form = new FormData(event.currentTarget)
@@ -62,21 +67,18 @@ function SignInContent() {
   const registerHref = redirectTarget === '/' ? '/register' : `/register?redirect=${encodeURIComponent(redirectTarget)}`
 
   return (
-    <main className="min-h-screen bg-primary text-primary-foreground">
+    <main className="auth-page min-h-screen bg-primary text-primary-foreground">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
 
         {/* ── Panel izquierdo (hero) ── */}
-        <section className="relative hidden overflow-hidden lg:block">
+        <section className="auth-hero relative hidden overflow-hidden lg:block">
           <img
             src="/jenna-car-hero.png"
             alt="Vehículo premium en Jenna Car"
             className="absolute inset-0 h-full w-full object-cover opacity-60"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/45 to-primary/20" />
-          <div className="relative flex h-full flex-col justify-between p-16">
-            <a href="/" className="font-serif text-xl tracking-[0.18em]">
-              JENNA <span className="text-accent">CAR</span>
-            </a>
+          <div className="relative flex h-full flex-col justify-end p-16">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-accent">Área cliente</p>
               <h1 className="mt-4 font-serif text-6xl">
@@ -88,18 +90,17 @@ function SignInContent() {
         </section>
 
         {/* ── Panel derecho (formulario) ── */}
-        <section className="flex min-h-screen flex-col justify-between px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
+        <section className="auth-panel flex min-h-screen min-w-0 flex-col justify-between px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
           <a href="/" className="flex items-center gap-2 text-sm uppercase tracking-[0.18em] text-primary-foreground/55">
             <ArrowLeft size={15} /> Volver al inicio
           </a>
 
-          <div className="mx-auto w-full max-w-md py-16">
-            <div className="mb-10">
-              <div className="mb-6 flex h-11 w-11 items-center justify-center border border-primary-foreground/15 text-accent">
-                <LockKeyhole size={18} />
-              </div>
+          <div className="auth-content mx-auto w-full max-w-md py-16">
+            <div className="auth-intro mb-10">
+              <a href="/" className="auth-form-brand" aria-label="Jenna Car, inicio"><CompanyLogo variant="dark" /></a>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-accent">Área cliente</p>
-              <h2 className="mt-4 font-serif text-5xl">Bienvenido de nuevo.</h2>
+              <h2 className="auth-heading mt-4 font-serif text-5xl">Bienvenido de nuevo.</h2>
+              <p className="auth-description">Tus citas, tu vehículo y tus servicios, en un solo lugar.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="grid gap-5">
@@ -141,15 +142,14 @@ function SignInContent() {
                 </a>
               </div>
               <button
+                type="submit"
                 disabled={loading}
                 className="mt-3 flex items-center justify-center gap-3 bg-accent px-5 py-4 text-base font-semibold tracking-[0.2em] text-accent-foreground disabled:opacity-60"
               >
                 {loading ? 'ENTRANDO…' : <><span>ENTRAR</span> <ArrowUpRight size={15} /></>}
               </button>
               {error && (
-                <p role="alert" className="border border-red-300/30 bg-red-950/30 p-3 text-center text-sm">
-                  {error}
-                </p>
+                <KeycapAlert type={'error'} message={error} />
               )}
             </form>
 
@@ -157,25 +157,11 @@ function SignInContent() {
               <>
                 <div className="my-6 flex items-center gap-4">
                   <div className="h-px flex-1 bg-primary-foreground/10" />
-                  <span className="text-sm uppercase tracking-[0.18em] text-primary-foreground/35">o</span>
+                  <span className="shrink-0 text-xs text-primary-foreground/50">O continúa con</span>
                   <div className="h-px flex-1 bg-primary-foreground/10" />
                 </div>
 
-                <div className="mx-auto flex h-11 w-full max-w-[360px] justify-center overflow-hidden rounded-full">
-                  <GoogleLogin
-                    onSuccess={handleGoogleCallback}
-                    onError={() => setError('Falló el inicio de sesión con Google')}
-                    useOneTap={false}
-                    ux_mode="popup"
-                    use_fedcm_for_button={true}
-                    theme="outline"
-                    size="large"
-                    text="continue_with"
-                    shape="pill"
-                    logo_alignment="center"
-                    width="360"
-                  />
-                </div>
+                <GoogleAuthButton onSuccess={handleGoogleCallback} onError={() => setError('Falló el inicio de sesión con Google')} loading={loading} fullWidth variant="light" />
               </>
             ) : (
               <p className="text-center text-sm text-primary-foreground/45">Inicio con Google no configurado.</p>

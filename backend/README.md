@@ -58,6 +58,10 @@ variables `MERCADOPAGO_*` de `.env.example`, incluyendo el secreto de Webhooks
 y las URLs públicas HTTPS. La URL de retorno puede ser `/mis-recibos` de tu web.
 El retorno del navegador no confirma un pago: solo un webhook firmado, seguido
 de una consulta a Mercado Pago que coincida en referencia, monto y moneda COP.
+La pantalla de recibos consulta `GET /api/pagos/config`: conserva el simulador
+cuando está habilitado y, en modo real, solicita la preferencia al backend y
+redirige a Checkout Pro. Al volver, el navegador muestra el estado del recibo
+sin confiar en los parámetros de retorno de Mercado Pago.
 Los métodos disponibles dependen de la cuenta del vendedor y de la pasarela;
 no se garantiza Nequi como método directo.
 

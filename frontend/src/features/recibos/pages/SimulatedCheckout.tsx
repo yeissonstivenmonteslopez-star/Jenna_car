@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { authHeaders, getApiUrl } from '@/services/apiClient'
@@ -50,6 +51,7 @@ export default function SimulatedCheckout({ receiptId, amount, token, onClose, o
       const body = await response.json()
       if (!response.ok) throw new Error(body.error || 'No fue posible simular el pago')
       setResult(body.data); setNumber(''); setCvv(''); setExpiry('')
+      if (body.data.estado === 'completado') window.dispatchEvent(new Event('jenna-notifications-updated'))
       await onPaid()
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Error de conexión. Reintenta con la misma selección. La referencia se conserva.') }
     finally { setBusy(false) }
@@ -58,9 +60,9 @@ export default function SimulatedCheckout({ receiptId, amount, token, onClose, o
   return <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-4 backdrop-blur-sm">
     <section role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="mx-auto my-6 max-w-xl rounded-2xl border border-red-500/30 bg-[#111] p-5 text-white shadow-2xl sm:p-8">
       <header className="flex justify-between gap-4"><div><p className="text-xs font-bold tracking-widest text-red-400">JENNA CAR · PAGO SIMULADO</p><h2 id="checkout-title" className="mt-2 font-serif text-3xl">Pasarela de prueba</h2></div><button type="button" disabled={busy} onClick={onClose} aria-label="Cerrar pasarela" className="self-start p-2 text-white/70">✕</button></header>
-      <p className="my-4 border-l-2 border-amber-400 pl-3 text-xs leading-relaxed text-amber-200">No se cobra dinero real. Usa únicamente los datos ficticios indicados. No introduzcas tarjetas reales, claves ni PIN.</p>
+      <KeycapAlert type="warning" className="my-4" message="No se cobra dinero real. Usa únicamente los datos ficticios indicados. No introduzcas tarjetas reales, claves ni PIN." />
       <div className="mb-5 flex items-end justify-between border-b border-white/10 pb-4"><span className="text-xs text-white/60">Recibo #{receiptId}</span><strong className="text-2xl">{formatCop(result?.monto ?? amount)}</strong></div>
-      {result ? <div role="status" className="space-y-4"><h3 className="text-xl">{result.estado === 'completado' ? 'Simulación aprobada' : result.estado === 'anulado' ? 'Simulación rechazada' : 'Simulación pendiente'}</h3><p className="break-all font-mono text-xs text-white/70">{result.referencia}</p><p className="text-sm text-white/60">{result.estado === 'completado' ? 'El recibo quedó pagado en la aplicación.' : 'El recibo sigue pendiente. No se ha realizado ningún cobro.'}</p><p className="text-xs font-bold text-amber-200">COMPROBANTE SIMULADO · SIN VALOR COMO PAGO REAL</p><button type="button" onClick={onClose} className="rounded bg-red-600 px-5 py-3 text-sm">Cerrar</button></div> : <form onSubmit={submit} className="space-y-4">
+      {result ? <div className="space-y-4"><KeycapAlert type={result.estado === 'completado' ? 'success' : result.estado === 'anulado' ? 'error' : 'warning'} title={result.estado === 'completado' ? 'Pago simulado exitoso' : result.estado === 'anulado' ? 'Simulación rechazada' : 'Simulación pendiente'} message={result.estado === 'completado' ? 'El recibo quedó pagado en la aplicación.' : 'El recibo sigue pendiente. No se ha realizado ningún cobro.'} /><p className="break-all font-mono text-xs text-white/70">{result.referencia}</p><KeycapAlert type="warning" message="COMPROBANTE SIMULADO · SIN VALOR COMO PAGO REAL" /><button type="button" onClick={onClose} className="rounded bg-red-600 px-5 py-3 text-sm">Cerrar</button></div> : <form onSubmit={submit} className="space-y-4">
         <fieldset disabled={busy || submitted} className="space-y-4 disabled:opacity-70"><legend className="mb-3 text-xs text-white/70">Método de prueba</legend>
           <div className="grid grid-cols-2 gap-3">{['tarjeta', 'nequi'].map((value) => <button key={value} type="button" aria-pressed={method === value} onClick={() => setMethod(value)} className={`rounded-lg border p-3 text-sm ${method === value ? 'border-red-400 bg-red-950/40' : 'border-white/15'}`}>{value === 'tarjeta' ? 'Tarjeta de prueba' : 'Nequi simulado'}</button>)}</div>
           {method === 'tarjeta' ? <>
@@ -71,7 +73,7 @@ export default function SimulatedCheckout({ receiptId, amount, token, onClose, o
           </> : <label className="grid gap-2 text-xs text-white/65"><span className="text-2xl font-black text-pink-300">Nequi · SIMULADO</span>Celular ficticio<input value={phone} inputMode="numeric" onChange={(event) => setPhone(event.target.value)} className={inputClass} /><span>Utiliza 3000000000. No se enviarán solicitudes de cobro.</span></label>}
           <label className="grid gap-2 text-xs text-white/65">Resultado del simulador<select value={outcome} onChange={(event) => setOutcome(event.target.value)} className={inputClass}><option value="aprobado">Aprobado</option><option value="rechazado">Rechazado</option><option value="pendiente">Pendiente</option></select></label>
         </fieldset>
-        {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+        {error && <KeycapAlert type={'error'} message={error} />}
         <button type="submit" disabled={busy} className="w-full rounded-lg bg-red-600 p-4 text-sm font-semibold disabled:opacity-50">{busy ? 'Procesando simulación…' : submitted ? 'Reintentar la misma simulación' : 'Simular pago · sin dinero real'}</button>
       </form>}
     </section>

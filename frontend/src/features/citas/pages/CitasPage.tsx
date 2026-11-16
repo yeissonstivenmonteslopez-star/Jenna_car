@@ -1,3 +1,6 @@
+import NotchCalendarCard from '@/components/ui/NotchCalendarCard'
+import { useAppointmentCalendar } from './useAppointmentCalendar'
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import BookingVehicleFields from './BookingVehicleFields'
 import BookingSummary from './BookingSummary'
 import type { VehicleOption, ServiceOption } from './bookingTypes'
@@ -6,7 +9,7 @@ import { formatDuration } from './bookingPresentation'
 import { useEffect, useMemo, useState } from 'react'
 import AppointmentTimePicker from './AppointmentTimePicker'
 import type { FormEvent } from 'react'
-import { CalendarDays, CheckCircle2, ShieldCheck, Sparkles, Wrench } from 'lucide-react'
+import { CalendarDays, ShieldCheck, Sparkles, Wrench } from 'lucide-react'
 import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
 import { getServices } from '@/features/servicios/services/serviciosService'
 import { createCita, getHorasDisponibles } from '@/features/citas/services/citasService'
@@ -27,6 +30,7 @@ function getServiceBadge(serviceName: string) {
 
 
 export default function CitasPage() {
+  const agenda = useAppointmentCalendar()
   const [loading, setLoading] = useState(true)
   const [vehicles, setVehicles] = useState<VehicleOption[]>([])
   const [servicesList, setServicesList] = useState<ServiceOption[]>([])
@@ -252,23 +256,10 @@ export default function CitasPage() {
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-[0.8fr_1.2fr]">
-                <label className="grid gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/70">
-                  <span className="mb-1">Día de la cita</span>
-                  <div className="relative">
-                    <CalendarDays size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-red-300" />
-                    <input
-                      required
-                      type="date"
-                      id="fechaCita"
-                      min={new Date().toISOString().slice(0, 10)}
-                      value={appointmentDate}
-                      onChange={(event) => { setAppointmentDate(event.target.value); setAppointmentTime(''); setAvailableSlots([]) }}
-                      style={{ colorScheme: 'dark' }}
-                      className="w-full rounded-xl border border-white/10 bg-[#0f0f0f] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-500/25"
-                    />
-                  </div>
-                </label>
+              <div className="grid gap-5 xl:grid-cols-[minmax(260px,1fr)_minmax(0,1fr)]">
+                <NotchCalendarCard events={agenda.events} eventsLoading={agenda.loading} eventsError={agenda.error}
+                  value={appointmentDate} disablePast disabled={bookingSaving}
+                  onSelectDate={(date) => { if (date !== appointmentDate) { setAppointmentDate(date); setAppointmentTime(''); setAvailableSlots([]) } }} />
                 <AppointmentTimePicker date={appointmentDate} value={appointmentTime} available={availableSlots}
                   loading={loadingSlots} error={slotsError} onChange={setAppointmentTime}
                   onRetry={() => setSlotsRefresh((value) => value + 1)} />
@@ -280,9 +271,7 @@ export default function CitasPage() {
               </label>
 
               {messageBooking && (
-                <p className={`rounded-xl border px-4 py-3 text-sm ${success ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-red-500/30 bg-red-500/10 text-red-200'}`}>
-                  {success ? <span className="inline-flex items-center gap-2"><CheckCircle2 size={16} /> {messageBooking}</span> : messageBooking}
-                </p>
+                <KeycapAlert type={success ? 'success' : 'error'} message={messageBooking} />
               )}
 
               <button

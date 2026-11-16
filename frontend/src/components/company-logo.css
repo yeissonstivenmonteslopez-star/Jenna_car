@@ -1,0 +1,5 @@
+.company-logo { display: inline-flex; align-items: center; justify-content: center; width: 112px; max-width: 100%; flex-shrink: 0; vertical-align: middle; }
+.company-logo img { display: block; width: 100%; height: auto; object-fit: contain; }
+.company-logo[data-variant='auto'] .logo-on-dark { display: none; }
+.workspace-ui[data-theme='dark'] .company-logo[data-variant='auto'] .logo-on-dark { display: block; }
+.workspace-ui[data-theme='dark'] .company-logo[data-variant='auto'] .logo-on-light { display: none; }

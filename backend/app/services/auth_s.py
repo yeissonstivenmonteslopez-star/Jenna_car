@@ -153,16 +153,16 @@ def request_password_reset(email):
 
     mensaje_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #ddd;">
+        <div style="background-color: #f3f0eb; padding: 20px; text-align: center; border-bottom: 1px solid #ddd;">
             <h2 style="color: #333; margin: 0;">Jenna Car - Recuperación de contraseña</h2>
         </div>
         <div style="padding: 20px; color: #555;">
             <p style="font-size: 16px;">Hola,</p>
             <p style="font-size: 16px;">Has solicitado restablecer tu contraseña. Tu código de recuperación es:</p>
-            <h1 style="color: #0056b3; text-align: center; font-size: 36px; margin: 20px 0;">{code}</h1>
+            <h1 style="color: #b52d2d; text-align: center; font-size: 36px; margin: 20px 0;">{code}</h1>
             <p style="font-size: 16px;">Este código expirará en 15 minutos.</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 10px; text-align: center; font-size: 12px; color: #aaa; border-top: 1px solid #ddd;">
+        <div style="background-color: #f3f0eb; padding: 10px; text-align: center; font-size: 12px; color: #aaa; border-top: 1px solid #ddd;">
             <p>Si no solicitaste esto, puedes ignorar este correo.</p>
         </div>
     </div>

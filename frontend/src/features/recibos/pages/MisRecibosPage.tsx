@@ -1,7 +1,9 @@
+import { useFeedback } from '@/components/ui/useFeedback'
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useEffect, useMemo, useState } from 'react'
-import { CreditCard, Download, Eye, Landmark, Printer, ReceiptText, ShieldAlert } from 'lucide-react'
+import { CreditCard, Download, Eye, Landmark, Printer, ReceiptText } from 'lucide-react'
 import SimulatedCheckout from './SimulatedCheckout'
-import { getMisPagos } from '@/features/recibos/services/pagosService'
+import { createPago, getMisPagos, getPagoConfig } from '@/features/recibos/services/pagosService'
 import { getMisRecibos, getReciboPdf } from '@/features/recibos/services/recibosService'
 import { formatCop } from '@/lib/utils'
 
@@ -35,9 +37,10 @@ export default function MisRecibos() {
   const [recibos, setRecibos] = useState<Recibo[]>([])
   const [pagos, setPagos] = useState<Pago[]>([])
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState<string>('')
+  const [message, setMessage, messageType] = useFeedback()
   const [openPay, setOpenPay] = useState(false)
-  const simulated = true
+  const [simulated, setSimulated] = useState<boolean | null>(null)
+  const [payingReceiptId, setPayingReceiptId] = useState<number | null>(null)
   const [pagoData, setPagoData] = useState<{
     recibo_id: number | null
     monto: number
@@ -58,6 +61,30 @@ export default function MisRecibos() {
   useEffect(() => {
     if (!token) { window.location.href = '/sign-in'; return }
   }, [token])
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    if (!query.has('payment_id') && !query.has('collection_status')) return
+    setMessage('Regresaste de Mercado Pago. El recibo solo se marcará pagado cuando el servidor confirme el pago.', 'warning')
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.hash}`)
+  }, [setMessage])
+
+  useEffect(() => {
+    if (!token) return
+    let active = true
+    getPagoConfig(token)
+      .then((response) => {
+        const mode = (response as { data?: { simulacion?: unknown } }).data?.simulacion
+        if (typeof mode !== 'boolean') throw new Error('Configuración de pagos inválida')
+        if (active) setSimulated(mode)
+      })
+      .catch(() => {
+        if (!active) return
+        setSimulated(null)
+        setMessage('No fue posible consultar el modo de pago. Actualiza la página para volver a intentarlo.')
+      })
+    return () => { active = false }
+  }, [token, setMessage])
 
   const fetchRecibos = async () => {
     setLoading(true)
@@ -99,14 +126,38 @@ export default function MisRecibos() {
     fetchPagos()
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePagar = (recibo: Recibo) => {
+  const handlePagar = async (recibo: Recibo) => {
     setMessage('')
-    setPagoData({
-      recibo_id: recibo.id,
-      monto: recibo.total,
-      referencia: '',
-    })
-    setOpenPay(true)
+    if (simulated === true) {
+      setPagoData({
+        recibo_id: recibo.id,
+        monto: recibo.total,
+        referencia: '',
+      })
+      setOpenPay(true)
+      return
+    }
+    if (simulated !== false) {
+      setMessage('La configuración de pagos no está disponible. Actualiza la página e inténtalo de nuevo.')
+      return
+    }
+
+    setPayingReceiptId(recibo.id)
+    try {
+      const response = await createPago({ recibo_id: recibo.id }, token)
+      const redirectUrl = (response as { data?: { url_redireccion?: unknown } }).data?.url_redireccion
+      if (typeof redirectUrl !== 'string') throw new Error('Mercado Pago no devolvió un enlace de pago válido.')
+
+      const checkoutUrl = new URL(redirectUrl)
+      const trustedHost = /(^|\.)mercadopago\.com(\.[a-z]{2})?$|(^|\.)mercadolibre\.com(\.[a-z]{2})?$/.test(checkoutUrl.hostname)
+      if (checkoutUrl.protocol !== 'https:' || !trustedHost) {
+        throw new Error('El enlace de pago recibido no pertenece a Mercado Pago.')
+      }
+      window.location.assign(checkoutUrl.toString())
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'No fue posible iniciar el pago. Inténtalo de nuevo.')
+      setPayingReceiptId(null)
+    }
   }
 
   const formatDate = (dateStr: string) => {
@@ -135,7 +186,7 @@ export default function MisRecibos() {
 
     const win = window.open(url, '_blank')
     if (!win) {
-      setMessage('El navegador bloqueó la ventana del recibo. Permite ventanas emergentes para abrirlo.')
+      setMessage('El navegador bloqueó la ventana del recibo. Permite ventanas emergentes para abrirlo.', 'warning')
       URL.revokeObjectURL(url)
       return
     }
@@ -171,13 +222,10 @@ export default function MisRecibos() {
         </header>
 
         {simulated && (
-          <div className="mb-6 flex items-start gap-3 border border-amber-400/30 bg-amber-400/[0.07] p-4 text-sm text-amber-100">
-            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-300" />
-            <p><strong className="font-semibold">Modo de demostración.</strong> Los pagos se simulan; no se mueve dinero real.</p>
-          </div>
+          <KeycapAlert type="warning" className="mb-6" message={<><strong className="font-semibold">Modo de demostración.</strong> Los pagos se simulan; no se mueve dinero real.</>} />
         )}
 
-        {message && <div role="status" className="mb-6 border border-red-400/30 bg-red-950/25 p-4 text-sm text-red-100">{message}</div>}
+        {message && <KeycapAlert type={messageType} message={message} className="mb-6" />}
 
         <section aria-label="Resumen financiero" className="mb-10 grid grid-cols-1 divide-y divide-white/10 border-y border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <div className="py-4 sm:px-5 sm:py-5">
@@ -227,11 +275,11 @@ export default function MisRecibos() {
                     <p className="min-w-32 text-right font-serif text-xl text-white">{formatCop(recibo.total)}</p>
                     <button
                       onClick={() => handlePagar(recibo)}
-                      disabled={simulated === null || loading}
+                      disabled={simulated === null || loading || payingReceiptId !== null}
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-xs font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CreditCard size={15} />
-                      {simulated === null ? 'Cargando…' : simulated ? 'Simular pago' : 'Pagar recibo'}
+                      {simulated === null ? 'Verificando pasarela…' : payingReceiptId === recibo.id ? 'Conectando…' : simulated ? 'Simular pago' : 'Pagar recibo'}
                     </button>
                     {pdfActions(recibo.id)}
                   </div>

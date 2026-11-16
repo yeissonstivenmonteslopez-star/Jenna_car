@@ -1,7 +1,6 @@
 # Dependencies
-.test-deps/
+.test*/
 .local-backups/
-.test-tmp*/
 dist-deploy/
 node_modules/
 frontend/node_modules/
@@ -12,10 +11,14 @@ mobile/node_modules/
 .env.*
 !.env.example
 !.env.*.example
+.envrc
 /backend/env
 /env.production
 frontend/env.local
 backend/google_client_secret.json
+*client_secret*.json
+*credentials*.json
+*service_account*.json
 
 # Python virtual environments and caches
 .venv/
@@ -73,6 +76,7 @@ Thumbs.db
 *.key
 *.jks
 *.p12
+*.pfx
 *.p8
 *.mobileprovision
 

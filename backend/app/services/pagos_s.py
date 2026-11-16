@@ -13,6 +13,7 @@ from flask import current_app
 from ..extensions import db
 from ..models import OrdenTrabajo, Pago, Recibo, Vehiculo
 from ..utils.payments import payment_to_dict
+from .payment_notifications import prepare_simulated_payment_notifications, send_payment_notification_emails
 
 from .payment_queries import (
     payment_query as payment_query,
@@ -54,11 +55,13 @@ def create_simulated(user, receipt_id):
         data = payment_to_dict(SimpleNamespace(id=result.lastrowid, recibo=receipt, **values))
         receipt.estado = 'pagado'
         data['recibo']['estado'] = 'pagado'
+        emails = prepare_simulated_payment_notifications(user, receipt, reference)
         db.session.commit()
     except Exception:
         db.session.rollback()
         return None, 'No se pudo registrar el pago simulado', 409
-    data['mensaje'] = 'Pago simulado registrado. No se ha cobrado dinero real.'
+    send_payment_notification_emails(emails)
+    data['mensaje'] = 'Pago simulado exitoso. No se ha cobrado dinero real.'
     return data, None, 201
 
 
@@ -122,10 +125,12 @@ def simulate_checkout(user, payload):
         if state == 'completado':
             receipt.estado = 'pagado'
         data = payment_to_dict(SimpleNamespace(id=result.lastrowid, recibo=receipt, **values))
+        emails = prepare_simulated_payment_notifications(user, receipt, reference) if state == 'completado' else []
         db.session.commit()
     except Exception:
         db.session.rollback()
         return None, 'No fue posible registrar la simulación', 409
+    send_payment_notification_emails(emails)
     data['resultado_simulado'] = outcome
     return data, None, 201
 

@@ -1,9 +1,10 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 // TODO: futura integración con servicios de Google
 // La lógica de notificaciones está separada de cualquier integración externa de Google.
 
 
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, CheckCheck, Loader2, AlertCircle, Truck, Wrench, AlertTriangle, Package, MessageCircle, Info, Navigation } from 'lucide-react'
+import { Bell, CheckCheck, Loader2, Truck, Wrench, AlertTriangle, Package, MessageCircle, Info, Navigation } from 'lucide-react'
 import { getNotificaciones, marcarLeida, marcarTodasLeidas } from '@/features/notificaciones/services/notificacionesService'
 import { ApiError } from '@/services/apiClient'
 
@@ -144,10 +145,7 @@ export default function NotificacionesPage() {
 
       <section className="mx-auto max-w-5xl px-6 py-8">
         {error && (
-          <div className="flex items-center gap-3 mb-6 p-4 border border-red-500/30 bg-red-500/10 rounded text-sm text-red-400">
-            <AlertCircle size={18} />
-            {error}
-          </div>
+          <KeycapAlert type={'error'} message={error} className="mb-6" />
         )}
 
         {loading ? (

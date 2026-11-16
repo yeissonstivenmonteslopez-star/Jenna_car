@@ -1,3 +1,7 @@
+import { presentSearchResult } from './searchPresentation'
+import type { SearchResult } from './searchPresentation'
+import KeycapAlert from '@/components/ui/KeycapAlert'
+import { useFeedback } from '@/components/ui/useFeedback'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -17,25 +21,7 @@ import { adminSearch } from '@/features/usuarios/services/usuariosService'
 
 type SearchType = 'all' | 'cliente' | 'vehiculo' | 'orden' | 'cita' | 'recibo'
 
-interface SearchResult {
-  id: number
-  nombre?: string
-  apellido?: string
-  documento?: string
-  email?: string
-  telefono?: string
-  marca?: string
-  modelo?: string
-  placa?: string
-  anio?: number
-  estado?: string
-  cliente?: string
-  vehiculo_placa?: string
-  fecha?: string
-  hora?: string
-  orden_id?: number
-  fecha_emision?: string
-}
+
 
 interface SearchFilters {
   q: string
@@ -80,7 +66,7 @@ export default function AdminSearch() {
   const [token] = useState<string>(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
   const [results, setResults] = useState<Record<string, SearchResult[]>>({})
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageType] = useFeedback()
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   useEffect(() => {
@@ -123,7 +109,7 @@ export default function AdminSearch() {
       })
       .catch((error: unknown) => {
         if (!active) return
-        setMessage(error instanceof Error ? error.message : 'Error al consultar la búsqueda.')
+        setMessage(error instanceof Error ? error.message : 'Error al consultar la búsqueda.', 'error')
         setResults({})
       })
       .finally(() => {
@@ -133,7 +119,7 @@ export default function AdminSearch() {
     return () => {
       active = false
     }
-  }, [token, debouncedQuery, filters.type])
+  }, [token, debouncedQuery, filters.type, setMessage])
 
   const query = debouncedQuery.trim()
   const visibleGroups = resultGroups.map((group) => ({
@@ -275,9 +261,7 @@ export default function AdminSearch() {
           )}
 
           {message && (
-            <div role="alert" className="rounded-xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-300">
-              {message}
-            </div>
+            <KeycapAlert type={messageType} message={message} />
           )}
 
           {!query && !loading && !message && (
@@ -334,39 +318,8 @@ export default function AdminSearch() {
 
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {group.items.map((item: SearchResult) => {
-                          let title = ''
-                          let primarySub = ''
-                          let secondarySub = ''
+                          const { title, primarySub, secondarySub } = presentSearchResult(group.key, item)
                           const state = String(item.estado || '').replaceAll('_', ' ')
-
-                          if (group.key === 'clientes') {
-                            title = `${item.nombre || ''} ${item.apellido || ''}`.trim() || 'Cliente'
-                            primarySub = item.email || ''
-                            secondarySub = [item.documento && `Doc: ${item.documento}`, item.telefono && `Tel: ${item.telefono}`]
-                              .filter(Boolean)
-                              .join(' · ')
-                          } else if (group.key === 'vehiculos') {
-                            title = item.placa || 'Vehículo'
-                            primarySub = `${item.marca || ''} ${item.modelo || ''}`.trim()
-                            secondarySub = item.anio ? `Modelo ${item.anio}` : ''
-                          } else if (group.key === 'órdenes') {
-                            title = `Orden #${item.id}`
-                            primarySub = item.cliente || 'Sin cliente asignado'
-                            secondarySub = item.vehiculo_placa ? `Placa: ${item.vehiculo_placa}` : ''
-                          } else if (group.key === 'citas') {
-                            title = `Cita #${item.id}`
-                            primarySub = item.cliente || 'Cliente'
-                            secondarySub = [item.vehiculo_placa, item.fecha, item.hora].filter(Boolean).join(' · ')
-                          } else {
-                            title = `Recibo #${item.id}`
-                            primarySub = item.cliente || 'Cliente'
-                            secondarySub = [
-                              item.orden_id && `Orden #${item.orden_id}`,
-                              item.fecha_emision && `Emisión: ${item.fecha_emision.slice(0, 10)}`,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')
-                          }
 
                           return (
                             <Link

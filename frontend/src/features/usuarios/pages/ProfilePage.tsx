@@ -1,3 +1,5 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
+import { useFeedback } from '@/components/ui/useFeedback'
 import BackLink from '@/components/BackLink'
 
 import { useEffect, useState } from 'react'
@@ -23,7 +25,7 @@ type ProfileAppointment = { id: number; fecha: string; hora: string; estado: str
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageType] = useFeedback()
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [tab, setTab] = useState<'actividad' | 'datos'>('actividad')
@@ -74,7 +76,7 @@ export default function ProfilePage() {
     const input = event.currentTarget
 
     if (file.size > 5 * 1024 * 1024) {
-      setMessage('La imagen debe pesar menos de 5MB.')
+      setMessage('La imagen debe pesar menos de 5MB.', 'error')
       input.value = ''
       return
     }
@@ -84,10 +86,10 @@ export default function ProfilePage() {
     try {
       const data = await uploadFotoPerfil(file, token)
       applyUser(data.user)
-      setMessage('Foto actualizada correctamente.')
+      setMessage('Foto actualizada correctamente.', 'success')
       input.value = ''
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No fue posible subir la imagen.')
+      setMessage(error instanceof Error ? error.message : 'No fue posible subir la imagen.', 'error')
     } finally { setUploading(false); input.value = '' }
   }
 
@@ -97,7 +99,7 @@ export default function ProfilePage() {
     const formData = new FormData(event.currentTarget)
     const telefono = String(formData.get('telefono') || '').trim()
     if (!/^\d{10}$/.test(telefono)) {
-      setMessage('El teléfono debe tener exactamente 10 números.')
+      setMessage('El teléfono debe tener exactamente 10 números.', 'error')
       return
     }
     setSaving(true)
@@ -105,9 +107,9 @@ export default function ProfilePage() {
     try {
       const data = await updatePerfil(formData, token)
       applyUser(data.user)
-      setMessage('Perfil actualizado correctamente.')
+      setMessage('Perfil actualizado correctamente.', 'success')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Error al actualizar el perfil.')
+      setMessage(error instanceof Error ? error.message : 'Error al actualizar el perfil.', 'error')
     } finally { setSaving(false) }
   }
 
@@ -138,7 +140,7 @@ export default function ProfilePage() {
         </div>
 
       </section>
-      {message && <p role="status" className="profile-notice">{message}</p>}
+      {message && <KeycapAlert type={messageType} message={message} />}
       <div className="profile-columns">
         <aside className="profile-side">
           <section className="profile-panel"><h2>Sobre mí</h2><p className="profile-muted">Tu información de contacto con el taller.</p><p className="profile-contact"><Mail size={16} /><span>{user.email}</span></p><p className="profile-contact"><Phone size={16} /><span>{user.telefono || 'Agrega tu teléfono en Datos personales'}</span></p></section>
@@ -175,11 +177,11 @@ export default function ProfilePage() {
             </fieldset></form>
           </section> : <>
             {tab === 'actividad' && <section className="profile-panel"><div className="profile-section-heading"><div><p className="profile-eyebrow">TU AGENDA</p><h2>Citas y actividad reciente</h2></div><a href="/citas" className="profile-primary"><Plus size={15} /> Agendar cita</a></div>
-              {activityLoading ? <p role="status" className="profile-empty">Cargando tus citas…</p> : appointmentError ? <p role="alert" className="profile-empty">{appointmentError}</p> : recent.length ? <div className="profile-activity">{recent.map((item) => <article key={item.id}><div className="profile-activity-icon"><CalendarDays size={19} /></div><div className="profile-activity-content"><span className="profile-status">{item.estado}</span><h3>{item.servicio?.name || item.servicio?.nombre || 'Cita de servicio'}</h3><p>{item.vehiculo?.marca} {item.vehiculo?.modelo} · {item.vehiculo?.placa}</p><time dateTime={`${item.fecha}T${item.hora}`}>{new Date(`${item.fecha}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · {item.hora.slice(0, 5)}</time></div></article>)}</div> : <div className="profile-empty"><CalendarDays size={28} /><h3>Tu próxima visita empieza aquí</h3><p>Aún no tienes citas registradas. Cuando agendes, aparecerán en tu perfil.</p></div>}
+              {activityLoading ? <p role="status" className="profile-empty">Cargando tus citas…</p> : appointmentError ? <KeycapAlert type={'error'} message={appointmentError} /> : recent.length ? <div className="profile-activity">{recent.map((item) => <article key={item.id}><div className="profile-activity-icon"><CalendarDays size={19} /></div><div className="profile-activity-content"><span className="profile-status">{item.estado}</span><h3>{item.servicio?.name || item.servicio?.nombre || 'Cita de servicio'}</h3><p>{item.vehiculo?.marca} {item.vehiculo?.modelo} · {item.vehiculo?.placa}</p><time dateTime={`${item.fecha}T${item.hora}`}>{new Date(`${item.fecha}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · {item.hora.slice(0, 5)}</time></div></article>)}</div> : <div className="profile-empty"><CalendarDays size={28} /><h3>Tu próxima visita empieza aquí</h3><p>Aún no tienes citas registradas. Cuando agendes, aparecerán en tu perfil.</p></div>}
               <a href="/mis-citas" className="profile-text-link">Ver todas mis citas →</a>
             </section>}
             <section className="profile-panel"><div className="profile-section-heading"><div><p className="profile-eyebrow">MI GARAJE</p><h2>Mis vehículos</h2></div></div>
-              {activityLoading ? <p role="status" className="profile-empty">Cargando tus vehículos…</p> : vehicleError ? <p role="alert" className="profile-empty">{vehicleError}</p> : vehicles.length ? <div className="profile-garage">{vehicles.map((vehicle) => <article key={vehicle.id} className="profile-vehicle"><div className="profile-vehicle-art"><CarFront size={52} strokeWidth={1.1} /><span>{vehicle.placa}</span></div><h3>{vehicle.marca} {vehicle.modelo}</h3><p>{[vehicle.anio, vehicle.color].filter(Boolean).join(' · ') || 'Vehículo registrado'}{vehicle.estado ? ` · ${vehicle.estado.replace('_', ' ')}` : ''}</p></article>)}</div> : <div className="profile-empty"><CarFront size={30} /><h3>Un espacio para tus vehículos</h3><p>Registra tu vehículo al agendar tu primera cita.</p></div>}
+              {activityLoading ? <p role="status" className="profile-empty">Cargando tus vehículos…</p> : vehicleError ? <KeycapAlert type={'error'} message={vehicleError} /> : vehicles.length ? <div className="profile-garage">{vehicles.map((vehicle) => <article key={vehicle.id} className="profile-vehicle"><div className="profile-vehicle-art"><CarFront size={52} strokeWidth={1.1} /><span>{vehicle.placa}</span></div><h3>{vehicle.marca} {vehicle.modelo}</h3><p>{[vehicle.anio, vehicle.color].filter(Boolean).join(' · ') || 'Vehículo registrado'}{vehicle.estado ? ` · ${vehicle.estado.replace('_', ' ')}` : ''}</p></article>)}</div> : <div className="profile-empty"><CarFront size={30} /><h3>Un espacio para tus vehículos</h3><p>Registra tu vehículo al agendar tu primera cita.</p></div>}
 
             </section>
           </>}

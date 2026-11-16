@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
@@ -58,9 +59,7 @@ export default function ResetPasswordPage() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Recuperar acceso</p>
         <h1 className="mt-4 font-serif text-5xl text-white">{success ? 'Contraseña actualizada.' : verified ? 'Nueva contraseña.' : 'Ingresa tu código.'}</h1>
         {success ? (
-          <div role="status" className="mt-8 border border-accent/30 bg-accent/10 p-4 text-sm">
-            Contraseña actualizada correctamente. <a className="text-accent underline" href="/sign-in">Iniciar sesión</a>
-          </div>
+          <KeycapAlert type="success" className="mt-8" message={<>Contraseña actualizada correctamente. <a className="underline" href="/sign-in">Iniciar sesión</a></>} />
         ) : verified ? (
           <form key="password" onSubmit={submit} className="mt-8 grid gap-5">
             <label className="grid gap-2 text-xs">Nueva contraseña
@@ -74,7 +73,7 @@ export default function ResetPasswordPage() {
         ) : (
           <form key="code" onSubmit={validateCode} className="mt-8 grid gap-5">
             <p className="text-sm text-primary-foreground/60">Ingresa el código de 6 dígitos enviado a tu correo.</p>
-            {location.state?.manualCode && <p className="text-sm">Código de prueba: {location.state.manualCode}</p>}
+            {location.state?.manualCode && <KeycapAlert type="warning" message={<>Código de prueba: {location.state.manualCode}</>} />}
             <label className="grid gap-2 text-xs">Código de recuperación
               <input autoFocus name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} className={inputClass} />
             </label>
@@ -82,7 +81,7 @@ export default function ResetPasswordPage() {
             <a href="/forgot-password" className="text-center text-sm text-accent underline">Solicitar otro código</a>
           </form>
         )}
-        {error && <p role="alert" className="mt-5 text-sm text-red-300">{error}</p>}
+        {error && <KeycapAlert type={'error'} message={error} className="mt-5" />}
       </div>
     </main>
   )

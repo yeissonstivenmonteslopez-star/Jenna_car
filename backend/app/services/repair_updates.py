@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 import secrets
+from urllib.parse import parse_qs, urlsplit
+from io import BytesIO
+from PIL import Image
 from flask import current_app
 from ..utils.images import prepare_photo
 from ..extensions import db
@@ -31,13 +34,34 @@ def deliver(notification_id, mechanic):
     from ..models import Usuario
     customer = db.session.get(Usuario, notification.usuario_id)
     origin = current_app.config['CORS_ORIGINS'][0].rstrip('/')
+    images = []
+    gallery = ''
+    # Persist exact publication image IDs in the existing notification link so
+    # retries never include photographs from a later update.
+    ids = parse_qs(urlsplit(notification.link or '').query).get('foto', [])[:6]
+    for value in ids:
+        if not value.isdecimal():
+            continue
+        photo = ImagenTrabajo.query.filter_by(id=int(value), usuario_id=mechanic.id).first()
+        if not photo or photo.trabajo.diagnostico.cita.vehiculo.usuario_id != customer.id:
+            continue
+        path = UPLOAD_DIR / Path(photo.ruta_imagen).name
+        # JPEG works in email clients that cannot display WEBP. Limit message size.
+        with Image.open(path) as source:
+            source.thumbnail((1200, 1200))
+            output = BytesIO()
+            source.convert('RGB').save(output, format='JPEG', quality=82)
+        cid = f'avance-{photo.id}'
+        images.append((cid, output.getvalue(), 'jpeg'))
+        gallery += f'<p><img src="cid:{cid}" width="520" alt="Fotografía del avance" style="display:block;width:100%;max-width:520px;height:auto;border-radius:8px"></p>'
     html = f'''<div style="font-family:Arial;color:#171717;max-width:600px;margin:auto;border-top:5px solid #dc2626;padding:24px">
     <h1>Avance de reparación · Jenna Car</h1><p>Hola {escape(customer.nombre)},</p>
     <p style="white-space:pre-wrap">{escape(notification.mensaje)}</p>
     <p>Publicado: {escape(str(notification.created_at))} UTC</p>
-    <p><a href="{escape(origin, quote=True)}/mis-reparaciones">Consultar observaciones y fotografías con tu sesión</a></p></div>'''
+    {gallery}
+    <p><a style="color:#b52d2d" href="{escape(origin, quote=True)}/mis-reparaciones">Ver el seguimiento de mi vehículo</a></p></div>'''
     current_app.logger.info('Intento de correo de avance %s', notification.id)
-    sent = enviar_correo_async(customer.email, 'Avance de tu vehículo | Jenna Car', html)
+    sent = enviar_correo_async(customer.email, 'Avance de tu vehículo | Jenna Car', html, images)
     if sent:
         notification.tipo = 'avance_correo_enviado'
         db.session.commit()
@@ -81,17 +105,22 @@ def publish(user, work_id, payload, files=()):
             # Existing field stores the current observation, not a fabricated history.
             work.diagnostico.observaciones = note
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        published_photos = []
         for data, extension in photos:
             path = UPLOAD_DIR / f'{user.id}-{work.id}-{secrets.token_hex(16)}{extension}'
             path.write_bytes(data)
             saved.append(path)
-            db.session.add(ImagenTrabajo(trabajo_id=work.id, usuario_id=user.id,
-                ruta_imagen=f'/uploads/reparaciones/{path.name}', descripcion=note or 'Avance de reparación'))
+            photo = ImagenTrabajo(trabajo_id=work.id, usuario_id=user.id,
+                ruta_imagen=f'/uploads/reparaciones/{path.name}', descripcion=note or 'Avance de reparación')
+            db.session.add(photo)
+            published_photos.append(photo)
+        db.session.flush()
+        photo_query = '&'.join(f'foto={photo.id}' for photo in published_photos)
         vehicle = work.diagnostico.cita.vehiculo
         notification = Notificacion(usuario_id=vehicle.usuario_id,
             titulo=f'Avance de {vehicle.placa} [M{user.id}]',
             mensaje=f'Vehículo {vehicle.placa} · Trabajo #{work.id}\nEstado: {state}\n{note}\nFotografías adjuntas: {len(photos)}',
-            tipo='avance_correo_pendiente', link='/mis-reparaciones')
+            tipo='avance_correo_pendiente', link='/mis-reparaciones' + (f'?{photo_query}' if photo_query else ''))
         db.session.add(notification)
         db.session.commit()
     except Exception as exc:

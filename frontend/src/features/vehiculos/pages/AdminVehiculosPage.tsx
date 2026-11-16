@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -16,7 +17,6 @@ import {
   ShieldCheck,
   Trash2,
   Wrench,
-  X,
 } from 'lucide-react'
 import {
   getAdminVehiculos,
@@ -285,23 +285,7 @@ export default function AdminVehiculosPage() {
 
         {/* Feedback Message */}
         {message && (
-          <div
-            role="alert"
-            className={`mb-6 flex items-center justify-between gap-3 rounded-2xl border p-4 text-sm font-medium ${
-              messageType === 'success'
-                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300'
-                : 'border-red-500/40 bg-red-950/40 text-red-300'
-            }`}
-          >
-            <span>{message}</span>
-            <button
-              type="button"
-              onClick={() => setMessage('')}
-              className="rounded-lg p-1 text-white/40 hover:bg-white/10 hover:text-white transition"
-            >
-              <X size={15} />
-            </button>
-          </div>
+          <KeycapAlert type={messageType} message={message} onClose={() => setMessage('')} className="mb-6" />
         )}
 
         {/* Metrics Grid */}

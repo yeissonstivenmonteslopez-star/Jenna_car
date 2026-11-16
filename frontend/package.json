@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test:cards": "node --test tests/testCards.test.mjs",
+    "test:calendar": "node --test tests/calendar.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

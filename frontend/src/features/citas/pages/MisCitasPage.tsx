@@ -1,7 +1,10 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 
 import { useEffect, useState } from 'react'
 import { CalendarDays, CarFront, Clock3, Wrench } from 'lucide-react'
 import { getMisCitas } from '@/features/citas/services/citasService'
+import { Link } from 'react-router-dom'
+import WorkspaceSummary from '@/components/workspace-summary'
 
 type Cita = {
   id: number
@@ -58,7 +61,7 @@ export default function MisCitasPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_24%),_linear-gradient(180deg,_#0a0a0a_0%,_#111111_100%)] px-4 py-10 text-white sm:px-6 lg:px-10">
+    <main className="appointments-page min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.18),_transparent_24%),_linear-gradient(180deg,_#0a0a0a_0%,_#111111_100%)] px-4 py-10 text-white sm:px-6 lg:px-10">
       <div className="mx-auto max-w-5xl">
 
 
@@ -67,19 +70,28 @@ export default function MisCitasPage() {
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-red-400">Reservas</p>
               <h1 className="mt-3 font-serif text-4xl md:text-5xl">Mis citas</h1>
+              <p className="mt-3 text-sm text-white/60">Tu próxima visita y los detalles de cada servicio, a mano.</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/15 text-red-400">
               <CalendarDays size={22} />
             </div>
           </div>
 
+          <Link to="/citas" className="profile-primary mb-6"><CalendarDays size={16} /> Agendar una cita</Link>
+          {!error && <WorkspaceSummary items={[
+            { label: 'Por confirmar', value: citas.filter((cita) => cita.estado === 'pendiente').length, description: 'Solicitudes recibidas por el taller' },
+            { label: 'Confirmadas', value: citas.filter((cita) => cita.estado === 'confirmada').length, description: 'Visitas confirmadas por el taller' },
+            { label: 'Atendidas', value: citas.filter((cita) => cita.estado === 'atendida').length, description: 'Servicios de tu historial' },
+          ]} />}
+
           {error ? (
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
+            <KeycapAlert type={'error'} message={error} />
           ) : null}
 
           {!error && citas.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-red-500/25 bg-[#1a1a1a] p-8 text-center">
               <p className="text-lg font-medium text-white">Todavía no tienes citas agendadas.</p>
+              <p className="mt-2 text-sm text-white/60">Elige el servicio y un horario disponible para tu vehículo.</p>
             </div>
           ) : null}
 
@@ -93,7 +105,7 @@ export default function MisCitasPage() {
                   </div>
 
                   <span className="inline-flex w-fit rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-200">
-                    {cita.estado}
+                    {cita.estado.replaceAll('_', ' ')}
                   </span>
                 </div>
 
@@ -102,7 +114,7 @@ export default function MisCitasPage() {
                     <CalendarDays size={16} className="text-red-300" />
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Fecha</p>
-                      <p className="mt-1 text-sm text-white">{cita.fecha}</p>
+                      <p className="mt-1 text-sm text-white">{new Date(`${cita.fecha}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   </div>
 
@@ -110,7 +122,7 @@ export default function MisCitasPage() {
                     <Clock3 size={16} className="text-red-300" />
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Hora</p>
-                      <p className="mt-1 text-sm text-white">{cita.hora}</p>
+                      <p className="mt-1 text-sm text-white">{cita.hora.slice(0, 5)}</p>
                     </div>
                   </div>
 

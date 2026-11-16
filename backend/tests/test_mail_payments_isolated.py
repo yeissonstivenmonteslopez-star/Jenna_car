@@ -30,12 +30,14 @@ extensions = types.ModuleType('isolated.extensions')
 extensions.db = MagicMock()
 sys.modules[extensions.__name__] = extensions
 models = types.ModuleType('isolated.models')
-for name in ['OrdenTrabajo', 'Pago', 'Recibo', 'Usuario', 'Vehiculo']:
+for name in ['OrdenTrabajo', 'Pago', 'Recibo', 'Usuario', 'Vehiculo', 'Notificacion']:
     setattr(models, name, MagicMock())
 sys.modules[models.__name__] = models
 serializer = load('isolated.utils.payments', ROOT / 'utils/payments.py')
 load('isolated.services.payment_queries', ROOT / 'services/payment_queries.py')
 mail = load('isolated.utils.email', ROOT / 'utils/email.py')
+load('isolated.utils.money', ROOT / 'utils/money.py')
+load('isolated.services.payment_notifications', ROOT / 'services/payment_notifications.py')
 flask_stub = types.ModuleType('flask')
 flask_stub.current_app = MagicMock()
 with patch.dict(sys.modules, {'flask': flask_stub}):
@@ -146,6 +148,22 @@ class IsolatedTests(unittest.TestCase):
         self.smtp()
         with patch.object(mail.smtplib, 'SMTP', side_effect=smtplib.SMTPAuthenticationError(535, b'rejected')):
             self.assertFalse(mail.enviar_correo_async('target@gmail.com', 'Test', '<p>Hola</p>'))
+
+    def test_logo_and_progress_photos_are_embedded_in_email(self):
+        self.smtp()
+        with patch.object(mail.smtplib, 'SMTP') as smtp:
+            server = smtp.return_value.__enter__.return_value
+            server.send_message.return_value = {}
+            self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Avance',
+                '<img src="cid:avance-1">', [('avance-1', b'photo-bytes', 'jpeg')]))
+            message = server.send_message.call_args.args[0]
+            html = message.get_body(preferencelist=('html',)).get_content()
+            self.assertIn('cid:jenna-logo', html)
+            self.assertIn('#b52d2d', html)
+            parts = {part['Content-ID']: part for part in message.walk() if part['Content-ID']}
+            self.assertEqual(set(parts), {'<jenna-logo>', '<avance-1>'})
+            self.assertEqual(parts['<avance-1>'].get_payload(decode=True), b'photo-bytes')
+            self.assertTrue(all(part.get_content_disposition() == 'inline' for part in parts.values()))
 
     def test_smtp_ssl_and_documented_names(self):
         os.environ.update(MAIL_USERNAME='sender@example.com', MAIL_PASSWORD='password', MAIL_PORT='465', MAIL_USE_SSL='true')

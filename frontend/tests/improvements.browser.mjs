@@ -10,6 +10,7 @@ await context.addInitScript(() => {
   localStorage.setItem('jenna_car_user', JSON.stringify({ nombre: 'Prueba', rol: 'usuario' }))
 })
 const page = await context.newPage()
+await page.clock.install({ time: new Date('2030-01-01T15:00:00Z') })
 const errors = []
 page.on('pageerror', (error) => errors.push(error.message))
 let methodPayload
@@ -40,7 +41,8 @@ const output = new URL('../../.test-tmp-ui/', import.meta.url)
 await mkdir(output, { recursive: true })
 try {
   await page.goto(`${origin}/citas`)
-  await page.locator('#fechaCita').fill('2030-01-02')
+  await page.locator('.jc-calendar-card .expand-control').click()
+  await page.getByRole('button', { name: '2 de enero de 2030', exact: true }).click()
   const occupied = page.getByRole('button', { name: '10:00 Sin cupo' })
   await occupied.waitFor()
   assert.equal(await occupied.isDisabled(), true)
@@ -51,7 +53,7 @@ try {
   await page.getByRole('button', { name: '11:00 Disponible' }).click()
   assert.equal(await page.getByRole('button', { name: '11:00 Disponible' }).getAttribute('aria-pressed'), 'true')
   assert.equal(await page.getByRole('button', { name: 'SOLICITAR CITA' }).isEnabled(), true)
-  await page.getByRole('button', { name: 'Modo oscuro', exact: true }).click()
+  await page.getByRole('switch', { name: 'Modo oscuro', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.waitForFunction(() => getComputedStyle(document.querySelector('select')).backgroundColor === 'rgb(28, 28, 28)')
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)

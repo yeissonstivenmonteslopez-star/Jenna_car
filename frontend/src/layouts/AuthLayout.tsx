@@ -1,4 +1,5 @@
 import { Outlet, Link } from 'react-router-dom'
+import CompanyLogo from '@/components/CompanyLogo'
 
 /**
  * AuthLayout — agrupa páginas de autenticación (sign-in, register, forgot-password, reset-password).
@@ -23,9 +24,7 @@ export default function AuthLayout() {
           <img src="/jenna-car-hero.png" alt="Vehículo premium en Jenna Car" className="absolute inset-0 h-full w-full object-cover opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/45 to-primary/20" />
           <div className="relative flex h-full flex-col justify-between p-16">
-            <Link to="/" className="font-serif text-xl tracking-[0.18em]">
-              JENNA <span className="text-accent">CAR</span>
-            </Link>
+            <Link to="/" aria-label="Jenna Car, inicio"><CompanyLogo variant="dark" /></Link>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Área cliente</p>
               <h2 className="mt-4 font-serif text-6xl leading-none">Todo tu cuidado<br /><em className="text-accent">en un lugar.</em></h2>

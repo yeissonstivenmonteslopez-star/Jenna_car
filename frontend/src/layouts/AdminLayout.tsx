@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import AdminNav from '@/components/admin-nav'
+import NotificationBell from '@/components/notification-bell'
 import { getMe } from '@/features/auth/services/authService'
 
 export default function AdminLayout() {
@@ -57,7 +58,8 @@ export default function AdminLayout() {
       <AdminNav collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
       <div className="admin-content" id="admin-content">
         <header className="admin-topbar">
-          <span>Administración / <strong>{({ dashboard: 'Dashboard', citas: 'Citas', orders: 'Órdenes de trabajo', servicios: 'Servicios', vehiculos: 'Vehículos', users: 'Usuarios', notificaciones: 'Notificaciones', search: 'Búsqueda' } as Record<string, string>)[location.pathname.split('/').pop() || ''] || 'Panel'}</strong></span>
+          <span>Administración / <strong>{({ dashboard: 'Resumen del taller', citas: 'Citas', orders: 'Órdenes de trabajo', servicios: 'Servicios', vehiculos: 'Vehículos', users: 'Usuarios', notificaciones: 'Notificaciones', search: 'Búsqueda' } as Record<string, string>)[location.pathname.split('/').pop() || ''] || 'Panel'}</strong></span>
+          <NotificationBell />
         </header>
         <Outlet />
       </div>

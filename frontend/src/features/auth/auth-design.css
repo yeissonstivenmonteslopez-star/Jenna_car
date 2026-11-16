@@ -1,0 +1,46 @@
+/* Shared typography and form rhythm for login and registration. */
+.auth-page {
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.auth-page :is(h1, h2, .font-serif) { font-family: inherit; }
+.auth-page :is(input, button, textarea) { font-family: inherit; }
+.auth-page .auth-hero :is(h1, h2) { font-size: clamp(42px, 4.3vw, 66px); font-weight: 600; line-height: 1.1; letter-spacing: -.045em; }
+.auth-page .auth-hero em { font-style: normal; }
+.auth-page .auth-hero > div:last-child { padding: clamp(36px, 4vw, 64px); }
+.auth-page .auth-panel { background: #141414; }
+.auth-page .auth-panel > a { width: fit-content; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: #a1a1aa; }
+.auth-page .auth-panel > a:hover { color: #fafafa; }
+.auth-page .auth-content { padding-block: 48px; }
+.auth-page .auth-intro { margin-bottom: 30px; }
+.auth-page .auth-symbol { width: 46px; height: 46px; margin-bottom: 20px; border-radius: 14px; border-color: #b52d2d40; background: #b52d2d12; }
+.auth-page .auth-intro > p:first-of-type { font-size: 11px; letter-spacing: .14em; font-weight: 650; }
+.auth-page .auth-heading { margin-top: 10px; font-size: clamp(30px, 3vw, 40px); font-weight: 650; letter-spacing: -.035em; line-height: 1.16; text-wrap: balance; }
+.auth-page .auth-intro > p:last-child:not(:first-of-type) { margin-top: 12px; max-width: 40ch; color: #a1a1aa; font-size: 14px; line-height: 1.65; }
+.auth-page form { gap: 20px; }
+.auth-page form > label { min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.5; text-transform: none; letter-spacing: 0; color: #d4d4d8; }
+.auth-page form > label > span { min-width: 0; }
+.auth-page form input {
+  min-width: 0; min-height: 50px; border: 1px solid #ffffff16; border-radius: 11px;
+  padding-block: 13px; font-size: 15px; font-weight: 400; line-height: 1.5;
+  color: #f4f4f5; background: #1e1e20;
+}
+.auth-page form input::placeholder { color: #8d8d96; opacity: 1; }
+.auth-page form input:hover { border-color: #ffffff30; }
+.auth-page form input:focus { border-color: #b52d2d; }
+.auth-page form > button { min-height: 50px; margin-top: 4px; border-radius: 11px; font-size: 14px; font-weight: 600; letter-spacing: .06em; }
+.auth-page form > div.text-right { font-size: 13px; }
+.auth-page .auth-panel > p:last-child { font-size: 11px; letter-spacing: .04em; text-transform: none; }
+@media (max-width: 639px) {
+  .auth-page .auth-panel { padding: 24px; }
+  .auth-page .auth-content { padding-block: 36px; }
+  .auth-page .auth-heading { font-size: 32px; }
+  .auth-page .auth-intro { margin-bottom: 26px; }
+  .auth-page form { gap: 18px; }
+}
+
+.auth-page .auth-form-brand { display: flex; width: fit-content; margin: 0 auto 24px; border-radius: 8px; }
+.auth-page .auth-form-brand .company-logo { width: 88px; }
+.auth-page .auth-form-brand:focus-visible { outline: 2px solid #dc2626; outline-offset: 5px; }
+@media(max-width:639px) { .auth-page .auth-form-brand .company-logo { width: 80px; } }

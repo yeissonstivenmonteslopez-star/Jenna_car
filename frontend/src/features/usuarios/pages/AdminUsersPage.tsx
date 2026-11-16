@@ -1,3 +1,5 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
+import { useFeedback } from '@/components/ui/useFeedback'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -29,7 +31,7 @@ export default function AdminUsuarios() {
       return {}
     }
   }, [])
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageType] = useFeedback()
   const [editing, setEditing] = useState<number | null>(null)
   const [newRol, setNewRol] = useState<string>('usuario')
   const [search, setSearch] = useState('')
@@ -43,14 +45,14 @@ export default function AdminUsuarios() {
 
   useEffect(() => {
     if (!token) { window.location.href = '/sign-in'; return }
-  }, [token])
+  }, [token, setMessage])
 
   useEffect(() => {
     if (!token) return
     getAdminUsuarios(token)
       .then((data) => setUsers(data.data || []))
-      .catch(() => setMessage('Error al cargar usuarios'))
-  }, [token])
+      .catch(() => setMessage('Error al cargar usuarios', 'error'))
+  }, [token, setMessage])
 
   const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true
@@ -69,22 +71,22 @@ export default function AdminUsuarios() {
     if (!token || !selectedIds.length) return
     if (!window.confirm(`¿Eliminar ${selectedIds.length} usuario(s) y sus datos relacionados?`)) return
     let data: any
-    try { data = await bulkDeleteUsuarios(selectedIds, token) } catch (err: any) { return setMessage(err.message || 'Error al eliminar usuarios') }
+    try { data = await bulkDeleteUsuarios(selectedIds, token) } catch (err: any) { return setMessage(err.message || 'Error al eliminar usuarios', 'error') }
     setUsers((current) => current.filter((user) => !selectedIds.includes(user.id)))
     setSelectedIds([])
-    setMessage(`${data.deleted} usuario(s) eliminado(s)`)
+    setMessage(`${data.deleted} usuario(s) eliminado(s)`, 'success')
   }
 
   const handleCambiarRol = async (usuarioId: number) => {
     if (!token) return
     try {
       await updateUsuarioRol(usuarioId, newRol, token)
-      setMessage(`Rol cambiado a ${newRol}`)
+      setMessage(`Rol cambiado a ${newRol}`, 'success')
       setNewRol('usuario')
       setEditing(null)
       const payload = await getAdminUsuarios(token)
       setUsers(payload.data || [])
-    } catch (err: any) { return setMessage(err.message || 'Error al cambiar rol') }
+    } catch (err: any) { return setMessage(err.message || 'Error al cambiar rol', 'error') }
   }
 
   const badgeClass = (rol: string) => rol === 'admin' ? 'bg-[#f87171]/15 text-[#f87171]' : 'bg-white/10 text-white/80'
@@ -100,9 +102,7 @@ export default function AdminUsuarios() {
         </header>
 
         {message && (
-          <div className="mb-6 rounded-xl border border-[#f87171]/30 bg-[#f87171]/10 p-4 text-sm text-[#d6fff9]">
-            {message}
-          </div>
+          <KeycapAlert type={messageType} message={message} className="mb-6" />
         )}
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">

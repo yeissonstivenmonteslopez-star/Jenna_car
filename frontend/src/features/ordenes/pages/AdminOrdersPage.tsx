@@ -1,8 +1,10 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
+import { useFeedback } from '@/components/ui/useFeedback'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { FileText, Plus, Trash2 } from 'lucide-react'
 import { getReciboPdfUrl } from '@/features/recibos/services/recibosService'
 import { getOrdenes, createOrden, updateOrden, deleteOrden, enviarReciboOrden } from '@/features/recibos/services/pagosService'
 import { getAdminServicios } from '@/features/servicios/services/serviciosService'
@@ -37,7 +39,7 @@ export default function AdminOrdersPage() {
   const [catalogServices, setCatalogServices] = useState<CatalogService[]>([])
   const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [message, setMessage] = useState('')
+  const [message, setMessage, messageType] = useFeedback()
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
 
@@ -66,7 +68,7 @@ export default function AdminOrdersPage() {
       return
     }
     loadData(token)
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los datos.'))
+      .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los datos.', 'error'))
       .finally(() => setLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -96,7 +98,7 @@ export default function AdminOrdersPage() {
     event.preventDefault()
     setMessage('')
     if (form.servicios.length === 0 || form.servicios.some((line) => !line.servicio_id || !Number.isInteger(Number(line.cantidad)) || Number(line.cantidad) < 1)) {
-      setMessage('Agrega al menos un servicio y una cantidad válida para generar el cobro.')
+      setMessage('Agrega al menos un servicio y una cantidad válida para generar el cobro.', 'error')
       return
     }
     const payload = {
@@ -114,10 +116,10 @@ export default function AdminOrdersPage() {
       if (selectedId) await updateOrden(selectedId, payload, token)
       else await createOrden(payload, token)
     } catch (error: any) {
-      setMessage(error.message || 'No fue posible guardar la orden.')
+      setMessage(error.message || 'No fue posible guardar la orden.', 'error')
       return
     }
-    setMessage(selectedId ? 'Orden actualizada.' : 'Orden creada.')
+    setMessage(selectedId ? 'Orden actualizada.' : 'Orden creada.', 'success')
     resetForm()
     await loadData(token)
   }
@@ -126,20 +128,20 @@ export default function AdminOrdersPage() {
     try {
       await deleteOrden(orderId, token)
     } catch (error: any) {
-      setMessage(error.message || 'No fue posible eliminar la orden.')
+      setMessage(error.message || 'No fue posible eliminar la orden.', 'error')
       return
     }
-    setMessage('Orden eliminada.')
+    setMessage('Orden eliminada.', 'success')
     await loadData(token)
   }
 
   async function sendReceipt(orderId: number) {
     try {
       await enviarReciboOrden(orderId, token)
-      setMessage(`Recibo de la orden #${orderId} enviado al cliente.`)
+      setMessage(`Recibo de la orden #${orderId} enviado al cliente.`, 'success')
       await loadData(token)
     } catch (error: any) {
-      setMessage(error.message || 'No fue posible enviar el recibo.')
+      setMessage(error.message || 'No fue posible enviar el recibo.', 'error')
     }
   }
 
@@ -158,7 +160,7 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
-        {message && <p className="mt-6 border border-red-500/30 bg-red-950/30 p-4 text-sm text-red-200">{message}</p>}
+        {message && <KeycapAlert type={messageType} message={message} className="mt-6" />}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_0.6fr]">
           <section className="overflow-hidden border border-red-900/40 bg-[#121212] shadow-[0_24px_80px_rgba(0,0,0,0.25)]">
@@ -179,7 +181,7 @@ export default function AdminOrdersPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => selectOrder(order)} className="border border-red-500/50 bg-red-950/20 px-3 py-2 text-xs text-red-300 transition hover:bg-red-600 hover:text-white">Editar</button>
-                      {order.recibo?.id && <a href={getReciboPdfUrl(order.recibo.id, token)} target="_blank" rel="noopener noreferrer" className="border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/70 transition hover:bg-white/10">PDF</a>}
+                      {order.recibo?.id && <a href={getReciboPdfUrl(order.recibo.id, token)} target="_blank" rel="noopener noreferrer" className="btn-keycap" aria-label={`Generar PDF de la orden ${order.id} (abre en otra pestaña)`}><span><FileText size={18} aria-hidden="true" />Generar PDF</span></a>}
                       {order.estado_aprobacion === 'aprobado' && !order.recibo?.enviado_cliente && <button type="button" onClick={() => void sendReceipt(order.id)} className="border border-emerald-500/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-800/50">Enviar recibo</button>}
                       <button type="button" onClick={() => remove(order.id)} className="border border-red-500/40 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50">Eliminar</button>
                     </div>

@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import DashboardActivity from './DashboardActivity'
 import type { DashboardData } from './dashboardTypes'
 
@@ -95,8 +96,8 @@ export default function AdminDashboard() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-500/50 bg-red-950/40 p-5 text-sm text-red-200">
-            <p className="font-semibold">{error}</p>
+          <div>
+            <KeycapAlert type={'error'} message={error} />
             <button onClick={fetchDashboardData} className="mt-3 text-xs font-semibold text-red-400 underline">
               Reintentar carga de datos
             </button>

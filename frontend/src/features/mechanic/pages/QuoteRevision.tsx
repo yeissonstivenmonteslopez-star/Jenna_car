@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useState } from 'react'
 import { authHeaders, getApiUrl, handleResponse } from '@/services/apiClient'
 import { formatCop } from '@/lib/utils'
@@ -27,7 +28,7 @@ export default function QuoteRevision({ order, token, onSaved }: {
       <p className="text-xs text-white/65">Aplica un descuento sobre {formatCop(order.subtotal)}. Se conservan los servicios, los trabajos y las fotografías.</p>
       <label className="grid gap-2 text-sm">Nuevo total (COP)<input required type="number" min="0.01" max={order.subtotal} step="0.01" value={total} disabled={busy} onChange={(event) => setTotal(event.target.value)} className="rounded border border-white/15 px-3 py-2" /></label>
       <div className="flex gap-3"><button disabled={busy} className="rounded bg-red-600 px-4 py-2 text-sm text-white">{busy ? 'Enviando…' : 'Enviar al cliente'}</button><button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancelar</button></div>
-      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      {error && <KeycapAlert type={'error'} message={error} />}
     </form>}
   </section>
 }

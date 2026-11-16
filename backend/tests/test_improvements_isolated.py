@@ -114,6 +114,8 @@ def checkout(monkeypatch):
     db.session.execute.return_value.first.return_value = None
     db.session.execute.return_value.lastrowid = 23
     monkeypatch.setattr(payments, 'db', db)
+    monkeypatch.setattr(payments, 'prepare_simulated_payment_notifications', MagicMock(return_value=[]))
+    monkeypatch.setattr(payments, 'send_payment_notification_emails', MagicMock())
     provider = MagicMock(side_effect=AssertionError('No provider calls allowed'))
     monkeypatch.setattr(payments, 'mp_api', provider)
     payload = dict(recibo_id=2, metodo='tarjeta', franquicia='visa', resultado='aprobado', idempotencia='test-request-123456789')
@@ -129,6 +131,10 @@ def test_checkout_results_and_server_amount(checkout, outcome, state, receipt_st
     assert error is None and status == 201
     assert data['monto'] == 15000 and data['estado'] == state
     assert receipt.estado == receipt_state and data['simulacion']
+    if state == 'completado':
+        payments.prepare_simulated_payment_notifications.assert_called_once()
+    else:
+        payments.prepare_simulated_payment_notifications.assert_not_called()
     insert, values = db.session.execute.call_args.args
     assert 'INSERT INTO pagos' in insert and values['metodo_pago'] == method
     assert set(values) == {'recibo_id','usuario_id','monto','metodo_pago','referencia','estado','fecha_pago'}
@@ -158,6 +164,26 @@ def test_checkout_idempotent_retry(checkout):
     assert status == 200 and data['id'] == 23 and not error
     assert db.session.execute.call_count == 1
     db.session.commit.assert_not_called()
+    payments.prepare_simulated_payment_notifications.assert_not_called()
+    payments.send_payment_notification_emails.assert_not_called()
+
+
+def test_payment_alerts_are_prepared_before_commit_and_emailed_after(checkout):
+    _, db, payload = checkout
+    events = []
+    payments.prepare_simulated_payment_notifications.side_effect = lambda *args: (events.append('prepare') or [])
+    db.session.commit.side_effect = lambda: events.append('commit')
+    payments.send_payment_notification_emails.side_effect = lambda emails: events.append('email')
+    assert payments.simulate_checkout(NS(id=7), payload)[2] == 201
+    assert events == ['prepare', 'commit', 'email']
+
+
+def test_payment_rollback_never_emails_success(checkout):
+    _, db, payload = checkout
+    db.session.commit.side_effect = RuntimeError('database failure')
+    assert payments.simulate_checkout(NS(id=7), payload)[2] == 409
+    db.session.rollback.assert_called_once()
+    payments.send_payment_notification_emails.assert_not_called()
 
 
 def test_checkout_blocks_another_pending_attempt(checkout):

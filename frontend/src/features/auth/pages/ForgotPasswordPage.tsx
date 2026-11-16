@@ -1,3 +1,4 @@
+import KeycapAlert from '@/components/ui/KeycapAlert'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -34,7 +35,7 @@ export default function ForgotPasswordPage() {
           <input name="email" required type="email" placeholder="tu@email.com" className="bg-field p-4 text-white placeholder:text-white" />
           <button disabled={pending} className="bg-accent p-4 text-xs font-semibold tracking-[0.18em] text-accent-foreground disabled:opacity-50">{pending ? 'GENERANDO…' : 'GENERAR CÓDIGO'}</button>
         </form>
-        {error && <p className="mt-5 text-sm text-red-300">{error}</p>}
+        {error && <KeycapAlert type={'error'} message={error} className="mt-5" />}
       </div>
     </main>
   )

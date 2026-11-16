@@ -5,6 +5,22 @@ import smtplib
 import ssl
 import threading
 from email.message import EmailMessage
+from pathlib import Path
+from html import escape
+
+LOGO_PATH = Path(__file__).resolve().parents[1] / 'assets' / 'logo.png'
+
+
+def branded_html(title, content):
+    return f'''<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+    <body style="margin:0;background:#e6dccd;font-family:Arial,sans-serif;color:#171717">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 12px">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-top:6px solid #b52d2d">
+    <tr><td align="center" style="padding:24px;background:#ffffff"><img src="cid:jenna-logo" width="180" alt="Jena Car Services" style="display:block;width:180px;max-width:100%;height:auto"></td></tr>
+    <tr><td style="padding:20px 28px;background:#171717;color:#ffffff"><p style="margin:0 0 8px;color:#e6dccd;font-size:11px;letter-spacing:2px">JENA CAR SERVICES</p><h1 style="margin:0;font-size:24px;line-height:1.3">{escape(title)}</h1></td></tr>
+    <tr><td style="padding:24px 20px;line-height:1.6;overflow-wrap:anywhere">{content}</td></tr>
+    <tr><td style="padding:20px 28px;background:#f3f0eb;color:#5a514d;font-size:12px">Gracias por confiar en nuestro equipo.<br>Jena Car Services · Cuidamos de tu vehículo.</td></tr>
+    </table></td></tr></table></body></html>'''
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +46,7 @@ def correo_configurado():
         return False
 
 
-def enviar_correo_async(destinatario, asunto, mensaje_html):
+def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
     """Deliver synchronously and report SMTP acceptance, not inbox delivery."""
     if not correo_configurado():
         logger.error('Configuración SMTP incompleta o inválida')
@@ -41,7 +57,13 @@ def enviar_correo_async(destinatario, asunto, mensaje_html):
     msg['From'] = settings['sender']
     msg['To'] = destinatario
     msg.set_content('Abre este mensaje en un cliente compatible con HTML para consultar su contenido.')
-    msg.add_alternative(mensaje_html, subtype='html')
+    msg.add_alternative(branded_html(asunto, mensaje_html), subtype='html')
+    html_part = msg.get_payload()[-1]
+    html_part.add_related(LOGO_PATH.read_bytes(), maintype='image', subtype='png',
+                          cid='<jenna-logo>', disposition='inline', filename='jena-car.png')
+    for cid, data, subtype in imagenes:
+        html_part.add_related(data, maintype='image', subtype=subtype,
+                              cid=f'<{cid}>', disposition='inline', filename=f'{cid}.{subtype}')
     try:
         context = ssl.create_default_context()
         transport = smtplib.SMTP_SSL if settings['ssl'] else smtplib.SMTP

@@ -1,3 +1,5 @@
+import { useFeedback } from '@/components/ui/useFeedback'
+import KeycapAlert from '@/components/ui/KeycapAlert'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -31,7 +33,7 @@ export default function AdminCitas() {
   const [token] = useState<string>(() => (typeof window !== 'undefined' ? localStorage.getItem('jenna_car_token') || '' : ''))
   const [citas, setCitas] = useState<Cita[]>([])
   const [mecanicos, setMecanicos] = useState<Mechanic[]>([])
-  const [message, setMessage] = useState<string>('')
+  const [message, setMessage, messageType] = useFeedback()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [newEstado, setNewEstado] = useState<string>('pendiente')
   const [search, setSearch] = useState('')
@@ -61,7 +63,7 @@ export default function AdminCitas() {
     try {
       const response = await asignarMecanico(citaId, value ? Number(value) : null, token)
       setCitas((previous) => previous.map((cita) => cita.id === citaId ? { ...cita, ...response.data } : cita))
-      setMessage(value ? `Mecánico asignado a la cita #${citaId}.` : `Mecánico retirado de la cita #${citaId}.`)
+      setMessage(value ? `Mecánico asignado a la cita #${citaId}.` : `Mecánico retirado de la cita #${citaId}.`, 'success')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No fue posible asignar el mecánico.')
     } finally {
@@ -72,13 +74,13 @@ export default function AdminCitas() {
   useEffect(() => {
     if (!token) return
     fetchCitas(token).catch(() => setMessage('Error al cargar citas'))
-  }, [token])
+  }, [token, setMessage])
 
   const handleCambiarEstado = async (citaId: number) => {
     if (!token) return
     try {
       await updateCitaEstado(citaId, newEstado, token)
-      setMessage(`Estado cambiado a ${newEstado}`)
+      setMessage(`Estado cambiado a ${newEstado}`, 'success')
     } catch (err: any) {
       setMessage(err.message || 'Error al cambiar estado'); return
     }
@@ -118,9 +120,7 @@ export default function AdminCitas() {
         </header>
 
         {message && (
-          <div className="mb-6 rounded-xl border border-[#f87171]/30 bg-[#f87171]/10 p-4 text-sm text-[#d6fff9]">
-            {message}
-          </div>
+          <KeycapAlert type={messageType} message={message} className="mb-6" />
         )}
 
         <div className="mb-6 flex flex-wrap gap-5 text-xs text-white/60" aria-label="Resumen de citas">

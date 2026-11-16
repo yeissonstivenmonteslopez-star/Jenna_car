@@ -6,10 +6,13 @@
   --accent: #c62828; --accent-foreground: var(--ws-surface); --muted: var(--ws-bg);
   --muted-foreground: var(--ws-muted); --field: var(--ws-surface); --border: var(--ws-border);
   color-scheme: light; background: var(--ws-bg); color: var(--ws-text); min-height: 100vh;
-  font-family: Inter, 'Segoe UI', Arial, sans-serif; line-height: 1.5;
+  --ws-font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --ws-heading: 'Bahnschrift', 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+  font-family: var(--ws-font); line-height: 1.65; font-size: 15px;
+  -webkit-font-smoothing: antialiased;
 }
 .workspace-ui main { background: var(--ws-bg) !important; background-image: none !important; color: var(--ws-text); min-height: calc(100vh - 130px); }
-.workspace-ui h1 { font: 650 clamp(1.7rem, 3vw, 2.25rem)/1.2 Inter, 'Segoe UI', sans-serif; letter-spacing: -.04em; }
+.workspace-ui h1 { font: 600 clamp(1.7rem, 3vw, 2.25rem)/1.2 var(--ws-heading); letter-spacing: -.025em; }
 .workspace-ui h2 { font-family: inherit; font-weight: 600; letter-spacing: -.025em; }
 .workspace-ui .font-serif { font-family: inherit; }
 .workspace-ui [class*="tracking-"] { letter-spacing: .06em; }
@@ -153,8 +156,7 @@
 }
 .workspace-ui[data-theme='dark'] input, .workspace-ui[data-theme='dark'] select,
 .workspace-ui[data-theme='dark'] textarea { color-scheme: dark !important; }
-.workspace-ui .workspace-theme-toggle { position: fixed; bottom: 20px; right: 20px; z-index: 45; display: flex; align-items: center; gap: 9px; padding: 11px 16px; background: var(--ws-surface); border: 1px solid var(--ws-border); color: var(--ws-text); border-radius: 30px; font-size: 12px; box-shadow: 0 3px 16px #0001; }
-.workspace-ui .workspace-theme-toggle:hover { border-color: #c62828; }
+.workspace-ui .workspace-theme-toggle { z-index: 45; }
 .workspace-ui main { padding-bottom: 90px; }
 
 /* Private profile: identity header and a personal activity feed. */
@@ -281,6 +283,115 @@
 .workspace-ui { position: relative; }
 .workspace-ui .workspace-theme-toggle { position: absolute; top: 18px; bottom: auto; right: 24px; }
 @media(max-width:767px) {
- .workspace-ui .workspace-theme-toggle { top: 20px; right: 18px; padding: 10px; }
- .workspace-ui .workspace-theme-toggle span { display: none; }
+ .workspace-ui .workspace-theme-toggle { top: 20px; right: 18px; }
 }
+
+/* Comfortable, consistent private workspace surfaces. */
+.workspace-ui :is(button,input,select,textarea) { font-family: var(--ws-font); }
+.workspace-ui :is(h2,h3,.font-serif) { font-family: var(--ws-heading); }
+.workspace-ui :is(p,span)[class*='text-[10px]'] { font-size: .75rem; }
+.workspace-ui :is(p,span)[class*='uppercase'] { letter-spacing: .08em; }
+.workspace-ui input:not([type='checkbox']):not([type='radio']):not([type='file']), .workspace-ui :is(select,textarea) { border-radius: 10px; min-height: 46px; font-size: .9375rem; }
+.workspace-ui :is(button,a,input,select,textarea,summary) { transition: background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+.workspace-ui :is(button,a):focus-visible { outline-width: 3px; }
+.workspace-ui :is(button,a)[class*='bg-red-6'], .workspace-ui :is(button,a)[class*='bg-emerald-7'], .workspace-ui .profile-primary { border-radius: 10px; min-height: 44px; justify-content: center; font-weight: 600; }
+.workspace-ui :is(.profile-panel,.profile-identity,.profile-vehicle), .workspace-ui :is(.appointments-page,.repairs-page) article.rounded-2xl { border-radius: 16px; box-shadow: 0 4px 18px rgb(0 0 0 / .035); overflow-wrap: anywhere; }
+.workspace-ui .workspace-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 0 0 28px; }
+.workspace-ui .workspace-summary > div { position: relative; padding: 20px 22px; border: 1px solid var(--ws-border); border-radius: 14px; background: var(--ws-surface); overflow: hidden; }
+.workspace-ui .workspace-summary > div::before { content: ''; position: absolute; top: 20px; bottom: 20px; left: 0; width: 3px; background: #c62828; }
+.workspace-ui .workspace-summary dt { color: var(--ws-muted); font-size: 13px; font-weight: 600; }
+.workspace-ui .workspace-summary dd { font-family: var(--ws-heading); font-size: 32px; font-weight: 600; line-height: 1.2; margin: 10px 0 6px; font-variant-numeric: tabular-nums; }
+.workspace-ui .workspace-summary p { font-size: 12px; color: var(--ws-muted); margin: 0; }
+.workspace-ui .workspace-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 220px; padding: 28px 22px; border: 1px dashed var(--ws-border); border-radius: 14px; background: var(--ws-soft); color: var(--ws-muted); }
+.workspace-ui .workspace-empty > svg { color: var(--ws-accent); margin-bottom: 14px; }
+.workspace-ui .workspace-empty :is(h2,h3) { color: var(--ws-text); font-size: 17px; font-weight: 600; }
+.workspace-ui .workspace-empty p { margin-top: 8px; max-width: 380px; font-size: 13px; }
+.workspace-ui .workspace-account-nav { gap: 10px; scrollbar-width: thin; }
+.workspace-ui .workspace-account-nav a { padding: 17px 12px; font-size: 13px; }
+.workspace-ui .workspace-account-nav a.is-active { background: #ffffff08; }
+.workspace-ui .sidebar-link { font-size: 14px; min-height: 48px; border-radius: 9px; }
+.workspace-ui .sidebar-group > p { font-size: 11px; }
+.workspace-ui .sidebar-toggle { font-size: 12px; min-height: 48px; }
+.workspace-ui .sidebar-footer { font-size: 12px; }
+.workspace-ui .admin-topbar { font-size: 13px; padding-right: 190px; }
+.workspace-ui .dashboard-metrics > a { border-radius: 14px; box-shadow: 0 4px 18px rgb(0 0 0 / .035); border-top: 3px solid #c62828; }
+.workspace-ui .dashboard-metrics > a:hover { box-shadow: 0 6px 24px rgb(0 0 0 / .07); }
+.workspace-ui .dashboard-metrics p.font-serif { font-family: var(--ws-heading); font-size: clamp(22px,2.2vw,32px); }
+.workspace-ui th { color: var(--ws-muted); font-size: 12px; letter-spacing: .035em; }
+.workspace-ui td { line-height: 1.6; }
+.workspace-ui .profile-identity { border-top: 4px solid #c62828; }
+.workspace-ui .profile-name h1 { font-family: var(--ws-heading); }
+.workspace-ui .profile-name p { font-size: 14px; }
+.workspace-ui .profile-summary { gap: 36px; padding-bottom: 26px; }
+.workspace-ui .profile-summary strong { font-family: var(--ws-heading); font-size: 24px; font-variant-numeric: tabular-nums; }
+.workspace-ui .profile-summary span { font-size: 13px; }
+.workspace-ui .profile-tabs button { min-height: 52px; font-size: 14px; }
+.workspace-ui .profile-panel h2 { font-size: 18px; }
+.workspace-ui :is(.profile-contact,.profile-muted,.profile-shortcuts a,.profile-activity-content p,.profile-activity-content time) { font-size: 13px; }
+.workspace-ui .profile-shortcuts a { border-radius: 6px; padding: 14px 8px; }
+.workspace-ui .profile-shortcuts a:hover { background: var(--ws-soft); }
+.workspace-ui .profile-activity-icon { border-radius: 12px; }
+.workspace-ui .profile-vehicle-art { background: var(--ws-soft); border-radius: 10px; margin-bottom: 16px; padding-top: 20px; }
+.workspace-ui .profile-outline { min-height: 44px; border-radius: 10px; font-size: 13px; }
+.workspace-ui .profile-status { font-size: 11px; padding: 4px 9px; border-radius: 6px; }
+.workspace-ui .mechanic-page section[aria-label='Agenda asignada'], .workspace-ui .mechanic-page section[aria-label='Detalle de cita'] { padding: 22px; border: 1px solid var(--ws-border); border-radius: 16px; background: var(--ws-surface); }
+.workspace-ui .mechanic-page section[aria-label='Agenda asignada'] { align-self: start; }
+.workspace-ui .mechanic-page section[aria-label='Agenda asignada'] button { border-radius: 8px; }
+.workspace-ui .repairs-page [aria-current='step'] { border-radius: 10px; border-width: 2px; font-weight: 600; }
+.workspace-ui :is([role='alert'],[role='status']):not(.jenna-loader) { border-radius: 10px; line-height: 1.6; }
+@media(max-width:767px) {
+ .workspace-ui .workspace-summary { gap: 8px; }
+ .workspace-ui .workspace-summary > div { padding: 15px 12px; }
+ .workspace-ui .workspace-summary dt { font-size: 12px; }
+ .workspace-ui .workspace-summary dd { font-size: 27px; }
+ .workspace-ui .workspace-summary p { font-size: 11px; line-height: 1.45; }
+ .workspace-ui .admin-topbar { padding-right: 64px; }
+ .workspace-ui .workspace-account-nav a { padding: 16px 8px; }
+ .workspace-ui .profile-summary { gap: 12px; }
+ .workspace-ui .profile-summary span { font-size: 12px; }
+ .workspace-ui .mechanic-page section[aria-label] { padding: 18px; }
+}
+@media(max-width:380px) {
+ .workspace-ui .workspace-summary { grid-template-columns: 1fr; }
+ .workspace-ui .workspace-summary > div { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+ .workspace-ui .workspace-summary dd { margin: 0; grid-column: 2; grid-row: 1 / 3; align-self: center; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .workspace-ui *, .workspace-ui *::before, .workspace-ui *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Preserve semantic feedback colors in both workspace themes. */
+.workspace-ui .alert-keycap { background: var(--alert-base-bg); border-color: var(--alert-accent); }
+.workspace-ui .alert-keycap .alert-keycap-face { background: #09090b; color: var(--alert-text); border-color: var(--alert-accent); }
+.workspace-ui .alert-keycap .alert-keycap-icon { color: var(--alert-accent); }
+.workspace-ui .alert-keycap :is(.alert-keycap-content,.alert-keycap-title,.alert-keycap-close) { color: var(--alert-text); }
+
+/* The evidence dropzone keeps its dark surface in both workspace themes. */
+.workspace-ui .evidence-photo-upload { background: #18181b; border-color: #3f3f46; color: #f4f4f5; box-shadow: 0 38px 30px -38px rgb(220 38 38 / .45); }
+.workspace-ui .evidence-photo-upload:not([aria-disabled='true']):hover,
+.workspace-ui .evidence-photo-upload.is-dragging { background: #09090b; border-color: #dc2626; }
+.evidence-photo-upload:focus-within { outline: 3px solid #dc2626; outline-offset: 4px; }
+.workspace-ui .evidence-photo-upload :is(.evidence-photo-help,.evidence-photo-name) { color: #a1a1aa; }
+.workspace-ui .evidence-photo-upload .evidence-photo-badge { background: #09090b; color: #f4f4f5; border: 1px solid #dc2626; }
+
+.workspace-ui .workspace-header-notifications { margin-right: 96px; }
+.workspace-ui .workspace-header-notifications .notification-trigger { color: #d4d4d8; }
+.workspace-ui .notification-trigger { min-width: 40px; min-height: 40px; border-radius: 10px; }
+@media(max-width:767px) { .workspace-ui .workspace-header-notifications { margin-right: 70px; } }
+@media(max-width:767px) {
+  .workspace-ui .admin-topbar { padding-right: 110px; gap: 8px; }
+  .workspace-ui .admin-topbar > span { min-width: 0; font-size: 11px; }
+}
+
+/* Real brand artwork, sized for full and collapsed navigation. */
+.workspace-ui .admin-sidebar-brand a { flex-direction: column; justify-content: center; align-items: center; gap: 2px; width: 100%; padding-block: 6px; }
+.workspace-ui .admin-sidebar-brand .admin-company-logo { width: 80px; }
+.workspace-ui .admin-sidebar-brand small { margin-top: 0; }
+.workspace-ui .is-collapsed .admin-sidebar-brand .admin-company-logo { width: 40px; }
+.workspace-ui .workspace-header { background: var(--ws-surface); color: var(--ws-text); border-bottom: 1px solid var(--ws-border); }
+.workspace-ui .workspace-header-top { min-height: 88px; border-color: var(--ws-border); padding-block: 8px; }
+.workspace-ui .workspace-brand .company-logo { width: 88px; }
+.workspace-ui .workspace-account-nav a { color: var(--ws-muted); }
+.workspace-ui .workspace-account-nav a.is-active { color: var(--ws-text); background: var(--ws-red-soft); border-bottom-color: #dc2626; }
+.workspace-ui .workspace-account-nav a:hover { color: var(--ws-text); }
+.workspace-ui .workspace-header-notifications .notification-trigger { color: var(--ws-text); }

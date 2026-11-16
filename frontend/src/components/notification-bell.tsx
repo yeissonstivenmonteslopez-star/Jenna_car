@@ -54,11 +54,18 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!token) return
+    const refresh = () => { void fetchNoLeidas(); void fetchNotificaciones() }
+    window.addEventListener('jenna-notifications-updated', refresh)
+    window.addEventListener('focus', refresh)
     const interval = setInterval(() => {
       fetchNoLeidas()
       if (abierto) fetchNotificaciones()
     }, 30000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('jenna-notifications-updated', refresh)
+      window.removeEventListener('focus', refresh)
+    }
   }, [token, abierto, fetchNoLeidas, fetchNotificaciones])
 
   useEffect(() => {
@@ -105,9 +112,11 @@ export default function NotificationBell() {
     // TODO: futura integración con servicios de Google
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setAbierto(!abierto)}
-        className="relative p-2 text-primary-foreground/70 hover:text-accent transition"
+        type="button"
+        onClick={() => { if (!abierto) void fetchNotificaciones(); setAbierto(!abierto) }}
+        className="notification-trigger relative p-2 text-primary-foreground/70 hover:text-accent transition"
         aria-label="Notificaciones"
+        aria-expanded={abierto}
       >
         <Bell size={22} />
         {noLeidas > 0 && (
@@ -118,7 +127,7 @@ export default function NotificationBell() {
       </button>
 
       {abierto && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 border border-primary-foreground/15 bg-primary rounded-lg shadow-xl z-50 max-h-96 overflow-hidden flex flex-col">
+        <div className="fixed left-4 right-4 top-20 mt-2 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:w-96 border border-primary-foreground/15 bg-primary rounded-lg shadow-xl z-50 max-h-96 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-primary-foreground/10">
             <h3 className="font-serif text-sm text-primary-foreground">Notificaciones</h3>
             {noLeidas > 0 && (
