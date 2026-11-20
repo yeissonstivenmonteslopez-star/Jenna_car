@@ -13,3 +13,4 @@ requests==2.32.3
 reportlab==4.2.5
 chardet>=5.2,<6
 Pillow>=11.0,<14
+gunicorn==23.0.0
