@@ -45,9 +45,9 @@ def appointment(mechanic=10, hour=10, duration=90, state='pendiente', vehicle=1)
               mecanico_id=mechanic, vehiculo_id=vehicle, servicio=NS(duracion_estimada=duration))
 
 
-def test_overlap_reserves_only_one_mechanic(calendar):
+def test_overlap_blocks_other_vehicles_even_with_free_mechanic(calendar):
     calendar[0].all.return_value = [appointment()]
-    assert slots.slot_status(date(2030, 1, 2), time(11), 1, 2) == (True, 11)
+    assert slots.slot_status(date(2030, 1, 2), time(11), 1, 2) == (False, None)
     assert slots.slot_status(date(2030, 1, 2), time(11), 1, 1)[0] is False
 
 

@@ -5,6 +5,18 @@ COLLATE utf8mb4_unicode_ci;
 
 USE jenna_car;
 
+CREATE TABLE empresas_convenio (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ nit VARCHAR(30) NOT NULL UNIQUE,
+ periodo_codigo VARCHAR(7) NOT NULL,
+ codigo_acceso VARCHAR(30) NOT NULL UNIQUE, telefono_contacto VARCHAR(20),
+ correo_facturacion VARCHAR(150), porcentaje_descuento DECIMAL(5,2) NOT NULL DEFAULT 0,
+ dias_credito INT NOT NULL DEFAULT 30, activo TINYINT NOT NULL DEFAULT 1,
+ convenio_activo INT GENERATED ALWAYS AS (CASE WHEN activo THEN 1 ELSE NULL END) STORED UNIQUE,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ CHECK (porcentaje_descuento BETWEEN 0 AND 100), CHECK (dias_credito >= 0)
+) ENGINE=InnoDB;
+
 -- 1. USUARIOS
 CREATE TABLE usuarios (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -18,7 +30,9 @@ CREATE TABLE usuarios (
     direccion VARCHAR(255) DEFAULT NULL,
     ciudad VARCHAR(100) DEFAULT NULL,
     fecha_registro TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-    rol ENUM('admin','usuario','mecanico') NOT NULL DEFAULT 'usuario',
+    empresa_id INT UNSIGNED NULL,
+    CONSTRAINT fk_usuario_empresa FOREIGN KEY (empresa_id) REFERENCES empresas_convenio(id),
+    rol ENUM('admin','usuario','mecanico','gestor_flota') NOT NULL DEFAULT 'usuario',
     estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
     foto_perfil VARCHAR(500) DEFAULT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -62,6 +76,11 @@ CREATE TABLE notificaciones (
 CREATE TABLE vehiculos (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT UNSIGNED NOT NULL,
+    empresa_id INT UNSIGNED NULL,
+    tipo_vehiculo VARCHAR(30),
+    numero_interno VARCHAR(30),
+    CONSTRAINT fk_vehiculo_empresa FOREIGN KEY (empresa_id) REFERENCES empresas_convenio(id),
+    UNIQUE KEY uq_movil_empresa (empresa_id,numero_interno),
     placa VARCHAR(20) NOT NULL UNIQUE,
     marca VARCHAR(100) NOT NULL,
     modelo VARCHAR(100) NOT NULL,
@@ -104,6 +123,11 @@ CREATE TABLE citas (
     servicio_id INT UNSIGNED NOT NULL,
     fecha DATE NOT NULL,
     hora TIME NOT NULL,
+    prioridad ENUM('normal','alta','emergencia_flota') NOT NULL DEFAULT 'normal',
+    metodo_facturacion ENUM('contado','credito_convenio') NOT NULL DEFAULT 'contado',
+    codigo_autorizacion VARCHAR(50),
+    nombre_conductor_entrega VARCHAR(100),
+    telefono_conductor VARCHAR(20),
     motivo TEXT,
     observaciones TEXT,
     estado ENUM(
@@ -133,6 +157,7 @@ CREATE TABLE ordenes_trabajo (
     fecha_ingreso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_entrega DATETIME DEFAULT NULL,
     kilometraje INT UNSIGNED NOT NULL DEFAULT 0,
+    descuento_convenio DECIMAL(5,2) NULL,
     problema_reportado TEXT NOT NULL,
     observaciones TEXT,
     estado ENUM(

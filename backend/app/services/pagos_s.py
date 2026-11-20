@@ -33,6 +33,8 @@ def create_simulated(user, receipt_id):
     if not receipt or not receipt.orden_trabajo or not receipt.orden_trabajo.vehiculo or receipt.orden_trabajo.vehiculo.usuario_id != user.id:
         db.session.rollback()
         return None, 'Recibo no encontrado', 404
+    if receipt.orden_trabajo.descuento_convenio is not None:
+        return None, 'Este recibo se factura a crédito por convenio.', 409
     if receipt.estado != 'pendiente':
         db.session.rollback()
         return None, 'El recibo no está pendiente de pago', 409
@@ -92,6 +94,8 @@ def simulate_checkout(user, payload):
     if not receipt:
         db.session.rollback()
         return None, 'Recibo no encontrado', 404
+    if receipt.orden_trabajo.descuento_convenio is not None:
+        return None, 'Este recibo se factura a crédito por convenio.', 409
     reference = 'SIM-' + hashlib.sha256(f'{user.id}:{receipt.id}:{key}'.encode()).hexdigest()[:48].upper()
     # Only original columns are selected/inserted: no provider tracking fields.
     existing = db.session.execute(db.text(
@@ -171,6 +175,8 @@ def create(user, payload):
     receipt = db.session.get(Recibo, receipt_id)
     if not receipt or not receipt.orden_trabajo or not receipt.orden_trabajo.vehiculo or receipt.orden_trabajo.vehiculo.usuario_id != user.id:
         return None, 'Recibo no encontrado', 404
+    if receipt.orden_trabajo.descuento_convenio is not None:
+        return None, 'Este recibo se factura a crédito por convenio.', 409
     if receipt.estado != 'pendiente':
         return None, 'El recibo no está pendiente de pago', 409
     if not receipt.enviado_cliente:

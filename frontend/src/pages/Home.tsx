@@ -1,9 +1,10 @@
+import BookingVehicleIdentity from '@/features/citas/pages/BookingVehicleIdentity'
 import NotchCalendarCard from '@/components/ui/NotchCalendarCard'
 import { useAppointmentCalendar } from '@/features/citas/pages/useAppointmentCalendar'
 import { useFeedback } from '@/components/ui/useFeedback'
 import KeycapAlert from '@/components/ui/KeycapAlert'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { ArrowUpRight, CalendarDays, ChevronDown, Menu, ShieldCheck, Wrench, X, MapPin } from 'lucide-react'
 import { Gallery } from '@/components/gallery'
 import { getVehiculos, createVehiculo } from '@/features/vehiculos/services/vehiculosService'
@@ -35,7 +36,25 @@ type ServiceOption = {
   duration_minutes?: number
 }
 
+function scrollToSection(event: MouseEvent<HTMLElement>) {
+  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href^="#"]') : null
+  if (!link) return
+  const section = document.getElementById(link.hash.slice(1))
+  if (!section) return
+
+  event.preventDefault()
+  if (window.location.hash !== link.hash) window.history.pushState(window.history.state, '', link.hash)
+  section.focus({ preventScroll: true })
+  section.scrollIntoView()
+}
+
 export default function Page() {
+  useEffect(() => {
+    const sectionId = window.location.hash.slice(1)
+    if (sectionId) document.getElementById(sectionId)?.scrollIntoView()
+  }, [])
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
   const agenda = useAppointmentCalendar(bookingOpen)
@@ -177,7 +196,7 @@ async function loadBookingOptions() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main onClick={scrollToSection} className="min-h-screen bg-background text-foreground">
       <header className="absolute inset-x-0 top-0 z-20">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
           <div className="flex items-center gap-4">
@@ -197,7 +216,7 @@ async function loadBookingOptions() {
         {mobileMenuOpen && <div className="mx-4 flex flex-col gap-5 border border-primary-foreground/10 bg-primary p-6 text-xs uppercase tracking-[0.16em] text-primary-foreground md:hidden"><a href="#servicios" onClick={() => setMobileMenuOpen(false)}>Servicios</a><a href="#nosotros" onClick={() => setMobileMenuOpen(false)}>Nosotros</a><a href="#contacto" onClick={() => setMobileMenuOpen(false)}>Contacto</a><button onClick={() => { setMobileMenuOpen(false); setBookingOpen(true) }} className="border border-primary-foreground/30 py-3 text-left px-3">Agendar cita</button></div>}
       </header>
 
-      <section id="inicio" className="relative flex min-h-[680px] items-end overflow-hidden bg-primary pb-20 pt-40 lg:min-h-[760px] lg:pb-28">
+      <section tabIndex={-1} id="inicio" className="relative flex min-h-[680px] items-end overflow-hidden bg-primary pb-20 pt-40 lg:min-h-[760px] lg:pb-28">
         <img src="/jenna-car-hero.png" alt="Vehículo premium en el taller Jenna Car" className="absolute inset-0 h-full w-full object-cover opacity-75" />
         <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-primary/30" />
@@ -212,14 +231,14 @@ async function loadBookingOptions() {
         </div>
       </section>
 
-      <section id="servicios" className="bg-secondary px-6 py-24 lg:px-10 lg:py-32"><div className="mx-auto max-w-7xl"><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><div><p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Lo que hacemos</p><h2 className="max-w-xl font-serif text-4xl leading-tight tracking-tight text-secondary-foreground sm:text-6xl">Nuestra filosofía.<br /><span className="text-muted-foreground">Cuidar cada detalle.</span></h2></div></div><div className="mt-20 grid gap-5 md:grid-cols-2">{services.map((service) => { const Icon = service.icon; const isFlipped = !!flippedServices[service.title]; return <button key={service.title} type="button" onClick={() => setFlippedServices((current) => ({ ...current, [service.title]: !current[service.title] }))} className="group relative h-[260px] cursor-pointer text-left [perspective:1200px]" aria-label={`Ver detalle de ${service.title}`}><div className={`relative h-full w-full rounded-[24px] border border-[#d7c5af] bg-[#f7f1ea] shadow-[0_12px_28px_rgba(28,21,18,0.06)] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}><div className="absolute inset-0 flex h-full flex-col justify-between rounded-[24px] bg-[#f7f1ea] p-8 [backface-visibility:hidden]"><div><Icon size={26} strokeWidth={1.2} className="text-accent" /><h3 className="mt-14 font-serif text-2xl text-secondary-foreground">{service.title}</h3><p className="mt-4 text-sm leading-7 text-muted-foreground">{service.text}</p></div><span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary-foreground">Toca para girar <ArrowUpRight size={14} className="text-accent" /></span></div><div className="absolute inset-0 flex h-full flex-col justify-between rounded-[24px] bg-[#efe3d5] p-8 [backface-visibility:hidden] [transform:rotateY(180deg)]"><div><p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Detalle</p><h3 className="mt-8 font-serif text-2xl text-secondary-foreground">{service.backTitle}</h3><p className="mt-4 text-sm leading-7 text-secondary-foreground/75">{service.backText}</p></div><span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary-foreground">Volver <ArrowUpRight size={14} className="text-accent" /></span></div></div></button> })}</div></div></section>
+      <section tabIndex={-1} id="servicios" className="bg-secondary px-6 py-24 lg:px-10 lg:py-32"><div className="mx-auto max-w-7xl"><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><div><p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Lo que hacemos</p><h2 className="max-w-xl font-serif text-4xl leading-tight tracking-tight text-secondary-foreground sm:text-6xl">Nuestra filosofía.<br /><span className="text-muted-foreground">Cuidar cada detalle.</span></h2></div></div><div className="mt-20 grid gap-5 md:grid-cols-2">{services.map((service) => { const Icon = service.icon; const isFlipped = !!flippedServices[service.title]; return <button key={service.title} type="button" onClick={() => setFlippedServices((current) => ({ ...current, [service.title]: !current[service.title] }))} className="group relative h-[260px] cursor-pointer text-left [perspective:1200px]" aria-label={`Ver detalle de ${service.title}`}><div className={`relative h-full w-full rounded-[24px] border border-[#d7c5af] bg-[#f7f1ea] shadow-[0_12px_28px_rgba(28,21,18,0.06)] transition-transform duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}><div className="absolute inset-0 flex h-full flex-col justify-between rounded-[24px] bg-[#f7f1ea] p-8 [backface-visibility:hidden]"><div><Icon size={26} strokeWidth={1.2} className="text-accent" /><h3 className="mt-14 font-serif text-2xl text-secondary-foreground">{service.title}</h3><p className="mt-4 text-sm leading-7 text-muted-foreground">{service.text}</p></div><span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary-foreground">Toca para girar <ArrowUpRight size={14} className="text-accent" /></span></div><div className="absolute inset-0 flex h-full flex-col justify-between rounded-[24px] bg-[#efe3d5] p-8 [backface-visibility:hidden] [transform:rotateY(180deg)]"><div><p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Detalle</p><h3 className="mt-8 font-serif text-2xl text-secondary-foreground">{service.backTitle}</h3><p className="mt-4 text-sm leading-7 text-secondary-foreground/75">{service.backText}</p></div><span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary-foreground">Volver <ArrowUpRight size={14} className="text-accent" /></span></div></div></button> })}</div></div></section>
 
 
-      <section id="nosotros" className="bg-primary px-6 py-24 text-primary-foreground lg:px-10 lg:py-32"><div className="mx-auto flex max-w-7xl flex-col gap-12 lg:flex-row lg:items-end lg:justify-between"><div><p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Jenna Car Studio</p><h2 className="max-w-2xl font-serif text-4xl leading-tight sm:text-6xl">La excelencia no se<br /><em className="text-accent">improvisa.</em></h2></div><div className="max-w-sm"><p className="text-sm leading-7 text-primary-foreground/60">Un equipo de especialistas, un espacio pensado al milímetro y una obsesión compartida: que cada visita a Jenna Car se sienta diferente.</p><div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex items-center gap-3 rounded-xl border border-primary-foreground/15 bg-[#201d1b] p-2 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://wa.me/573134758191" alt="QR de WhatsApp Jenna Car" className="h-16 w-16 rounded-lg bg-white p-2" /><div className="text-left"><p className="text-[10px] uppercase tracking-[0.2em] text-accent">WhatsApp</p><p className="mt-2 text-xs text-primary-foreground/65">Escanea para contactar</p></div></div></div></div></div></section>
+      <section tabIndex={-1} id="nosotros" className="bg-primary px-6 py-24 text-primary-foreground lg:px-10 lg:py-32"><div className="mx-auto flex max-w-7xl flex-col gap-12 lg:flex-row lg:items-end lg:justify-between"><div><p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Jenna Car Studio</p><h2 className="max-w-2xl font-serif text-4xl leading-tight sm:text-6xl">La excelencia no se<br /><em className="text-accent">improvisa.</em></h2></div><div className="max-w-sm"><p className="text-sm leading-7 text-primary-foreground/60">Un equipo de especialistas, un espacio pensado al milímetro y una obsesión compartida: que cada visita a Jenna Car se sienta diferente.</p><div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex items-center gap-3 rounded-xl border border-primary-foreground/15 bg-[#201d1b] p-2 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://wa.me/573134758191" alt="QR de WhatsApp Jenna Car" className="h-16 w-16 rounded-lg bg-white p-2" /><div className="text-left"><p className="text-[10px] uppercase tracking-[0.2em] text-accent">WhatsApp</p><p className="mt-2 text-xs text-primary-foreground/65">Escanea para contactar</p></div></div></div></div></div></section>
 
       <Gallery />
 
-      <section id="contacto" className="bg-primary px-6 py-24 text-primary-foreground lg:px-10 lg:py-32"><div className="mx-auto max-w-7xl"><p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Encuéntranos</p><div className="grid gap-10 lg:grid-cols-2 lg:gap-20"><div><h2 className="font-serif text-5xl sm:text-6xl">Tu próximo<br /><em className="text-accent">kilómetro</em> empieza aquí.</h2><div className="mt-12 grid gap-6 text-sm"><div className="flex gap-4"><MapPin size={18} className="mt-1 text-accent" /><div><p className="font-medium">Dirección del taller</p><p className="mt-1 text-primary-foreground/55">Cra. 48a #16-835, Bogotá, Colombia</p></div></div><div className="grid gap-1 pl-8 text-primary-foreground/55"><p>+57 313 475 81 91</p><p>+57 312 366 66 58</p><p>jenacarservices@gmail.com</p><p>Lunes — Viernes · 08:30 — 19:00</p></div></div><div className="mt-10"><a href="https://www.google.com/maps/search/?api=1&query=4.750220695224997,-74.05182472460774" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 border border-primary-foreground/25 px-5 py-4 text-[10px] font-semibold tracking-[0.18em] transition hover:bg-primary-foreground hover:text-primary">ABRIR EN GOOGLE MAPS <ArrowUpRight size={15} className="text-accent" /></a></div></div><div className="min-h-[360px] border border-primary-foreground/15 bg-[#282522] p-3"><iframe title="Ubicación de Jenna Car" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1140266437205!2d-74.05182472460774!3d4.750220695224997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f859ec7a99cc9%3A0x8aa2829d62bbf48c!2sCra.%2048a%20%2316835%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1788388015889!5m2!1ses!2sco" className="h-full min-h-[330px] w-full grayscale opacity-80" loading="lazy" /></div></div></div></section>
+      <section tabIndex={-1} id="contacto" className="bg-primary px-6 py-24 text-primary-foreground lg:px-10 lg:py-32"><div className="mx-auto max-w-7xl"><p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Encuéntranos</p><div className="grid gap-10 lg:grid-cols-2 lg:gap-20"><div><h2 className="font-serif text-5xl sm:text-6xl">Tu próximo<br /><em className="text-accent">kilómetro</em> empieza aquí.</h2><div className="mt-12 grid gap-6 text-sm"><div className="flex gap-4"><MapPin size={18} className="mt-1 text-accent" /><div><p className="font-medium">Dirección del taller</p><p className="mt-1 text-primary-foreground/55">Cra. 48a #16-835, Bogotá, Colombia</p></div></div><div className="grid gap-1 pl-8 text-primary-foreground/55"><p>+57 313 475 81 91</p><p>+57 312 366 66 58</p><p>jenacarservices@gmail.com</p><p>Lunes — Viernes · 08:30 — 19:00</p></div></div><div className="mt-10"><a href="https://www.google.com/maps/search/?api=1&query=4.750220695224997,-74.05182472460774" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 border border-primary-foreground/25 px-5 py-4 text-[10px] font-semibold tracking-[0.18em] transition hover:bg-primary-foreground hover:text-primary">ABRIR EN GOOGLE MAPS <ArrowUpRight size={15} className="text-accent" /></a></div></div><div className="min-h-[360px] border border-primary-foreground/15 bg-[#282522] p-3"><iframe title="Ubicación de Jenna Car" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1140266437205!2d-74.05182472460774!3d4.750220695224997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f859ec7a99cc9%3A0x8aa2829d62bbf48c!2sCra.%2048a%20%2316835%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1788388015889!5m2!1ses!2sco" className="h-full min-h-[330px] w-full grayscale opacity-80" loading="lazy" /></div></div></div></section>
 
       <footer className="bg-secondary px-6 py-12 lg:px-10"><div className="mx-auto flex max-w-7xl flex-col gap-8 sm:flex-row sm:items-end sm:justify-between"><div><div className="font-serif text-xl tracking-[0.18em] text-secondary-foreground">JENNA <span className="text-accent">CAR</span></div><p className="mt-4 text-xs text-muted-foreground">Bogotá, Colombia</p></div><div className="text-left sm:text-right"><p className="text-xs text-muted-foreground">+57 313 475 81 91 · +57 312 366 66 58</p><p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground">© 2026 Jenna Car Studio</p></div></div></footer>
 
@@ -258,17 +277,7 @@ async function loadBookingOptions() {
               {(showNewVehicleForm || vehicles.length === 0) && (
                 <div className="grid gap-3 rounded border border-dashed border-border p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary-foreground/60">Nuevo vehículo</p>
-                  <input
-                    name="placa"
-                    required
-                    placeholder="ABC123"
-                    pattern="[A-Z]{3}[0-9]{3}"
-                    title="La placa debe tener 3 letras y 3 números"
-                    onChange={(event) => event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)}
-                    className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent"
-                  />
-                  <input name="marca" required placeholder="Marca" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
-                  <input name="modelo" required placeholder="Modelo" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
+                  <BookingVehicleIdentity className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
                   <div className="grid grid-cols-2 gap-3">
                     <input name="anio" type="number" placeholder="Año" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />
                     <input name="color" placeholder="Color" className="border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent" />

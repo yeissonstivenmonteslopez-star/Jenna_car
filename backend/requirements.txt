@@ -3,6 +3,7 @@ flask-cors==5.0.0
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
 google-auth==2.40.3
+CacheControl>=0.14.3,<0.15
 PyJWT[crypto]>=2.11,<3
 cryptography>=42.0.0
 Werkzeug==3.1.3

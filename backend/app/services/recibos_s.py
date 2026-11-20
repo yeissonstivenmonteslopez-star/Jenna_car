@@ -40,6 +40,7 @@ def _receipt_summary(receipt):
             'modelo': vehicle.modelo, 'placa': vehicle.placa,
         } if vehicle else None,
         'estado': receipt.estado,
+        'credito_convenio': bool(order and order.descuento_convenio is not None),
         'subtotal': float(receipt.subtotal),
         'descuento': float(receipt.descuento),
         'total': float(receipt.total),

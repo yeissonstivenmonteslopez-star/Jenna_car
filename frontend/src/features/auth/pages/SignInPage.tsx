@@ -1,3 +1,6 @@
+import { useFleetEnabled } from '@/features/convenios/useFleetEnabled'
+import FleetLogin from '@/features/convenios/FleetLogin'
+import { fleetKey } from '@/features/convenios/fleetApi'
 import CompanyLogo from '@/components/CompanyLogo'
 import '../auth-design.css'
 import KeycapAlert from '@/components/ui/KeycapAlert'
@@ -18,6 +21,8 @@ export default function SignInPage() {
 }
 
 function SignInContent() {
+  const fleetEnabled = useFleetEnabled()
+  const [modoConvenio, setModoConvenio] = useState(false)
   const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,9 +36,10 @@ function SignInContent() {
     setLoading(true)
     try {
       const data = await googleAuth(response.credential)
+      localStorage.removeItem(fleetKey)
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
-      const defaultRoute = data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
+      const defaultRoute = fleetEnabled && data.user?.empresa_id ? '/convenio/agendar' : data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
       const redirectTarget = searchParams.get('redirect') || defaultRoute
       window.location.href = redirectTarget
     } catch (caught) {
@@ -51,9 +57,10 @@ function SignInContent() {
     const form = new FormData(event.currentTarget)
     try {
       const data = await login({ email: String(form.get('email')), password: String(form.get('password')) })
+      localStorage.removeItem(fleetKey)
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
-      const defaultRoute = data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
+      const defaultRoute = fleetEnabled && data.user?.empresa_id ? '/convenio/agendar' : data.user?.rol === 'mecanico' ? '/mechanic' : data.user?.rol === 'admin' ? '/admin/dashboard' : '/'
       const redirectTarget = searchParams.get('redirect') || defaultRoute
       window.location.href = redirectTarget
     } catch (caught) {
@@ -103,6 +110,7 @@ function SignInContent() {
               <p className="auth-description">Tus citas, tu vehículo y tus servicios, en un solo lugar.</p>
             </div>
 
+            {fleetEnabled && modoConvenio ? <FleetLogin back={() => setModoConvenio(false)} /> : <>
             <form onSubmit={handleSubmit} className="grid gap-5">
               <label className="grid gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground/65">
                 Email
@@ -173,6 +181,16 @@ function SignInContent() {
                 Registrarme
               </a>
             </p>
+            {fleetEnabled && <div className="mt-6 flex justify-center border-t border-neutral-600 pt-5">
+              <button type="button" onClick={() => setModoConvenio(true)}
+                className="btn-cta-pill text-zinc-900 hover:text-white dark:text-white">
+                <span>Ingresar con Código de Convenio / Flotas</span>
+                <svg width="15" height="10" viewBox="0 0 13 10" aria-hidden="true">
+                  <path d="M1,5 L11,5" /><polyline points="8 1 12 5 8 9" />
+                </svg>
+              </button>
+            </div>}
+            </>}
           </div>
 
           <p className="text-sm uppercase tracking-[0.16em] text-primary-foreground/30">

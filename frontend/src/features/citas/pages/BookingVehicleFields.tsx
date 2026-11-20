@@ -1,3 +1,4 @@
+import BookingVehicleIdentity from '@/features/citas/pages/BookingVehicleIdentity'
 import type { VehicleOption } from './bookingTypes'
 
 type Props = {
@@ -35,11 +36,7 @@ export default function BookingVehicleFields({ vehicles, selectedVehicleId, show
                   <div className="grid gap-3 rounded-2xl border border-dashed border-red-500/30 bg-[#171717] p-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Nuevo vehículo</p>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <input name="placa" required placeholder="Placa" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                      <input name="marca" required placeholder="Marca" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input name="modelo" required placeholder="Modelo" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
+                      <BookingVehicleIdentity className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
                       <input name="anio" type="number" placeholder="Año" className="rounded-xl border border-red-500/20 bg-[#0f0f0f] px-4 py-3 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-red-400" />
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">

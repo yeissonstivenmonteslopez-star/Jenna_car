@@ -22,6 +22,11 @@ def revise(user, order_id, payload):
     except (InvalidOperation, ValueError, TypeError):
         db.session.rollback()
         return None, 'Ingresa un total positivo que no supere el subtotal, con hasta dos decimales', 400
+    if getattr(order, 'descuento_convenio', None) is not None:
+        from ..utils.orders import total_convenio
+        if total > total_convenio(subtotal, order.descuento_convenio):
+            db.session.rollback()
+            return None, 'La cotización debe conservar el descuento de convenio', 400
     order.total = receipt.total = total
     receipt.descuento = subtotal - total
     order.estado_aprobacion = 'pendiente'

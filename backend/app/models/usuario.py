@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(INTEGER(unsigned=True), primary_key=True, autoincrement=True)
+    empresa_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('empresas_convenio.id'))
+    empresa = db.relationship('EmpresaConvenio')
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), nullable=False, unique=True, index=True)
@@ -17,7 +19,7 @@ class Usuario(db.Model):
     direccion = db.Column(db.String(255), nullable=True)
     ciudad = db.Column(db.String(100), nullable=True)
     fecha_registro = db.Column(TIMESTAMP, default=lambda: datetime.now(timezone.utc))
-    rol = db.Column(db.Enum('admin', 'usuario', 'mecanico', name='usuario_rol'), nullable=False, default='usuario')
+    rol = db.Column(db.Enum('admin', 'usuario', 'mecanico', 'gestor_flota', name='usuario_rol'), nullable=False, default='usuario')
     estado = db.Column(db.Enum('activo', 'inactivo', name='usuario_estado'), nullable=False, default='activo')
     foto_perfil = db.Column(db.String(500), nullable=True)
     created_at = db.Column(TIMESTAMP, default=lambda: datetime.now(timezone.utc))
@@ -48,6 +50,7 @@ class Usuario(db.Model):
             'telefono': self.telefono,
             'documento': self.documento,
             'rol': self.rol,
+            'empresa_id': self.empresa_id,
             'estado': self.estado,
             'foto_perfil': self.foto_perfil,
             'google_id': self.google_id,

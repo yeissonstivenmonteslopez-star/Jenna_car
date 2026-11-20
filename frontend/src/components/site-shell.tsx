@@ -15,7 +15,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  const authRoutes = ['/sign-in', '/login', '/register', '/forgot-password', '/reset-password']
+  const authRoutes = ['/sign-in', '/login', '/register', '/forgot-password', '/reset-password', '/convenio/agendar']
   const shouldShowAuthButton = mounted && !user && !authRoutes.includes(pathname || '/')
   const shouldShowUserMenu = mounted && user && pathname === '/'
 

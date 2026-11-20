@@ -260,24 +260,24 @@
 .workspace-ui .document-menu summary:focus-visible { outline: 2px solid #c62828; outline-offset: 3px; }
 .workspace-ui .document-menu-actions { display: flex; gap: 6px; padding: 8px 0 0; }
 
-.workspace-ui .appointment-times { min-width: 0; }
-.workspace-ui .appointment-times-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.workspace-ui .appointment-times-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ws-text); }
-.workspace-ui .appointment-times-heading > span { font-size: 10px; color: var(--ws-muted); }
-.workspace-ui .appointment-times fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
-.workspace-ui .appointment-times legend { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 11px; color: var(--ws-muted); }
-.workspace-ui .appointment-time-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 8px; }
-.workspace-ui .appointment-time { padding: 12px 8px; background: var(--ws-surface); color: var(--ws-text); border: 1px solid var(--ws-border); border-radius: 7px; text-align: center; min-height: 66px; }
-.workspace-ui .appointment-time > span { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.workspace-ui .appointment-time small { display: block; font-size: 9px; color: var(--ws-muted); margin-top: 4px; }
-.workspace-ui .appointment-time:hover:not(:disabled) { border-color: var(--ws-accent); }
-.workspace-ui .appointment-time.is-selected { background: #c62828; border-color: #c62828; color: white; }
-.workspace-ui .appointment-time.is-selected small { color: white; }
-.workspace-ui .appointment-time:disabled { opacity: .5; border-style: dashed; background: var(--ws-soft); }
-.workspace-ui .appointment-times-message { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 20px 0; font-size: 12px; color: var(--ws-muted); }
-.workspace-ui .appointment-times-message button { color: var(--ws-accent); text-decoration: underline; }
-.workspace-ui .appointment-time-selection { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--ws-border); font-size: 12px; color: var(--ws-muted); }
-.workspace-ui .appointment-time-selection strong { color: var(--ws-accent); }
+:is(.workspace-ui, .fleet-agenda) .appointment-times { min-width: 0; }
+:is(.workspace-ui, .fleet-agenda) .appointment-times-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+:is(.workspace-ui, .fleet-agenda) .appointment-times-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ws-text); }
+:is(.workspace-ui, .fleet-agenda) .appointment-times-heading > span { font-size: 10px; color: var(--ws-muted); }
+:is(.workspace-ui, .fleet-agenda) .appointment-times fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
+:is(.workspace-ui, .fleet-agenda) .appointment-times legend { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 11px; color: var(--ws-muted); }
+:is(.workspace-ui, .fleet-agenda) .appointment-time-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 8px; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time { padding: 12px 8px; background: var(--ws-surface); color: var(--ws-text); border: 1px solid var(--ws-border); border-radius: 7px; text-align: center; min-height: 66px; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time > span { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time small { display: block; font-size: 9px; color: var(--ws-muted); margin-top: 4px; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time:hover:not(:disabled) { border-color: var(--ws-accent); }
+:is(.workspace-ui, .fleet-agenda) .appointment-time.is-selected { background: #c62828; border-color: #c62828; color: white; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time.is-selected small { color: white; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time:disabled { opacity: .5; border-style: dashed; background: var(--ws-soft); }
+:is(.workspace-ui, .fleet-agenda) .appointment-times-message { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 20px 0; font-size: 12px; color: var(--ws-muted); }
+:is(.workspace-ui, .fleet-agenda) .appointment-times-message button { color: var(--ws-accent); text-decoration: underline; }
+:is(.workspace-ui, .fleet-agenda) .appointment-time-selection { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--ws-border); font-size: 12px; color: var(--ws-muted); }
+:is(.workspace-ui, .fleet-agenda) .appointment-time-selection strong { color: var(--ws-accent); }
 
 /* Keep appearance controls clear of booking slots and form actions. */
 .workspace-ui { position: relative; }
@@ -395,3 +395,18 @@
 .workspace-ui .workspace-account-nav a.is-active { color: var(--ws-text); background: var(--ws-red-soft); border-bottom-color: #dc2626; }
 .workspace-ui .workspace-account-nav a:hover { color: var(--ws-text); }
 .workspace-ui .workspace-header-notifications .notification-trigger { color: var(--ws-text); }
+
+.fleet-agenda .appointment-times {
+  --ws-surface: #152b40;
+  --ws-text: #f5f9fc;
+  --ws-border: #516d82;
+  --ws-muted: #bfd0dd;
+  --ws-accent: #80d9f6;
+  --ws-soft: #101d29;
+  padding: 20px;
+  border: 1px solid #365064;
+  border-radius: 16px;
+  background: #0b1928;
+}
+.fleet-agenda .appointment-time.is-selected { background: #155778; border-color: #80d9f6; }
+.fleet-agenda .appointment-time:focus-visible { outline: 2px solid #80d9f6; outline-offset: 2px; }

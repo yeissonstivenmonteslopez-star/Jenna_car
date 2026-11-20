@@ -59,25 +59,17 @@ def slot_status(fecha, hora, servicio_id=None, vehiculo_id=None, mecanico_id=Non
     cancelled_exact = [] if column_exists('citas', 'cupo_activo') else [row for row in appointments if row.estado == 'cancelada' and row.hora == hora]
     if vehiculo_id and any(row.vehiculo_id == vehiculo_id for row in cancelled_exact):
         return False, None
-    overlapping = []
     for appointment in appointments:
         if appointment.estado == 'cancelada':
             continue
         other_start = datetime.combine(appointment.fecha, appointment.hora)
         other_end = other_start + timedelta(minutes=duration(appointment.servicio))
         if start < other_end and other_start < end:
-            overlapping.append(appointment)
-    if vehiculo_id and any(row.vehiculo_id == vehiculo_id for row in overlapping):
-        return False, None
-    # Unassigned legacy bookings consume workshop capacity too.
-    reserved = {row.mecanico_id for row in overlapping if row.mecanico_id is not None}
-    free = [value for value in mechanics if value not in reserved]
-    unassigned = sum(row.mecanico_id is None for row in overlapping)
-    if mecanico_id:
-        if any(row.mecanico_id == mecanico_id for row in cancelled_exact):
             return False, None
-        return mecanico_id in free and len(free) > unassigned, mecanico_id
+    blocked = {row.mecanico_id for row in cancelled_exact}
+    if mecanico_id:
+        return mecanico_id not in blocked, mecanico_id
     if mechanics:
-        eligible = [value for value in free if value not in {row.mecanico_id for row in cancelled_exact}]
-        return len(free) > unassigned, eligible[0] if len(free) > unassigned and eligible else None
-    return not overlapping, None
+        mechanic = next((value for value in mechanics if value not in blocked), None)
+        return mechanic is not None, mechanic
+    return True, None

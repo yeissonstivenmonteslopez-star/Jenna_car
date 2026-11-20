@@ -21,6 +21,7 @@ output
 **/*client_secret*.json
 **/*.db
 **/*.sql
+!backend/database/convenios_incremental.sql
 **/*.sqlite*
 **/*credentials*.json
 **/*service_account*.json

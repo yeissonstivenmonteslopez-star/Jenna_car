@@ -11,7 +11,7 @@ def _service_response(data, error, status, key='data'):
 
 def create_appointment():
     data, error, status = appointment_service.create_for_user(
-        request.current_user, request.get_json(silent=True) or {}
+        request.current_user, request.get_json(silent=True) or {}, getattr(request, 'empresa', None)
     )
     return _service_response(data, error, status)
 

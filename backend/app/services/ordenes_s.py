@@ -90,6 +90,7 @@ def create(payload):
 
     order = OrdenTrabajo(
         vehiculo=vehicle,
+        descuento_convenio=vehicle.empresa.porcentaje_descuento if vehicle.empresa and vehicle.empresa.activo else None,
         fecha_ingreso=(
             datetime.fromisoformat(payload['fecha_ingreso'])
             if payload.get('fecha_ingreso')
@@ -258,7 +259,8 @@ def send_receipt(order_id):
     notificacion_por_usuario(
         order.vehiculo.usuario_id,
         f'Recibo disponible para la orden #{order.id}',
-        f'Administración envió el recibo de tu reparación por {format_cop(receipt.total)}. Ya puedes revisarlo y pagarlo.',
+        (f'Recibo de convenio por {format_cop(receipt.total)}. Facturación a crédito.' if order.descuento_convenio is not None else
+         f'Administración envió el recibo de tu reparación por {format_cop(receipt.total)}. Ya puedes revisarlo y pagarlo.'),
         tipo='pago',
         link='/mis-recibos',
     )

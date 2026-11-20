@@ -1,3 +1,6 @@
+import { useFleetEnabled } from '@/features/convenios/useFleetEnabled'
+import { fleetRequest } from '@/features/convenios/fleetApi'
+import { getStoredToken } from '@/services/apiClient'
 import { useFeedback } from '@/components/ui/useFeedback'
 import KeycapAlert from '@/components/ui/KeycapAlert'
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -8,6 +11,9 @@ import { asignarMecanico, getAdminCitas, updateCitaEstado } from '@/features/cit
 import { getAdminUsuarios } from '@/features/usuarios/services/usuariosService'
 
 interface Cita {
+  prioridad?: string
+  empresa?: string
+  numero_interno?: string
   id: number
   cliente: { id: number; nombre: string; apellido: string }
   vehiculo: { id: number; marca: string; modelo: string; placa: string }
@@ -102,6 +108,23 @@ export default function AdminCitas() {
     ].some((value) => value.toLowerCase().includes(term))
   })
 
+  const fleetEnabled = useFleetEnabled()
+  const [aviso, setAviso] = useState('')
+  const [estadoAviso, setEstadoAviso] = useState('')
+  async function prepararAviso() {
+    setAviso('')
+    setEstadoAviso('')
+    try {
+      const data = await fleetRequest<{ codigo: string; ultimo_dia: string }>('convenios/codigo-mensual', getStoredToken(), {})
+      const fecha = new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(data.ultimo_dia + 'T12:00:00Z'))
+      setAviso(`Hola, equipo de Emermédica. Su código de convenio con Jenna Car es ${data.codigo}, válido hasta el ${fecha} inclusive (hora de Colombia). En el inicio de sesión, seleccionen «Ingresar con Código de Convenio / Flotas» e ingresen el código para agendar.`)
+    } catch { setEstadoAviso('No se pudo consultar el código del mes.') }
+  }
+  async function copiarAviso() {
+    try { await navigator.clipboard.writeText(aviso); setEstadoAviso('Aviso copiado.') }
+    catch { setEstadoAviso('Selecciona el mensaje y cópialo manualmente.') }
+  }
+
   const badgeClass = (estado: string) => {
     if (estado === 'confirmada') return 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
     if (estado === 'atendida') return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -117,7 +140,12 @@ export default function AdminCitas() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#f87171]">Administración</p>
             <h1 className="mt-3 font-serif text-4xl text-white md:text-5xl">Citas</h1>
           </div>
+          {fleetEnabled && import.meta.env.VITE_CONVENIO_CODIGO_MENSUAL === '1' && <button type="button" className="rounded border border-white/30 px-4 py-2" onClick={prepararAviso}>Preparar aviso mensual para Emermédica</button>}
         </header>
+        {aviso && <section className="mb-5 grid gap-3 rounded-xl border border-white/20 p-4">
+          <p>{aviso}</p><div className="flex gap-4"><button type="button" onClick={copiarAviso}>Copiar aviso</button>
+          <button type="button" onClick={() => { setAviso(''); setEstadoAviso('') }}>Ocultar</button></div></section>}
+        {estadoAviso && <p role="status">{estadoAviso}</p>}
 
         {message && (
           <KeycapAlert type={messageType} message={message} className="mb-6" />
@@ -183,6 +211,7 @@ export default function AdminCitas() {
                       <td className="p-4 text-white/60">{cita.fecha}</td>
                       <td className="p-4 text-white/60">{cita.hora}</td>
                       <td className="p-4">
+                        {fleetEnabled && cita.prioridad === 'emergencia_flota' && <strong className="mr-2 inline-block rounded bg-red-700 px-3 py-1 text-xs text-white">Prioritaria · {cita.empresa} · {cita.numero_interno || cita.vehiculo.placa}</strong>}
                         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(cita.estado)}`}>
                           {cita.estado}
                         </span>
@@ -201,7 +230,8 @@ export default function AdminCitas() {
                           ))}
                         </select>
                         </div> : <div className="flex flex-col items-start gap-2">
-                          <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(cita.mecanico_id ? 'confirmada' : 'pendiente')}`}>
+                          {fleetEnabled && cita.prioridad === 'emergencia_flota' && <strong className="mr-2 inline-block rounded bg-red-700 px-3 py-1 text-xs text-white">Prioritaria · {cita.empresa} · {cita.numero_interno || cita.vehiculo.placa}</strong>}
+                        <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(cita.mecanico_id ? 'confirmada' : 'pendiente')}`}>
                             {cita.mecanico_id ? 'Asignado' : 'Sin asignar'}
                           </span>
                         </div>}

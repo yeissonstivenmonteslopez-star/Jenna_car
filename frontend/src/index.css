@@ -567,3 +567,52 @@ a {
 .workspace-ui .jc-calendar-card .expand-control { color: var(--txt); }
 .workspace-ui .jc-calendar-card .date[aria-pressed='true'] { border-color: var(--border-col); background: transparent; color: var(--txt); }
 .workspace-ui .jc-calendar-card .date.today { color: white; }
+
+@layer components {
+  .btn-cta-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 9999px;
+    background: transparent;
+    cursor: pointer;
+    transition: transform .2s ease, color .2s ease;
+  }
+  .btn-cta-pill::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 9999px;
+    background: #dc2626;
+    transition: width .3s ease, height .3s ease, background-color .3s ease;
+  }
+  .btn-cta-pill span, .btn-cta-pill svg { position: relative; z-index: 1; }
+  .btn-cta-pill span { font-size: 16px; font-weight: 700; letter-spacing: .04em; }
+  .btn-cta-pill svg {
+    flex: none;
+    margin-left: 10px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform: translateX(-5px);
+    transition: transform .3s ease;
+  }
+  .btn-cta-pill:is(:hover, :focus-visible)::before { width: 100%; height: 100%; }
+  .btn-cta-pill:is(:hover, :focus-visible) svg { transform: translateX(0); }
+  .btn-cta-pill:focus-visible { color: white; outline: 2px solid currentColor; outline-offset: 3px; }
+  .btn-cta-pill:active { transform: scale(.95); }
+  .btn-cta-pill:active::before { background: #b91c1c; }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-cta-pill, .btn-cta-pill::before, .btn-cta-pill svg { transition: none; }
+  }
+}

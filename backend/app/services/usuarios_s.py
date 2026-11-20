@@ -21,7 +21,7 @@ def change_role(user_id, role, current_user_id=None):
     - No se puede modificar el rol 'admin' hacia otro valor.
     - Los datos del usuario se conservan al cambiar el rol.
     """
-    if role not in ['usuario', 'admin', 'mecanico']: return None, 'Rol inválido. Debe ser "usuario", "mecanico" o "admin"', 400
+    if role not in ['usuario', 'admin', 'mecanico', 'gestor_flota']: return None, 'Rol de usuario inválido', 400
     user = user_repository.get(user_id)
     if not user: return None, 'Usuario no encontrado', 404
 

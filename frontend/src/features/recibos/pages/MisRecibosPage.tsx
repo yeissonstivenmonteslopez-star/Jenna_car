@@ -8,6 +8,7 @@ import { getMisRecibos, getReciboPdf } from '@/features/recibos/services/recibos
 import { formatCop } from '@/lib/utils'
 
 interface Recibo {
+  credito_convenio?: boolean
   id: number
   orden_trabajo_id: number
   fecha_ingreso: string
@@ -273,14 +274,14 @@ export default function MisRecibos() {
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
                     <p className="min-w-32 text-right font-serif text-xl text-white">{formatCop(recibo.total)}</p>
-                    <button
+                    {recibo.credito_convenio ? <span className="text-sm text-white">Facturación a crédito</span> : <button
                       onClick={() => handlePagar(recibo)}
                       disabled={simulated === null || loading || payingReceiptId !== null}
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-xs font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <CreditCard size={15} />
                       {simulated === null ? 'Verificando pasarela…' : payingReceiptId === recibo.id ? 'Conectando…' : simulated ? 'Simular pago' : 'Pagar recibo'}
-                    </button>
+                    </button>}
                     {pdfActions(recibo.id)}
                   </div>
                 </article>

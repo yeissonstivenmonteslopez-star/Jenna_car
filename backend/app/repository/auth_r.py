@@ -1,5 +1,5 @@
 from ..extensions import db
-from ..models import Cliente, PasswordResetToken
+from ..models import Cliente, PasswordResetToken, Usuario
 from .usuarios_r import find_by_email, find_by_google_id, add_and_flush
 
 
@@ -10,6 +10,10 @@ def add_client(client):
 
 def add_user(user):
     return add_and_flush(user)
+
+
+def lock_user(user_id):
+    return Usuario.query.filter_by(id=user_id).populate_existing().with_for_update().one()
 
 
 def add_reset_token(token):

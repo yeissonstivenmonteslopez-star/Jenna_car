@@ -18,6 +18,8 @@ def allowed(path):
         return False
     if any(marker in name for marker in ('client_secret', 'credentials', 'service_account')):
         return False
+    if relative.as_posix() == 'backend/database/convenios_incremental.sql':
+        return True
     return path.suffix.lower() not in {'.pem', '.key', '.p12', '.pfx', '.db', '.sqlite', '.sqlite3', '.log', '.pyc', '.sql'}
 
 

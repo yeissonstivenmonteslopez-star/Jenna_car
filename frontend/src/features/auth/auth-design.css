@@ -44,3 +44,5 @@
 .auth-page .auth-form-brand .company-logo { width: 88px; }
 .auth-page .auth-form-brand:focus-visible { outline: 2px solid #dc2626; outline-offset: 5px; }
 @media(max-width:639px) { .auth-page .auth-form-brand .company-logo { width: 80px; } }
+
+.auth-page .auth-panel .btn-cta-pill { color: #fff; }

@@ -32,6 +32,7 @@ def database_url() -> str:
 
 
 def apply_config(app) -> None:
+    app.config['PORTAL_FLOTAS_ACTIVO'] = os.getenv('PORTAL_FLOTAS_ACTIVO', '0') == '1'
     if os.getenv('SECRET_KEY'):
         app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
     elif is_debug():

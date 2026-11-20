@@ -10,7 +10,7 @@ citas_bp = Blueprint('citas', __name__)
 
 
 @citas_bp.post('')
-@jwt_required()
+@jwt_required(allow_convenio=True)
 def create_appointment():
     return citas_controller.create_appointment()
 

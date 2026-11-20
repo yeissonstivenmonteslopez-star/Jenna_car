@@ -40,10 +40,18 @@ def _send_appointment_confirmation(user, vehicle, service, fecha, hora):
 
 
 @serialize_booking
-def create_for_user(user, payload):
+def create_for_user(user, payload, empresa=None):
     if not all(payload.get(key) for key in ('vehiculo_id', 'servicio_id', 'fecha', 'hora')):
         return _error('Vehículo, servicio, fecha y hora son obligatorios', 400)
-    vehiculo = Vehiculo.query.filter_by(id=payload['vehiculo_id'], usuario_id=user.id).first()
+    empresa = empresa or (user.empresa if user else None)
+    if empresa:
+        from flask import current_app
+        if not current_app.config.get('PORTAL_FLOTAS_ACTIVO', False):
+            return _error('Recurso no disponible', 404)
+    if empresa and not empresa.activo:
+        return _error('Convenio inactivo', 403)
+    owner = {'empresa_id': empresa.id} if empresa else {'usuario_id': user.id, 'empresa_id': None}
+    vehiculo = Vehiculo.query.filter_by(id=payload['vehiculo_id'], **owner).first()
     if not vehiculo:
         return _error('El vehículo no pertenece al usuario autenticado', 403)
     servicio = db.session.get(Servicio, payload['servicio_id'])
@@ -60,9 +68,26 @@ def create_for_user(user, payload):
     if not available:
         return _error('La fecha y hora seleccionadas ya están ocupadas. Selecciona otro horario.', 409)
     cita = Cita(vehiculo_id=vehiculo.id, servicio_id=servicio.id, fecha=fecha, hora=hora, motivo=payload.get('motivo') or payload.get('observaciones') or '', observaciones=payload.get('observaciones') or '', estado='pendiente')
+    if empresa:
+        fields = {}
+        for key, limit in [('nombre_conductor_entrega', 100), ('telefono_conductor', 20), ('motivo', 2000), ('codigo_autorizacion', 50)]:
+            value = payload.get(key, '')
+            if not isinstance(value, str) or len(value.strip()) > limit or (key != 'codigo_autorizacion' and not value.strip()):
+                return _error('Revisa el nombre, teléfono, motivo y código de autorización del ingreso.', 400)
+            fields[key] = value.strip()
+        for key, value in fields.items():
+            setattr(cita, key, value)
+        cita.prioridad = 'emergencia_flota'
+        cita.metodo_facturacion = 'credito_convenio'
     db.session.add(cita)
     cita.mecanico_id = mechanic_id
+    if empresa:
+        from ..models import Notificacion
+        Notificacion.crear(usuario_id=vehiculo.usuario_id, titulo='Cita prioritaria agendada',
+            mensaje=f'{vehiculo.placa} · {fecha} a las {hora:%H:%M}', tipo='cita', link='/convenio/agendar', do_commit=False)
     db.session.commit()
+    if empresa:
+        return {'id': cita.id, 'prioridad': cita.prioridad, 'metodo_facturacion': cita.metodo_facturacion}, None, 201
     notificacion_por_usuario(usuario_id=user.id, titulo='Cita agendada', mensaje=f'Tu cita del {payload["fecha"]} a las {payload["hora"]} ha sido registrada exitosamente.', tipo='cita', link=f'/citas/{cita.id}')
     _send_appointment_confirmation(user, vehiculo, servicio, fecha, hora)
     return {'id': cita.id, 'cliente_id': user.id, 'vehiculo_id': vehiculo.id, 'servicio_id': servicio.id, 'fecha': str(payload['fecha']), 'hora': str(payload['hora']), 'motivo': cita.motivo, 'observaciones': cita.observaciones, 'estado': cita.estado}, None, 201

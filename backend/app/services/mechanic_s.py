@@ -126,6 +126,10 @@ def register_trabajo(user, payload):
     order.subtotal = previous_subtotal + line_total
     order.total = max(previous_total + line_total, Decimal('0.00'))
     order.estado_aprobacion = 'pendiente'
+    if order.descuento_convenio is not None:
+        from ..utils.orders import total_convenio
+        maximum = total_convenio(order.subtotal, order.descuento_convenio)
+        order.total = min(maximum, previous_total + total_convenio(line_total, order.descuento_convenio))
     receipt.subtotal = order.subtotal
     receipt.total = order.total
     receipt.descuento = max(order.subtotal - order.total, Decimal('0.00'))

@@ -16,7 +16,7 @@ def verifier(monkeypatch):
     tree = ast.parse(source.read_text(encoding='utf-8'))
     function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'google_identity')
     verify = Mock()
-    scope = {'os': os, 'google_id_token': SimpleNamespace(verify_oauth2_token=verify), 'google_requests': SimpleNamespace(Request=Mock())}
+    scope = {'os': os, 'google_id_token': SimpleNamespace(verify_oauth2_token=verify), '_verification_request': Mock(), 'google_auth_error': SimpleNamespace(GoogleAuthError=ValueError)}
     exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), 'exec'), scope)
     return scope['google_identity'], verify
 
@@ -57,3 +57,12 @@ def test_accepts_verified_identity(verifier):
     result, error, status = identity('valid-token')
     assert result['sub'] == 'test-subject'
     assert error is None and status is None
+
+
+def test_multiple_client_ids_use_one_verification(verifier, monkeypatch):
+    identity, verify = verifier
+    monkeypatch.setenv('GOOGLE_CLIENT_ID', 'mobile-client')
+    verify.return_value = {**claims(), 'aud': 'mobile-client'}
+    assert identity('valid-token')[0]['sub'] == 'test-subject'
+    verify.assert_called_once()
+    assert verify.call_args.kwargs['audience'] == ['allowed.apps.googleusercontent.com', 'mobile-client']

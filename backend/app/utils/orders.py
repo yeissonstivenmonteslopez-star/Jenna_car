@@ -2,6 +2,10 @@ from datetime import datetime
 from decimal import Decimal
 
 
+def total_convenio(subtotal, porcentaje):
+    return (subtotal * (100 - porcentaje) / 100).quantize(Decimal('0.01'))
+
+
 def order_to_dict(order):
     if order and not order.recibo and order.id:
         try:
@@ -107,10 +111,10 @@ def apply_order_services(order, service_items):
         ))
         subtotal += line_total
     order.subtotal = subtotal
-    order.total = subtotal
+    order.total = total_convenio(subtotal, order.descuento_convenio or 0)
     receipt.subtotal = subtotal
-    receipt.total = subtotal
-    receipt.descuento = Decimal('0.00')
+    receipt.total = order.total
+    receipt.descuento = subtotal - order.total
 
 
 def set_order_amount(order, amount):
@@ -132,7 +136,7 @@ def set_order_amount(order, amount):
             subtotal=total,
         ))
     order.subtotal = total
-    order.total = total
+    order.total = total_convenio(total, order.descuento_convenio or 0)
     receipt.subtotal = total
-    receipt.total = total
-    receipt.descuento = Decimal('0.00')
+    receipt.total = order.total
+    receipt.descuento = total - order.total

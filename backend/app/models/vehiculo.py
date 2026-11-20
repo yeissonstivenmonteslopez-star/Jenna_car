@@ -6,9 +6,14 @@ from datetime import datetime, timezone
 
 class Vehiculo(db.Model):
     __tablename__ = 'vehiculos'
+    __table_args__ = (db.UniqueConstraint('empresa_id', 'numero_interno', name='uq_movil_empresa'),)
     id = db.Column(INTEGER(unsigned=True), primary_key=True, autoincrement=True)
     usuario_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('usuarios.id', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False)
     cliente_id = synonym('usuario_id')
+    empresa_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('empresas_convenio.id'))
+    empresa = db.relationship('EmpresaConvenio')
+    tipo_vehiculo = db.Column(db.String(30))
+    numero_interno = db.Column(db.String(30))
     placa = db.Column(db.String(20), nullable=False, unique=True)
     marca = db.Column(db.String(100), nullable=False)
     modelo = db.Column(db.String(100), nullable=False)

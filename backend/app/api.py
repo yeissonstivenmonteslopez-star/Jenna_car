@@ -4,6 +4,7 @@ Las definiciones de endpoints viven en ``routes``. Este módulo solo decide
 qué blueprints se registran y qué rutas administrativas se conectan.
 """
 
+from .routes.convenios import convenios_bp
 from .routes.auth import auth_bp
 from .routes.citas import admin_cita_detalle, admin_citas, actualizar_estado_cita, citas_bp, crear_cita_admin
 from .routes.clientes import clientes_bp
@@ -20,6 +21,7 @@ from .routes.vehiculos import actualizar_vehiculo_admin, admin_vehiculo_detalle,
 
 
 BLUEPRINT_REGISTRATIONS = [
+    (convenios_bp, '/api/convenios'),
     (servicios_bp, '/api/services'),
     (vehiculos_bp, '/api/vehiculos'),
     (citas_bp, '/api/citas'),

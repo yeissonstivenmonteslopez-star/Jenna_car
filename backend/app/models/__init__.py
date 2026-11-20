@@ -6,6 +6,7 @@ from .pago import Pago
 from .password_reset_token import PasswordResetToken
 from .recibo import Recibo
 from .servicio import Servicio
+from .empresa import EmpresaConvenio
 from .usuario import Usuario
 from .vehiculo import Vehiculo
 from .diagnostico import Diagnostico

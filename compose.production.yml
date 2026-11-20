@@ -27,6 +27,7 @@ services:
     env_file: .env.production
     environment:
       DB_HOST: db
+      PORTAL_FLOTAS_ACTIVO: ${PORTAL_FLOTAS_ACTIVO:-0}
       DB_PORT: 3306
       DATABASE_URL: ""
       MYSQL_URL: ""
@@ -45,6 +46,7 @@ services:
     env_file: .env.production
     environment:
       DB_HOST: db
+      PORTAL_FLOTAS_ACTIVO: ${PORTAL_FLOTAS_ACTIVO:-0}
       DB_PORT: 3306
       DATABASE_URL: ""
       MYSQL_URL: ""

@@ -3,8 +3,14 @@ from datetime import datetime, timedelta, timezone
 import os
 import re
 import secrets
+from threading import local
+import requests
+from cachecontrol import CacheControl
+from cachecontrol.cache import DictCache
+from sqlalchemy.exc import IntegrityError
 import jwt
 from flask import current_app
+from google.auth import exceptions as google_auth_error
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from ..auth.jwt import create_access_token
@@ -15,6 +21,17 @@ from ..repository import usuarios_r as user_repository
 from ..config import is_debug
 
 
+_certificate_cache = DictCache()
+_google_transport = local()
+
+
+def _verification_request():
+    if not hasattr(_google_transport, 'request'):
+        session = CacheControl(requests.Session(), cache=_certificate_cache)
+        _google_transport.request = google_requests.Request(session=session)
+    return _google_transport.request
+
+
 def google_identity(token):
     raw_ids = f"{os.getenv('GOOGLE_CLIENT_IDS', '')},{os.getenv('GOOGLE_CLIENT_ID', '')}"
     client_ids = [item.strip() for item in raw_ids.split(',') if item.strip()]
@@ -22,26 +39,15 @@ def google_identity(token):
         return None, 'El acceso con Google no está configurado.', 503
     if not isinstance(token, str) or not token.strip():
         return None, 'Token de Google inválido.', 401
-    identity = None
-    for client_id in client_ids:
-        try:
-            candidate = google_id_token.verify_oauth2_token(
-                token,
-                google_requests.Request(),
-                audience=client_id,
-                clock_skew_in_seconds=60,
-            )
-            if candidate and (candidate.get('aud') == client_id or candidate.get('azp') == client_id):
-                identity = candidate
-                break
-        except Exception as exc:
-            # Never expose token/provider details and never decode unverified JWTs.
-            try:
-                current_app.logger.warning('Fallo verificando token de Google con client_id %s: %s', client_id, exc)
-            except Exception:
-                pass
-            continue
-    if not identity or not identity.get('sub'):
+    try:
+        identity = google_id_token.verify_oauth2_token(
+            token, _verification_request(),
+            audience=client_ids[0] if len(client_ids) == 1 else client_ids,
+            clock_skew_in_seconds=60,
+        )
+    except (ValueError, google_auth_error.GoogleAuthError):
+        return None, 'No fue posible verificar la cuenta de Google.', 401
+    if not identity or identity.get('aud') not in client_ids or not identity.get('sub'):
         return None, 'No fue posible verificar la cuenta de Google.', 401
     if identity.get('iss') not in {'accounts.google.com', 'https://accounts.google.com'}:
         return None, 'Emisor de Google inválido.', 401
@@ -62,30 +68,39 @@ def google_login(token):
     usuario = auth_repository.find_by_google_id(google_id) if google_id else None
     if not usuario:
         usuario = auth_repository.find_by_email(identity['email'])
+        if usuario:
+            usuario = auth_repository.lock_user(usuario.id)
     if not usuario:
         full_name = (identity.get('name') or '').strip().split()
         usuario = Usuario(nombre=(identity.get('given_name') or (full_name[0] if full_name else 'Usuario')).strip()[:100], apellido=(identity.get('family_name') or ' '.join(full_name[1:]) or 'Google').strip()[:100], email=identity['email'], password=None, google_id=google_id, rol='usuario', estado='activo')
-        auth_repository.add_user(usuario)
-        auth_repository.commit()
-    else:
-        if usuario.estado != 'activo':
-            return None, 'Usuario inactivo.', 403
-        if usuario.google_id and usuario.google_id != google_id:
-            return None, 'La cuenta de Google no coincide con la cuenta vinculada.', 403
-        changed = False
-        if google_id and usuario.google_id != google_id:
-            usuario.google_id = google_id
-            changed = True
-        if identity.get('picture') and usuario.foto_perfil != identity['picture']:
-            usuario.foto_perfil = identity['picture']
-            changed = True
-        for source, target in (('given_name', 'nombre'), ('family_name', 'apellido')):
-            value = (identity.get(source) or '').strip()
-            if value and getattr(usuario, target) != value:
-                setattr(usuario, target, value[:100])
-                changed = True
-        if changed:
+        usuario.foto_perfil = identity.get('picture')
+        try:
+            auth_repository.add_user(usuario)
             auth_repository.commit()
+        except IntegrityError:
+            auth_repository.rollback()
+            usuario = auth_repository.find_by_google_id(google_id) or auth_repository.find_by_email(identity['email'])
+            if not usuario:
+                raise
+            usuario = auth_repository.lock_user(usuario.id)
+    if usuario.estado != 'activo':
+        return None, 'Usuario inactivo.', 403
+    if usuario.google_id and usuario.google_id != google_id:
+        return None, 'La cuenta de Google no coincide con la cuenta vinculada.', 403
+    changed = False
+    if google_id and usuario.google_id != google_id:
+        usuario.google_id = google_id
+        changed = True
+    if identity.get('picture') and usuario.foto_perfil != identity['picture']:
+        usuario.foto_perfil = identity['picture']
+        changed = True
+    for source, target in (('given_name', 'nombre'), ('family_name', 'apellido')):
+        value = (identity.get(source) or '').strip()
+        if value and getattr(usuario, target) != value:
+            setattr(usuario, target, value[:100])
+            changed = True
+    if changed:
+        auth_repository.commit()
     return {'token': create_access_token(usuario), 'user': usuario.to_public_dict()}, None, None
 
 
@@ -99,8 +114,6 @@ def register(payload):
         return None, 'Nombre, apellido, teléfono, email y contraseña son obligatorios', 400
     if not re.fullmatch(r'\d{10}', telefono):
         return None, 'El teléfono debe tener exactamente 10 números.', 400
-    if auth_repository.find_by_email(email):
-        return None, 'El email ya está registrado', 409
     if len(password) < 8:
         return None, 'La contraseña debe tener al menos 8 caracteres', 400
     usuario = Usuario(
@@ -115,10 +128,10 @@ def register(payload):
         rol='usuario',
         estado='activo',
     )
-    auth_repository.add_user(usuario)
     try:
+        auth_repository.add_user(usuario)
         auth_repository.commit()
-    except Exception:
+    except IntegrityError:
         auth_repository.rollback()
         return None, 'El email o documento ya está registrado.', 409
     return {'token': create_access_token(usuario), 'user': usuario.to_public_dict()}, None, 201
