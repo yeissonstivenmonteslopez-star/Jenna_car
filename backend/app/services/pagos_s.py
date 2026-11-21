@@ -156,6 +156,15 @@ def mp_api(path, method='GET', body=None):
     try:
         with urllib.request.urlopen(req, timeout=20) as response:
             return json.loads(response.read().decode('utf-8')), None, response.status
+    except urllib.error.HTTPError as error:
+        current_app.logger.error('Mercado Pago rechazó %s %s con HTTP %s', method, path, error.code)
+        if error.code in {401, 403}:
+            return None, 'Mercado Pago rechazó las credenciales o los permisos. Administración debe revisar el Access Token de producción en Render.', 502
+        if error.code == 429:
+            return None, 'Mercado Pago recibió demasiadas solicitudes. Inténtalo de nuevo en unos minutos.', 503
+        if error.code in {400, 422}:
+            return None, 'Mercado Pago rechazó los datos del pago. Administración debe revisar la configuración del checkout.', 502
+        return None, 'Mercado Pago no está disponible temporalmente. Inténtalo de nuevo más tarde.', 502
     except (urllib.error.URLError, OSError, ValueError):
         current_app.logger.error('No se pudo completar la consulta a Mercado Pago')
         return None, 'No se pudo conectar con Mercado Pago', 502
