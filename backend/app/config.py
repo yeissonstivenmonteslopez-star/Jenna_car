@@ -1,5 +1,6 @@
 import os
 import secrets
+import ssl
 
 from dotenv import load_dotenv
 
@@ -47,7 +48,14 @@ def apply_config(app) -> None:
         'profile-photos',
     )
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url()
-    if os.getenv('DB_SSL_CA'):
+    certificate = os.getenv('DB_SSL_CA_PEM', '').strip()
+    if certificate:
+        tls_context = ssl.create_default_context(cadata=certificate)
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'connect_args': {'ssl': tls_context, 'connect_timeout': 10},
+        }
+    elif os.getenv('DB_SSL_CA'):
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_pre_ping': True,
             'connect_args': {'ssl_ca': os.environ['DB_SSL_CA'], 'ssl_verify_identity': True,
