@@ -25,6 +25,8 @@ from .payment_queries import (
 
 
 def simulation_enabled():
+    if os.getenv('RENDER') == 'true':
+        return False
     return os.getenv('PAYMENTS_SIMULATED', 'false').lower() in {'1', 'true', 'yes'}
 
 
@@ -69,6 +71,8 @@ def create_simulated(user, receipt_id):
 
 def simulate_checkout(user, payload):
     """Academic checkout: never calls a provider and never accepts card secrets."""
+    if not simulation_enabled():
+        return None, 'Simulación deshabilitada', 403
     import re
     from .schema_compat import optional_read
     if not isinstance(payload, dict) or set(payload) - {'recibo_id', 'metodo', 'franquicia', 'resultado', 'idempotencia'}:
@@ -200,6 +204,7 @@ def create(user, payload):
                    'quantity': 1, 'currency_id': 'COP', 'unit_price': float(receipt.total)}],
         'payer': {'email': user.email},
         'external_reference': reference,
+        'payment_methods': {'installments': 1},
         'back_urls': {'success': frontend_url, 'failure': frontend_url, 'pending': frontend_url},
         'auto_return': 'approved',
         'notification_url': webhook_url,
@@ -240,9 +245,16 @@ def process_webhook(data_id):
     payment = Pago.query.filter_by(mercado_pago_reference=reference).with_for_update().first()
     if not payment:
         return None, 'Pago no encontrado', 404
+    receipt = db.session.get(Recibo, payment.recibo_id, with_for_update=True)
     try:
         amount = Decimal(str(result.get('transaction_amount', '')))
-        valid_amount = amount.is_finite() and amount == Decimal(str(payment.monto))
+        valid_amount = amount.is_finite() and amount == payment.monto and receipt is not None
+        if result.get('status') == 'approved':
+            details = result.get('transaction_details') or {}
+            paid = Decimal(str(details.get('total_paid_amount', '')))
+            valid_amount = valid_amount and paid == amount == receipt.total
+            if os.getenv('RENDER') == 'true' and result.get('live_mode') is not True:
+                valid_amount = False
     except (InvalidOperation, ValueError):
         valid_amount = False
     if str(result.get('id')) != str(data_id) or not valid_amount or result.get('currency_id') != 'COP':
@@ -258,7 +270,6 @@ def process_webhook(data_id):
         return {'received': True}, None, 200
     payment.mercado_pago_payment_id = str(data_id)
     payment.mercado_pago_status = provider_status
-    receipt = db.session.get(Recibo, payment.recibo_id)
     if provider_status == 'approved':
         payment.estado = 'completado'
         if result.get('date_approved'):

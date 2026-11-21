@@ -99,7 +99,9 @@ def test_booking_mutex_and_current_reads(calendar):
 
 @pytest.fixture
 def checkout(monkeypatch):
-    receipt = NS(id=2, orden_id=3, cliente_id=7, total=Decimal('15000.00'), estado='pendiente', enviado_cliente=True)
+    monkeypatch.setenv('PAYMENTS_SIMULATED', 'true')
+    receipt = NS(id=2, orden_id=3, cliente_id=7, total=Decimal('15000.00'), estado='pendiente',
+                 enviado_cliente=True, orden_trabajo=NS(descuento_convenio=None))
     q = query(first=receipt)
     def owned_filter(*conditions):
         q.first.return_value = receipt if conditions[1].right.value == receipt.cliente_id else None

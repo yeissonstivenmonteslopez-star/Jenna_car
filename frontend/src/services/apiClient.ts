@@ -1,16 +1,14 @@
 export function getApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_URL?.trim()
+  if (configured) {
+    return configured.replace(/\/$/, '')
+  }
   // En producción o Docker (servido por Nginx en puerto 80/443 o cualquier puerto distinto a Vite dev 5173),
   // se utiliza ruta relativa para que las peticiones pasen por el proxy inverso de Nginx (/api/ -> backend:5000).
   if (typeof window !== 'undefined' && window.location.hostname) {
     if (window.location.port !== '5173') {
       return ''
     }
-  }
-
-  const configured = import.meta.env.VITE_API_URL?.trim()
-
-  if (configured) {
-    return configured.replace(/\/$/, '')
   }
 
   return 'http://localhost:5000'

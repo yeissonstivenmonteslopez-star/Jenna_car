@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 import secrets
+import os
 from urllib.parse import parse_qs, urlsplit
 from io import BytesIO
 from PIL import Image
@@ -14,7 +15,7 @@ from ..utils.email import enviar_correo_async
 from ..schemas.serializers import trabajo_to_dict
 from .schema_compat import column_exists
 
-UPLOAD_DIR = Path(__file__).resolve().parents[1] / 'uploads' / 'reparaciones'
+UPLOAD_DIR = Path(os.getenv('UPLOAD_ROOT') or Path(__file__).resolve().parents[1] / 'uploads') / 'reparaciones'
 STATES = {'pendiente', 'en_proceso', 'completado', 'cancelado'}
 
 

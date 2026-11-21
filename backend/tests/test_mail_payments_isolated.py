@@ -68,7 +68,7 @@ class IsolatedTests(unittest.TestCase):
     def receipt(self):
         return SimpleNamespace(id=1, orden_id=11, estado='pendiente', total=Decimal('15000'),
                                enviado_cliente=True,
-                               orden_trabajo=SimpleNamespace(vehiculo=SimpleNamespace(usuario_id=7)))
+                                 orden_trabajo=SimpleNamespace(descuento_convenio=None, vehiculo=SimpleNamespace(usuario_id=7)))
 
     def test_simulation_registers_payment_without_provider_or_new_schema(self):
         os.environ['PAYMENTS_SIMULATED'] = 'true'
@@ -177,6 +177,10 @@ class IsolatedTests(unittest.TestCase):
         self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': 1})[2], 503)
         extensions.db.session.get.assert_not_called()
 
+    def test_render_disables_direct_simulator_even_if_flag_is_enabled(self):
+        with patch.dict(os.environ, {'RENDER': 'true', 'PAYMENTS_SIMULATED': 'true'}):
+            self.assertEqual(service.simulate_checkout(SimpleNamespace(id=7), {})[2], 403)
+
     def test_invalid_receipt_id(self):
         for value in ['invalid', 1.5, True, -1, None]:
             self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': value})[2], 400)
@@ -220,7 +224,8 @@ class IsolatedTests(unittest.TestCase):
         models.Pago.query.filter_by.return_value.with_for_update.return_value.first.return_value = payment
         extensions.db.session.get.return_value = receipt
         response = {'id': 123, 'external_reference': 'MP-1-test', 'status': status,
-                    'transaction_amount': amount, 'currency_id': 'COP'}
+                    'transaction_amount': amount, 'currency_id': 'COP',
+                    'transaction_details': {'total_paid_amount': amount}}
         return payment, receipt, response
 
     def test_verified_approval_settles_receipt(self):
@@ -244,6 +249,16 @@ class IsolatedTests(unittest.TestCase):
             self.assertEqual(service.process_webhook('123')[2], 200)
         self.assertEqual(payment.estado, 'anulado')
         self.assertEqual(receipt.estado, 'pendiente')
+
+    def test_customer_charge_must_match_current_invoice(self):
+        for charged, invoice in [(15001, 15000), (14999, 15000), (15000, 14000)]:
+            _, receipt, response = self.provider_check()
+            receipt.total = Decimal(invoice)
+            response['transaction_details']['total_paid_amount'] = charged
+            with patch.object(service, 'mp_api', return_value=(response, None, 200)):
+                self.assertEqual(service.process_webhook('123')[2], 400)
+            self.assertEqual(receipt.estado, 'pendiente')
+        extensions.db.session.commit.assert_not_called()
 
     def test_delayed_pending_event_does_not_undo_approval(self):
         payment, receipt, response = self.provider_check(status='pending')

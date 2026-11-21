@@ -43,9 +43,14 @@ def apply_config(app) -> None:
     app.config['CORS_ORIGINS'] = cors_origins()
     app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
     app.config['UPLOADS_PATH'] = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'uploads',
+        os.getenv('UPLOAD_ROOT') or os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads'),
         'profile-photos',
     )
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url()
+    if os.getenv('DB_SSL_CA'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'connect_args': {'ssl_ca': os.environ['DB_SSL_CA'], 'ssl_verify_identity': True,
+                             'ssl_verify_cert': True, 'connect_timeout': 10},
+        }
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

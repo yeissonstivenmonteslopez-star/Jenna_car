@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: jenna-car-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /api/health/ready
+    disk:
+      name: uploads
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: UPLOAD_ROOT
+        value: /var/data
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_SSL_CA
+        value: /etc/secrets/ca.pem
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: MERCADOPAGO_ACCESS_TOKEN
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_URL
+        sync: false
+      - key: MERCADOPAGO_RETURN_URL
+        sync: false
+      - key: PAYMENTS_SIMULATED
+        value: "false"
+      - key: PORTAL_FLOTAS_ACTIVO
+        value: "0"

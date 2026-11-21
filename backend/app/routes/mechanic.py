@@ -131,7 +131,8 @@ def repair_image(image_id):
         return jsonify({'error': 'Imagen no encontrada'}), 404
     if request.current_user.rol == 'usuario' and image.trabajo.diagnostico.cita.vehiculo.usuario_id != request.current_user.id:
         return jsonify({'error': 'Imagen no encontrada'}), 404
-    directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads', 'reparaciones'))
+    from ..services.repair_updates import UPLOAD_DIR
+    directory = UPLOAD_DIR
     response = send_from_directory(directory, os.path.basename(image.ruta_imagen))
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Cache-Control'] = 'private, no-store'
