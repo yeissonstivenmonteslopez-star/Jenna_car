@@ -1,5 +1,5 @@
 import KeycapAlert from '@/components/ui/KeycapAlert'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Clock3, X } from 'lucide-react'
 import { authHeaders, getApiUrl } from '@/services/apiClient'
 import { formatCop } from '@/lib/utils'
@@ -47,6 +47,8 @@ export default function MisReparacionesPage() {
   const [busy, setBusy] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const photoDialog = useRef<HTMLDialogElement>(null)
+  const [selectedPhoto, setSelectedPhoto] = useState<RepairImage | null>(null)
 
   const loadOrders = useCallback(async () => {
     if (!token) return
@@ -223,7 +225,7 @@ export default function MisReparacionesPage() {
                         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                           {order.trabajos.flatMap((work) => work.imagenes).sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).map((image) => (
                             <figure key={image.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
-                              {photoUrls[image.id] ? <img src={photoUrls[image.id]} alt={image.descripcion || 'Avance del vehículo'} className="aspect-square w-full object-cover" /> : <div className="aspect-square animate-pulse bg-white/5" />}
+                              {photoUrls[image.id] ? <button type="button" className="block w-full cursor-zoom-in focus-visible:outline-2 focus-visible:outline-red-400" aria-label={`Ampliar foto: ${image.descripcion || 'Avance del vehículo'}`} onClick={() => { setSelectedPhoto(image); photoDialog.current?.showModal() }}><img src={photoUrls[image.id]} alt={image.descripcion || 'Avance del vehículo'} className="aspect-square w-full object-cover" /></button> : <div className="aspect-square animate-pulse bg-white/5" />}
                               <figcaption className="p-2 text-[11px] text-white/60">{image.descripcion || 'Avance de reparación'}{image.created_at && <time dateTime={image.created_at} className="mt-1 block text-white/40">{new Date(image.created_at).toLocaleString('es-CO')}</time>}</figcaption>
                             </figure>
                           ))}
@@ -237,6 +239,11 @@ export default function MisReparacionesPage() {
           </div>
         )}
       </div>
+      <dialog ref={photoDialog} aria-label="Foto de avance ampliada" className="fixed inset-0 m-auto max-h-[95dvh] w-[95vw] max-w-5xl overflow-auto rounded-xl border border-white/20 bg-neutral-950 p-4 text-white backdrop:bg-black/85" onClick={(event) => { if (event.target === event.currentTarget) photoDialog.current?.close() }}>
+        <div className="mb-3 flex justify-end"><button type="button" autoFocus onClick={() => photoDialog.current?.close()} className="rounded border border-white/30 px-4 py-2">Cerrar <span aria-hidden="true">×</span></button></div>
+        {selectedPhoto && photoUrls[selectedPhoto.id] && <img src={photoUrls[selectedPhoto.id]} alt={selectedPhoto.descripcion || 'Avance del vehículo'} className="mx-auto max-h-[75dvh] w-auto max-w-full object-contain" />}
+        {selectedPhoto?.descripcion && <p className="mt-3 text-sm">{selectedPhoto.descripcion}</p>}
+      </dialog>
     </main>
   )
 }

@@ -59,7 +59,7 @@ def register_trabajo(user, payload):
         return None, 'La cita del diagnóstico no existe', 404
     order_id = payload.get('orden_id')
     if order_id:
-        order = db.session.get(OrdenTrabajo, order_id)
+        order = db.session.get(OrdenTrabajo, order_id, with_for_update=True)
         if not order or order.vehiculo_id != cita.vehiculo_id:
             return None, 'La orden no corresponde al vehículo de la cita', 400
         if order.estado in {'cancelada', 'entregada'}:
@@ -68,7 +68,7 @@ def register_trabajo(user, payload):
         active_orders = OrdenTrabajo.query.filter(
             OrdenTrabajo.vehiculo_id == cita.vehiculo_id,
             ~OrdenTrabajo.estado.in_({'cancelada', 'entregada'}),
-        ).order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc()).all()
+        ).order_by(OrdenTrabajo.created_at.desc(), OrdenTrabajo.id.desc()).with_for_update().all()
         if not active_orders:
             return None, 'No hay una orden activa para este vehículo. Solicita crearla desde administración.', 409
         if len(active_orders) > 1:
@@ -100,6 +100,13 @@ def register_trabajo(user, payload):
     if receipt.estado != 'pendiente':
         return None, 'El recibo de esta orden ya no está pendiente de cobro', 409
     line_total = cantidad * precio
+    # A catalog item already quoted by administration becomes the mechanic's
+    # detailed work item, preserving a single charge for the same service.
+    quoted_item = next((item for item in receipt.detalles
+                        if item.descripcion == servicio.nombre
+                        and item.cantidad == cantidad
+                        and Decimal(str(item.precio_unitario)) == precio), None)
+    covered_total = Decimal(str(quoted_item.subtotal)) if quoted_item else Decimal('0')
     previous_subtotal = Decimal(str(order.subtotal or 0))
     previous_total = Decimal(str(order.total or 0))
     trabajo = Trabajo(
@@ -117,19 +124,22 @@ def register_trabajo(user, payload):
     )
     db.session.add(trabajo)
     db.session.flush()
+    if quoted_item:
+        receipt.detalles.remove(quoted_item)
     receipt.detalles.append(ReciboDetalle(
         descripcion=f'{servicio.nombre}: {trabajo.descripcion}'[:255],
         cantidad=cantidad,
         precio_unitario=precio,
         subtotal=line_total,
     ))
-    order.subtotal = previous_subtotal + line_total
-    order.total = max(previous_total + line_total, Decimal('0.00'))
+    additional_total = line_total - covered_total
+    order.subtotal = previous_subtotal + additional_total
+    order.total = max(previous_total + additional_total, Decimal('0.00'))
     order.estado_aprobacion = 'pendiente'
     if order.descuento_convenio is not None:
         from ..utils.orders import total_convenio
         maximum = total_convenio(order.subtotal, order.descuento_convenio)
-        order.total = min(maximum, previous_total + total_convenio(line_total, order.descuento_convenio))
+        order.total = min(maximum, previous_total + total_convenio(additional_total, order.descuento_convenio))
     receipt.subtotal = order.subtotal
     receipt.total = order.total
     receipt.descuento = max(order.subtotal - order.total, Decimal('0.00'))
