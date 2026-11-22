@@ -94,7 +94,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
         <div className="absolute right-8 top-7 z-40">
           <a
             href="/sign-in"
-            className={pathname === '/' ? 'btn-crush inline-flex h-[50px] min-w-[180px] items-center justify-center border border-zinc-800 bg-black px-6 text-[17px] font-bold tracking-wide text-white transition-transform active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-600' : 'inline-flex items-center justify-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/85 transition-colors duration-200 hover:text-red-400'}
+            className={pathname === '/' ? 'btn-crush home-sign-in inline-flex h-[50px] min-w-[180px] items-center justify-center border px-6 text-[17px] font-bold tracking-wide text-white active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-600' : 'inline-flex items-center justify-center text-[10px] font-medium uppercase tracking-[0.2em] text-white/85 transition-colors duration-200 hover:text-red-400'}
           >
             INICIAR SESIÓN
           </a>
