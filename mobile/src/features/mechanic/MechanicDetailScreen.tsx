@@ -152,7 +152,7 @@ export function MechanicDetailScreen({ route }: NativeStackScreenProps<AppRoutes
 
           {resource.value.imagenes.map(item => (
             <Card key={item.id}>
-              <Image accessibilityLabel={item.descripcion || 'Evidencia de reparación'} source={{ uri: `${API_URL}/api/mechanic/images/${item.id}`, headers: { Authorization: `Bearer ${token || ''}` } }} style={{ width: '100%', height: 200 }} />
+              <Image accessibilityLabel={item.descripcion || 'Evidencia de reparación'} source={{ uri: `${API_URL}/api/mechanic/images/${item.id}`, headers: { Authorization: `Bearer ${token || ''}` } }} resizeMode="contain" style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 12 }} />
               <Copy>{item.descripcion}</Copy>
             </Card>
           ))}
