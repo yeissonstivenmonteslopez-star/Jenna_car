@@ -1,6 +1,6 @@
 import { loadToken } from '../services/session';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? '';
+export const API_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://jenna-car-1-x2xn.onrender.com').replace(/\/$/, '');
 export class ApiError extends Error {
   constructor(message: string, public status = 0) { super(message); this.name = 'ApiError'; }
 }
@@ -12,7 +12,7 @@ export async function request<T>(path: string, method = 'GET', body?: unknown, a
   const token = authenticated ? await loadToken() : null;
   for (let attempt = 0; ; attempt++) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 65000);
     try {
       const multipart = body instanceof FormData;
       const response = await fetch(`${API_URL}${path}`, {

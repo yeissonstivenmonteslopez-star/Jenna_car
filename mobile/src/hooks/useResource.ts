@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 export default function useResource<T>(loader: () => Promise<T>) {
   const ref = useRef(loader); ref.current = loader;
   const sequence = useRef(0);
@@ -10,5 +11,11 @@ export default function useResource<T>(loader: () => Promise<T>) {
     finally { if (ticket === sequence.current) setLoading(false); }
   }, []);
   useEffect(() => { void reload(); return () => { sequence.current++; }; }, [reload]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') void reload();
+    });
+    return () => subscription.remove();
+  }, [reload]);
   return { value, loading, error, reload };
 }
