@@ -19,11 +19,11 @@ const sections = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, onboarding: 'dashboard' },
   { to: '/admin/citas', label: 'Citas', icon: CalendarDays, onboarding: 'admin-appointments' },
   { to: '/admin/orders', label: 'Órdenes', icon: ClipboardList, onboarding: 'admin-orders' },
-  { to: '/admin/servicios', label: 'Servicios', icon: Wrench },
-  { to: '/admin/vehiculos', label: 'Vehículos', icon: Car },
+  { to: '/admin/servicios', label: 'Servicios', icon: Wrench, onboarding: 'admin-services' },
+  { to: '/admin/vehiculos', label: 'Vehículos', icon: Car, onboarding: 'admin-vehicles' },
   { to: '/admin/users', label: 'Usuarios', icon: Users, onboarding: 'admin-users' },
-  { to: '/admin/notificaciones', label: 'Notificaciones', icon: Bell },
-  { to: '/admin/search', label: 'Búsqueda', icon: Search },
+  { to: '/admin/notificaciones', label: 'Notificaciones', icon: Bell, onboarding: 'admin-notifications' },
+  { to: '/admin/search', label: 'Búsqueda', icon: Search, onboarding: 'admin-search' },
 ]
 
 function handleSignOut() {

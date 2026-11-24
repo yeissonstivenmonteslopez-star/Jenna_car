@@ -8,6 +8,7 @@ type Step = {
   path: string
   title: string
   detail: string
+  clickAdvances?: boolean
 }
 
 const customerSteps: Step[] = [
@@ -19,16 +20,23 @@ const customerSteps: Step[] = [
 ]
 
 const mechanicSteps: Step[] = [
-  { target: 'workshop', path: '/mechanic', title: 'Tu panel de taller', detail: 'Aquí encuentras las citas asignadas y registras el diagnóstico de cada vehículo.' },
+  { target: 'workshop', path: '/mechanic', title: 'Tu panel de taller', detail: 'Este es tu espacio de trabajo. Desde aquí atiendes únicamente las citas que administración te asignó.' },
+  { target: 'mechanic-agenda', path: '/mechanic', title: 'Selecciona una cita asignada', detail: 'Busca por cliente, placa o servicio. Abre una cita para consultar el vehículo, el motivo de ingreso y la información del cliente.', clickAdvances: false },
+  { target: 'mechanic-detail', path: '/mechanic', title: 'Registra el diagnóstico', detail: 'Después de revisar el vehículo, escribe el diagnóstico, las observaciones y la solución recomendada. El diagnóstico debe guardarse antes de agregar trabajos.', clickAdvances: false },
+  { target: 'mechanic-detail', path: '/mechanic', title: 'Actualiza el trabajo realizado', detail: 'Con una orden activa puedes seleccionar el servicio, describir el trabajo, registrar cantidad y valor, y publicar avances con fotografías para el cliente.', clickAdvances: false },
   { target: 'profile', path: '/profile', title: 'Actualiza tu perfil', detail: 'Mantén tus datos personales al día para el equipo de Jenna Car.' },
-  { target: 'notifications', path: '/notificaciones', title: 'Revisa tus notificaciones', detail: 'Consulta los avisos importantes del taller en este espacio.' },
+  { target: 'notifications', path: '/notificaciones', title: 'Revisa tus notificaciones', detail: 'Consulta los avisos del taller y marca como leídos los que ya atendiste.' },
 ]
 
 const adminSteps: Step[] = [
-  { target: 'dashboard', path: '/admin/dashboard', title: 'Consulta el resumen del taller', detail: 'Este panel reúne las cifras y la actividad reciente para iniciar tu jornada.' },
-  { target: 'admin-appointments', path: '/admin/citas', title: 'Gestiona las citas', detail: 'Confirma reservas, asigna mecánicos y organiza la agenda del taller.' },
-  { target: 'admin-orders', path: '/admin/orders', title: 'Controla las órdenes', detail: 'Aquí puedes crear órdenes, actualizar trabajos y enviar recibos.' },
-  { target: 'admin-users', path: '/admin/users', title: 'Administra las cuentas', detail: 'Consulta clientes, mecánicos y sus datos desde este apartado.' },
+  { target: 'dashboard', path: '/admin/dashboard', title: 'Consulta el resumen del taller', detail: 'Revisa citas del día, actividad reciente y datos principales antes de iniciar la operación.' },
+  { target: 'admin-appointments', path: '/admin/citas', title: 'Organiza la agenda', detail: 'Confirma o cancela reservas, cambia fechas cuando sea necesario y asigna el mecánico responsable.' },
+  { target: 'admin-orders', path: '/admin/orders', title: 'Controla las órdenes', detail: 'Crea la orden del vehículo, agrega servicios, revisa la aprobación del cliente y envía el recibo.' },
+  { target: 'admin-services', path: '/admin/servicios', title: 'Mantén el catálogo', detail: 'Crea y actualiza los servicios, sus precios, duración estimada y disponibilidad para las reservas.' },
+  { target: 'admin-vehicles', path: '/admin/vehiculos', title: 'Consulta los vehículos', detail: 'Revisa los vehículos registrados y verifica a qué cliente pertenece cada uno.' },
+  { target: 'admin-users', path: '/admin/users', title: 'Administra las cuentas', detail: 'Consulta clientes y mecánicos, revisa sus datos y controla el estado de acceso de cada cuenta.' },
+  { target: 'admin-search', path: '/admin/search', title: 'Encuentra información rápidamente', detail: 'Usa la búsqueda para localizar clientes, vehículos y registros sin recorrer cada módulo.' },
+  { target: 'admin-notifications', path: '/admin/notificaciones', title: 'Supervisa las notificaciones', detail: 'Consulta los avisos enviados por el sistema y comprueba comunicaciones importantes del taller.' },
 ]
 
 function stepsFor(role?: string) {
@@ -43,7 +51,8 @@ export default function CustomerOnboarding({ userId, role }: { userId?: number; 
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const steps = stepsFor(role)
-  const storageKey = `jenna_car_onboarding_v1_${role || 'usuario'}_${userId || 'current'}`
+  const guideVersion = role === 'usuario' ? 'v1' : 'v2'
+  const storageKey = `jenna_car_onboarding_${guideVersion}_${role || 'usuario'}_${userId || 'current'}`
   const started = useRef(false)
   const [step, setStep] = useState<number | null>(null)
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
@@ -66,7 +75,7 @@ export default function CustomerOnboarding({ userId, role }: { userId?: number; 
     const updateTarget = () => {
       const element = document.querySelector<HTMLElement>(`[data-onboarding="${steps[step].target}"]`)
       if (!element) return
-      if (element !== activeTarget) {
+      if (element !== activeTarget && steps[step].clickAdvances !== false) {
         activeTarget?.removeEventListener('click', advanceFromTarget)
         element.addEventListener('click', advanceFromTarget)
         activeTarget = element

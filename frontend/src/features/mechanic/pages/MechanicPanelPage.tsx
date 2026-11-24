@@ -241,7 +241,7 @@ export default function MechanicPanelPage() {
         {notice && <KeycapAlert type={'success'} message={notice} className="mb-4" />}
 
         <div className="grid gap-8 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.5fr)]">
-          <section aria-label="Agenda asignada">
+          <section aria-label="Agenda asignada" data-onboarding="mechanic-agenda">
             <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
               <h2 className="text-sm font-semibold text-white">Citas asignadas</h2>
               <span className="text-xs tabular-nums text-white/40">{appointments.length}</span>
@@ -265,7 +265,7 @@ export default function MechanicPanelPage() {
             )}
           </section>
 
-          <section aria-label="Detalle de cita" className="min-w-0">
+          <section aria-label="Detalle de cita" data-onboarding="mechanic-detail" className="min-w-0">
             {!selectedId ? (
               <div className="flex min-h-56 flex-col items-center justify-center border-y border-white/10 text-center">
                 <ClipboardList size={23} className="mb-3 text-red-400/80" />
