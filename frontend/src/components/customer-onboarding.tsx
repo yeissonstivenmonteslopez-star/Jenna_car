@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, CarFront, Check, X } from 'lucide-react'
 import './customer-onboarding.css'
@@ -24,10 +24,13 @@ export default function CustomerOnboarding({ userId }: { userId?: number }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const storageKey = `jenna_car_customer_onboarding_v1_${userId || 'current'}`
+  const started = useRef(false)
   const [step, setStep] = useState<number | null>(null)
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
 
   useEffect(() => {
+    if (started.current) return
+    started.current = true
     if (localStorage.getItem(storageKey)) return
     setStep(0)
     navigate(steps[0].path, { replace: true })
@@ -42,9 +45,19 @@ export default function CustomerOnboarding({ userId }: { userId?: number }) {
       const rect = element.getBoundingClientRect()
       setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
     }
+    const advanceFromTarget = (event: Event) => {
+      event.preventDefault()
+      next()
+    }
+    const target = document.querySelector<HTMLElement>(`[data-onboarding="${steps[step].target}"]`)
     const frame = window.requestAnimationFrame(updateTarget)
+    target?.addEventListener('click', advanceFromTarget)
     window.addEventListener('resize', updateTarget)
-    return () => { window.cancelAnimationFrame(frame); window.removeEventListener('resize', updateTarget) }
+    return () => {
+      window.cancelAnimationFrame(frame)
+      target?.removeEventListener('click', advanceFromTarget)
+      window.removeEventListener('resize', updateTarget)
+    }
   }, [pathname, step])
 
   if (step === null) return null
