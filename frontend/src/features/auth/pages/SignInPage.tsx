@@ -119,6 +119,7 @@ function SignInContent() {
                   name="email"
                   required
                   type="email"
+                  maxLength={150}
                   className="w-full rounded-lg border border-primary-foreground/15 bg-field px-4 py-4 text-base normal-case tracking-normal outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
               </label>
@@ -129,6 +130,7 @@ function SignInContent() {
                     name="password"
                     required
                     minLength={8}
+                    maxLength={128}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     className="w-full rounded-lg border border-primary-foreground/15 bg-field px-4 py-4 pr-12 text-base normal-case tracking-normal outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"

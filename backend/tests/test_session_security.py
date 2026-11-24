@@ -61,6 +61,28 @@ def test_account_and_origin_limits(application, monkeypatch):
         assert allow('client', 'ip')
 
 
+def test_failed_login_limits_and_success_clears_them(application, monkeypatch):
+    clock = Mock(return_value=200000)
+    monkeypatch.setattr(reset_limits.time, 'time', clock)
+    with application.app_context():
+        for _ in range(8):
+            assert reset_limits.allow_login_attempt('client@example.test', 'ip')
+            reset_limits.record_login_failure('client@example.test', 'ip')
+        assert not reset_limits.allow_login_attempt('client@example.test', 'other-ip')
+        reset_limits.clear_login_failures('client@example.test')
+        assert reset_limits.allow_login_attempt('client@example.test', 'ip')
+
+
+def test_inactive_account_cannot_log_in(monkeypatch):
+    user = SimpleNamespace(password='hash', estado='inactivo')
+    monkeypatch.setattr(auth_s.auth_repository, 'find_by_email', lambda _: user)
+    monkeypatch.setattr(auth_s, 'verify_password', lambda *_: True)
+    data, error, status = auth_s.login('client@example.test', 'valid-password')
+    assert data is None
+    assert error == 'Credenciales incorrectas'
+    assert status == 401
+
+
 def test_recovery_public_response_is_independent_of_recipient(application, monkeypatch):
     monkeypatch.setattr(mail, 'correo_configurado', lambda: True)
     monkeypatch.setattr(auth_s, '_reset_executor', Mock())

@@ -9,7 +9,7 @@ from datetime import datetime, timezone  # noqa: F401 - compatibilidad con tests
 import os
 import secrets  # noqa: F401 - compatibilidad con tests (backend_app.secrets)
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy import event
 from .schema_guard import prevent_schema_changes
@@ -57,6 +57,17 @@ def create_app(config=None):
     migrate.init_app(app, db)
 
     _initialize_database(app)
+
+    @app.after_request
+    def secure_response(response):
+        response.headers.setdefault('Cache-Control', 'no-store')
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'DENY')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+        if request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https':
+            response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')
+        return response
 
     @app.errorhandler(404)
     def not_found(_error):

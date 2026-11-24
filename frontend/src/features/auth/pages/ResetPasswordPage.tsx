@@ -63,10 +63,10 @@ export default function ResetPasswordPage() {
         ) : verified ? (
           <form key="password" onSubmit={submit} className="mt-8 grid gap-5">
             <label className="grid gap-2 text-xs">Nueva contraseña
-              <input autoFocus name="password" required minLength={8} type="password" autoComplete="new-password" className={inputClass} />
+              <input autoFocus name="password" required minLength={8} maxLength={128} type="password" autoComplete="new-password" className={inputClass} />
             </label>
             <label className="grid gap-2 text-xs">Confirmar contraseña
-              <input name="confirmation" required minLength={8} type="password" autoComplete="new-password" className={inputClass} />
+              <input name="confirmation" required minLength={8} maxLength={128} type="password" autoComplete="new-password" className={inputClass} />
             </label>
             <button disabled={pending} className={buttonClass}>{pending ? 'ACTUALIZANDO…' : 'ACTUALIZAR CONTRASEÑA'}</button>
           </form>

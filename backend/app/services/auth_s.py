@@ -107,6 +107,11 @@ def google_login(token):
 
 
 def register(payload):
+    text_fields = ('nombre', 'name', 'apellido', 'surname', 'email', 'password', 'telefono',
+                   'phone', 'documento', 'document', 'direccion', 'address', 'ciudad')
+    if any(key in payload and payload[key] is not None and not isinstance(payload[key], str)
+           for key in text_fields):
+        return None, 'Los datos de registro no tienen un formato válido.', 400
     nombre = (payload.get('nombre') or payload.get('name') or '').strip()
     apellido = (payload.get('apellido') or payload.get('surname') or '').strip()
     email = (payload.get('email') or '').strip().lower()
@@ -114,19 +119,21 @@ def register(payload):
     telefono = str(payload.get('telefono') or payload.get('phone') or '').strip()
     if not all([nombre, apellido, email, password, telefono]):
         return None, 'Nombre, apellido, teléfono, email y contraseña son obligatorios', 400
+    if len(nombre) > 100 or len(apellido) > 100 or len(email) > 150:
+        return None, 'Uno de los datos ingresados supera el tamaño permitido.', 400
     if not re.fullmatch(r'\d{10}', telefono):
         return None, 'El teléfono debe tener exactamente 10 números.', 400
-    if len(password) < 8:
-        return None, 'La contraseña debe tener al menos 8 caracteres', 400
+    if not isinstance(password, str) or not 8 <= len(password) <= 128:
+        return None, 'La contraseña debe tener entre 8 y 128 caracteres', 400
     usuario = Usuario(
         nombre=nombre,
         apellido=apellido,
         email=email,
         password=hash_password(password),
         telefono=telefono,
-        documento=(payload.get('documento') or payload.get('document') or '').strip() or None,
-        direccion=payload.get('direccion') or payload.get('address') or None,
-        ciudad=payload.get('ciudad') or None,
+        documento=(payload.get('documento') or payload.get('document') or '').strip()[:30] or None,
+        direccion=(payload.get('direccion') or payload.get('address') or '').strip()[:255] or None,
+        ciudad=(payload.get('ciudad') or '').strip()[:100] or None,
         rol='usuario',
         estado='activo',
     )
@@ -142,6 +149,8 @@ def register(payload):
 def login(email, password):
     usuario = auth_repository.find_by_email(email)
     if not usuario or not verify_password(usuario.password, password):
+        return None, 'Credenciales incorrectas', 401
+    if usuario.estado != 'activo':
         return None, 'Credenciales incorrectas', 401
     return {'token': create_access_token(usuario), 'user': usuario.to_public_dict()}, None, None
 
