@@ -10,7 +10,7 @@ type Step = {
   detail: string
 }
 
-const steps: Step[] = [
+const customerSteps: Step[] = [
   { target: 'schedule', path: '/citas', title: 'Agenda tu visita', detail: 'Elige tu vehículo, el servicio y el horario que mejor te funcione.' },
   { target: 'appointments', path: '/mis-citas', title: 'Consulta tus citas', detail: 'Aquí puedes revisar la fecha, hora y estado de cada reserva.' },
   { target: 'repairs', path: '/mis-reparaciones', title: 'Sigue tu vehículo', detail: 'Revisa diagnósticos, avances y aprueba una cotización cuando sea necesario.' },
@@ -18,12 +18,32 @@ const steps: Step[] = [
   { target: 'profile', path: '/profile', title: 'Mantén tu perfil al día', detail: 'Actualiza tus datos y agrega la información que el taller necesita.' },
 ]
 
+const mechanicSteps: Step[] = [
+  { target: 'workshop', path: '/mechanic', title: 'Tu panel de taller', detail: 'Aquí encuentras las citas asignadas y registras el diagnóstico de cada vehículo.' },
+  { target: 'profile', path: '/profile', title: 'Actualiza tu perfil', detail: 'Mantén tus datos personales al día para el equipo de Jenna Car.' },
+  { target: 'notifications', path: '/notificaciones', title: 'Revisa tus notificaciones', detail: 'Consulta los avisos importantes del taller en este espacio.' },
+]
+
+const adminSteps: Step[] = [
+  { target: 'dashboard', path: '/admin/dashboard', title: 'Consulta el resumen del taller', detail: 'Este panel reúne las cifras y la actividad reciente para iniciar tu jornada.' },
+  { target: 'admin-appointments', path: '/admin/citas', title: 'Gestiona las citas', detail: 'Confirma reservas, asigna mecánicos y organiza la agenda del taller.' },
+  { target: 'admin-orders', path: '/admin/orders', title: 'Controla las órdenes', detail: 'Aquí puedes crear órdenes, actualizar trabajos y enviar recibos.' },
+  { target: 'admin-users', path: '/admin/users', title: 'Administra las cuentas', detail: 'Consulta clientes, mecánicos y sus datos desde este apartado.' },
+]
+
+function stepsFor(role?: string) {
+  if (role === 'mecanico') return mechanicSteps
+  if (role === 'admin') return adminSteps
+  return customerSteps
+}
+
 type Rect = { top: number; left: number; width: number; height: number }
 
-export default function CustomerOnboarding({ userId }: { userId?: number }) {
+export default function CustomerOnboarding({ userId, role }: { userId?: number; role?: string }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const storageKey = `jenna_car_customer_onboarding_v1_${userId || 'current'}`
+  const steps = stepsFor(role)
+  const storageKey = `jenna_car_onboarding_v1_${role || 'usuario'}_${userId || 'current'}`
   const started = useRef(false)
   const [step, setStep] = useState<number | null>(null)
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
@@ -38,24 +58,31 @@ export default function CustomerOnboarding({ userId }: { userId?: number }) {
 
   useLayoutEffect(() => {
     if (step === null || pathname !== steps[step].path) return
-    const updateTarget = () => {
-      const element = document.querySelector<HTMLElement>(`[data-onboarding="${steps[step].target}"]`)
-      if (!element) return
-      element.scrollIntoView({ block: 'nearest', inline: 'center' })
-      const rect = element.getBoundingClientRect()
-      setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
-    }
+    let activeTarget: HTMLElement | null = null
     const advanceFromTarget = (event: Event) => {
       event.preventDefault()
       next()
     }
-    const target = document.querySelector<HTMLElement>(`[data-onboarding="${steps[step].target}"]`)
+    const updateTarget = () => {
+      const element = document.querySelector<HTMLElement>(`[data-onboarding="${steps[step].target}"]`)
+      if (!element) return
+      if (element !== activeTarget) {
+        activeTarget?.removeEventListener('click', advanceFromTarget)
+        element.addEventListener('click', advanceFromTarget)
+        activeTarget = element
+      }
+      element.scrollIntoView({ block: 'nearest', inline: 'center' })
+      const rect = element.getBoundingClientRect()
+      setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+    }
     const frame = window.requestAnimationFrame(updateTarget)
-    target?.addEventListener('click', advanceFromTarget)
+    const observer = new MutationObserver(updateTarget)
+    observer.observe(document.body, { childList: true, subtree: true })
     window.addEventListener('resize', updateTarget)
     return () => {
       window.cancelAnimationFrame(frame)
-      target?.removeEventListener('click', advanceFromTarget)
+      activeTarget?.removeEventListener('click', advanceFromTarget)
+      observer.disconnect()
       window.removeEventListener('resize', updateTarget)
     }
   }, [pathname, step])

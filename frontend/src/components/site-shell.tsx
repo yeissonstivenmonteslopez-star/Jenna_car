@@ -102,7 +102,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       {internal ? <InternalWorkspace role={user?.rol}>{children}</InternalWorkspace> : children}
-      {mounted && user?.rol === 'usuario' && <CustomerOnboarding userId={user.id} />}
+      {mounted && user && ['usuario', 'mecanico', 'admin'].includes(user.rol || '') && <CustomerOnboarding userId={user.id} role={user.rol} />}
     </>
   )
 }

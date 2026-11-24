@@ -16,12 +16,12 @@ import { NavLink } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 
 const sections = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/citas', label: 'Citas', icon: CalendarDays },
-  { to: '/admin/orders', label: 'Órdenes', icon: ClipboardList },
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, onboarding: 'dashboard' },
+  { to: '/admin/citas', label: 'Citas', icon: CalendarDays, onboarding: 'admin-appointments' },
+  { to: '/admin/orders', label: 'Órdenes', icon: ClipboardList, onboarding: 'admin-orders' },
   { to: '/admin/servicios', label: 'Servicios', icon: Wrench },
   { to: '/admin/vehiculos', label: 'Vehículos', icon: Car },
-  { to: '/admin/users', label: 'Usuarios', icon: Users },
+  { to: '/admin/users', label: 'Usuarios', icon: Users, onboarding: 'admin-users' },
   { to: '/admin/notificaciones', label: 'Notificaciones', icon: Bell },
   { to: '/admin/search', label: 'Búsqueda', icon: Search },
 ]
@@ -40,7 +40,7 @@ export default function AdminNav({ collapsed, onToggle }: { collapsed: boolean; 
       { label: 'General', links: sections.slice(0, 1) },
       { label: 'Operaciones', links: sections.slice(1, 5) },
       { label: 'Administración', links: sections.slice(5) },
-    ].map((group) => <div key={group.label} className="sidebar-group"><p className="sidebar-label">{group.label}</p>{group.links.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} title={label} aria-label={label} className={({ isActive }) => `sidebar-link ${isActive ? 'is-active' : ''}`}><Icon size={18} /><span className="sidebar-label">{label}</span></NavLink>)}</div>)}</nav>
+    ].map((group) => <div key={group.label} className="sidebar-group"><p className="sidebar-label">{group.label}</p>{group.links.map(({ to, label, icon: Icon, onboarding }) => <NavLink key={to} to={to} data-onboarding={onboarding} title={label} aria-label={label} className={({ isActive }) => `sidebar-link ${isActive ? 'is-active' : ''}`}><Icon size={18} /><span className="sidebar-label">{label}</span></NavLink>)}</div>)}</nav>
     <div className="sidebar-footer">
       <span className="sidebar-label">Espacio de administración</span>
       <a

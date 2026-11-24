@@ -12,7 +12,7 @@ const clientLinks = [
   { to: '/citas', label: 'Agendar cita', icon: CarFront, onboarding: 'schedule' },
   { to: '/mis-reparaciones', label: 'Seguimiento', icon: Wrench, onboarding: 'repairs' },
   { to: '/mis-recibos', label: 'Recibos y pagos', icon: ReceiptText, onboarding: 'receipts' },
-  { to: '/notificaciones', label: 'Notificaciones', icon: Bell },
+  { to: '/notificaciones', label: 'Notificaciones', icon: Bell, onboarding: 'notifications' },
 ]
 export default function InternalWorkspace({ children, role }: { children: ReactNode; role?: string }) {
   const { pathname } = useLocation()
@@ -35,7 +35,7 @@ export default function InternalWorkspace({ children, role }: { children: ReactN
     {!pathname.startsWith('/admin') && <header className="workspace-header">
       <div className="workspace-header-top"><a href="/" className="workspace-brand" aria-label="Jenna Car, inicio"><CompanyLogo /></a><div className="workspace-header-notifications"><NotificationBell /></div></div>
       <nav aria-label="Mi cuenta" className="workspace-account-nav">
-        {(role === 'mecanico' ? [{ to: '/mechanic', label: 'Mi taller', icon: Wrench }, clientLinks[0], clientLinks[5]] : clientLinks).map(({ to, label, icon: Icon, onboarding }) => <NavLink key={to} to={to} data-onboarding={onboarding} className={({ isActive }) => isActive ? 'is-active' : ''}><Icon size={16} />{label}</NavLink>)}
+        {(role === 'mecanico' ? [{ to: '/mechanic', label: 'Mi taller', icon: Wrench, onboarding: 'workshop' }, clientLinks[0], clientLinks[5]] : clientLinks).map(({ to, label, icon: Icon, onboarding }) => <NavLink key={to} to={to} data-onboarding={onboarding} className={({ isActive }) => isActive ? 'is-active' : ''}><Icon size={16} />{label}</NavLink>)}
       </nav>
     </header>}
     {children}
