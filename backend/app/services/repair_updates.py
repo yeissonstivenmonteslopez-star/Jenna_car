@@ -4,7 +4,7 @@ from html import escape
 from pathlib import Path
 import secrets
 import os
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 from io import BytesIO
 from PIL import Image
 from flask import current_app
@@ -116,12 +116,14 @@ def publish(user, work_id, payload, files=()):
             db.session.add(photo)
             published_photos.append(photo)
         db.session.flush()
-        photo_query = '&'.join(f'foto={photo.id}' for photo in published_photos)
+        params = [('orden', work.orden_id)] if work.orden_id else []
+        params.extend(('foto', photo.id) for photo in published_photos)
+        query = urlencode(params)
         vehicle = work.diagnostico.cita.vehiculo
         notification = Notificacion(usuario_id=vehicle.usuario_id,
             titulo=f'Avance de {vehicle.placa} [M{user.id}]',
             mensaje=f'Vehículo {vehicle.placa} · Trabajo #{work.id}\nEstado: {state}\n{note}\nFotografías adjuntas: {len(photos)}',
-            tipo='avance_correo_pendiente', link='/mis-reparaciones' + (f'?{photo_query}' if photo_query else ''))
+            tipo='avance_correo_pendiente', link='/mis-reparaciones' + (f'?{query}' if query else ''))
         db.session.add(notification)
         db.session.commit()
     except Exception as exc:

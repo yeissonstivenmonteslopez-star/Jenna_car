@@ -67,6 +67,7 @@ services:
       DATABASE_URL: ""
       MYSQL_URL: ""
       FLASK_DEBUG: "false"
+      TRUST_RESET_PROXY_IP: "1"  # Private backend behind nginx, which overwrites X-Real-IP.
     volumes:
       - profile_uploads:/app/backend/uploads
       - repair_uploads:/app/backend/app/uploads

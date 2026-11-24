@@ -270,23 +270,6 @@ class IsolatedTests(unittest.TestCase):
         self.assertEqual(receipt.estado, 'pagado')
         extensions.db.session.commit.assert_not_called()
 
-    def test_recovery_reports_smtp_failure_without_real_repository(self):
-        import ast
-        from datetime import datetime, timezone, timedelta
-        tree = ast.parse((ROOT / 'services/auth_s.py').read_text(encoding='utf-8'))
-        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'request_password_reset')
-        namespace = {'__package__': 'isolated.services', 'auth_repository': MagicMock(),
-                     'datetime': datetime, 'timezone': timezone, 'timedelta': timedelta,
-                     'secrets': MagicMock(), 'PasswordResetToken': MagicMock(), 'hash_password': MagicMock()}
-        namespace['secrets'].randbelow.return_value = 123456
-        exec(compile(ast.Module(body=[function], type_ignores=[]), 'isolated_recovery', 'exec'), namespace)
-        with patch.object(mail, 'correo_configurado', return_value=True), patch.object(mail, 'enviar_correo_async', return_value=False):
-            self.assertEqual(namespace['request_password_reset']('user@gmail.com')[2], 503)
-        with patch.object(mail, 'correo_configurado', return_value=True), patch.object(mail, 'enviar_correo_async', return_value=True):
-            data, error, status = namespace['request_password_reset']('user@gmail.com')
-            self.assertEqual(status, 202)
-            self.assertFalse(data['manual_reset'])
-
     def test_serializer_distinguishes_old_simulation_and_real_payment(self):
         payment = SimpleNamespace(id=1, recibo_id=2, recibo=None, monto=10, metodo_pago='mercado_pago',
                                   referencia='MP-1-test', estado='pendiente', fecha_pago=None)

@@ -155,7 +155,7 @@ def register_trabajo(user, payload):
         f'El mecánico registró observaciones y una cotización por {format_cop(order.total)}. '
         'Revisa los detalles y aprueba o rechaza el trabajo.',
         tipo='diagnostico',
-        link='/mis-reparaciones',
+        link=f'/mis-reparaciones?orden={order.id}',
     )
     return trabajo_to_dict(trabajo), None, None
 

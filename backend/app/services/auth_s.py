@@ -18,7 +18,9 @@ from ..auth.password import hash_password, verify_password
 from ..models import PasswordResetToken, Usuario
 from ..repository import auth_r as auth_repository
 from ..repository import usuarios_r as user_repository
-from ..config import is_debug
+from .reset_limits import allow_reset_request
+from concurrent.futures import ThreadPoolExecutor
+from threading import BoundedSemaphore
 
 
 _certificate_cache = DictCache()
@@ -144,25 +146,51 @@ def login(email, password):
     return {'token': create_access_token(usuario), 'user': usuario.to_public_dict()}, None, None
 
 
-def request_password_reset(email):
+_reset_executor = ThreadPoolExecutor(max_workers=2)
+_reset_capacity = BoundedSemaphore(12)
+
+
+def request_password_reset(email, origin):
+    from ..utils.email import correo_configurado
+    if not correo_configurado():
+        return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
+    accepted = {'message': 'Si existe una cuenta con ese correo, recibirás las instrucciones.'}, None, 202
+    if not allow_reset_request(email, origin):
+        return accepted
+    if not _reset_capacity.acquire(blocking=False):
+        return None, 'Inténtalo de nuevo más tarde.', 503
+    app = current_app._get_current_object()
+    try:
+        _reset_executor.submit(_process_reset, app, email)
+    except RuntimeError:
+        _reset_capacity.release()
+        return None, 'Inténtalo de nuevo más tarde.', 503
+    return accepted
+
+
+def _process_reset(app, email):
+    try:
+        with app.app_context():
+            _issue_reset(email)
+    except Exception:
+        app.logger.exception('Error al procesar una solicitud de recuperación')
+    finally:
+        _reset_capacity.release()
+
+
+def _issue_reset(email):
+    from ..utils.email import enviar_correo_async
     usuario = auth_repository.find_by_email(email)
     if not usuario:
-        return None, 'No existe una cuenta registrada con ese correo.', 404
+        return
+    auth_repository.lock_user(usuario.id)
     now = datetime.now(timezone.utc)
+    if auth_repository.recent_reset_token(usuario.id, now - timedelta(minutes=1)):
+        return
     auth_repository.delete_active_reset_tokens(usuario.id)
     code = f'{secrets.randbelow(1_000_000):06d}'
     auth_repository.add_reset_token(PasswordResetToken(usuario_id=usuario.id, code_hash=hash_password(code), expires_at=now + timedelta(minutes=15)))
     auth_repository.commit()
-
-    from ..utils.email import correo_configurado, enviar_correo_async
-    if not correo_configurado():
-        if current_app.testing or is_debug():
-            return {
-                'message': 'Código de recuperación generado. Sigue las instrucciones para restablecer tu contraseña.',
-                'manual_reset': True,
-                'code': code,
-            }, None, 202
-        return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
 
     mensaje_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
@@ -181,14 +209,14 @@ def request_password_reset(email):
     </div>
     """
     if not enviar_correo_async(email, "Código de recuperación de contraseña", mensaje_html):
-        return None, 'No se pudo enviar el correo de recuperación. Inténtalo de nuevo.', 503
-
-    return {'message': 'Código de recuperación enviado al correo.', 'manual_reset': False}, None, 202
+        current_app.logger.warning('El correo de recuperación no pudo entregarse.')
 
 
 def _validate_reset_code(email, code):
     usuario = auth_repository.find_by_email(email)
     now = datetime.now(timezone.utc)
+    if usuario:
+        usuario = auth_repository.lock_user(usuario.id)
     token = auth_repository.latest_valid_reset_token(usuario.id, now) if usuario else None
     if not token or token.attempts >= 5 or not verify_password(token.code_hash, code):
         if token and token.attempts < 5:

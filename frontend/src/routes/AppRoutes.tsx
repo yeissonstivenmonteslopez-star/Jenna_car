@@ -1,6 +1,4 @@
-import { useFleetEnabled } from '@/features/convenios/useFleetEnabled'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import FleetBooking from '@/features/convenios/FleetBooking'
 import Home from '@/pages/Home'
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminDashboard from '@/features/dashboard/pages/AdminDashboardPage'
@@ -24,13 +22,13 @@ import Profile from '@/features/usuarios/pages/ProfilePage'
 import Register from '@/features/auth/pages/RegisterPage'
 import ResetPassword from '@/features/auth/pages/ResetPasswordPage'
 import SignIn from '@/features/auth/pages/SignInPage'
+import ConvenioUnavailablePage from '@/features/convenios/ConvenioUnavailablePage'
 
 export default function AppRoutes() {
-  const fleetEnabled = useFleetEnabled()
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/convenio/agendar" element={fleetEnabled === null ? null : fleetEnabled ? <FleetBooking /> : <Navigate to="/sign-in" replace />} />
+      <Route path="/convenio/*" element={<ConvenioUnavailablePage />} />
       <Route path="/login" element={<LoginRedirect />} />
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/register" element={<Register />} />

@@ -9,7 +9,21 @@ from ..utils.notifications import notificacion_por_usuario
 from ..utils.validation import validar_fecha_cita, validar_hora_cita
 from .appointment_slots import serialize_booking, slot_status
 
-STATES = {'pendiente', 'confirmada', 'atendida', 'cancelada'}
+TRANSITIONS = {
+    'pendiente': {'confirmada', 'atendida', 'cancelada'},
+    'confirmada': {'pendiente', 'atendida', 'cancelada'},
+    'atendida': set(),
+    'cancelada': set(),
+}
+STATES = TRANSITIONS.keys()
+
+
+def transition_error(current, target):
+    if target not in STATES:
+        return 'Estado inválido'
+    if target != current and target not in TRANSITIONS[current]:
+        return f'No se puede cambiar una cita {current} a {target}.'
+    return None
 
 
 def _error(message, status):
@@ -163,6 +177,9 @@ def cancel(user, cita_id):
         return _error('Cita no encontrada', 404)
     if cita.estado == 'cancelada':
         return _error('La cita ya está cancelada', 400)
+    error = transition_error(cita.estado, 'cancelada')
+    if error:
+        return _error(error, 409)
     cita.estado = 'cancelada'
     notificacion_por_usuario(usuario_id=cita.cliente.usuario_id, titulo='Cita cancelada', mensaje=f'Tu cita del {cita.fecha} a las {str(cita.hora)[:5]} fue cancelada.', tipo='cita', link=f'/citas/{cita.id}', do_commit=False)
     db.session.commit()
@@ -226,9 +243,13 @@ def admin_get(cita_id): return db.session.get(Cita, cita_id)
 @serialize_booking
 def save_admin(cita, payload, creating=False):
     if cita is not None:
-        db.session.refresh(cita)
+        db.session.refresh(cita, with_for_update=True)
     values, error, status = admin_payload(payload, cita)
     if error: return None, error, status
+    if cita is not None and 'estado' in values:
+        error = transition_error(cita.estado, values['estado'])
+        if error:
+            return _error(error, 409)
     if values.get('estado', cita.estado if cita else 'pendiente') != 'cancelada':
         available, mechanic_id = slot_status(values.get('fecha', cita.fecha if cita else None), values.get('hora', cita.hora if cita else None), values.get('servicio_id', cita.servicio_id if cita else None), values.get('vehiculo_id', cita.vehiculo_id if cita else None), values.get('mecanico_id', cita.mecanico_id if cita else None), None if creating else cita.id, locking=True)
         if not available:
@@ -248,6 +269,9 @@ def set_state(cita_id, state):
     cita = Cita.query.filter_by(id=cita_id).with_for_update().populate_existing().first()
     if not cita: return None, 'Cita no encontrada', 404
     if state not in STATES: return None, 'Estado inválido', 400
+    error = transition_error(cita.estado, state)
+    if error:
+        return _error(error, 409)
     if state in {'pendiente', 'confirmada'} and not slot_status(cita.fecha, cita.hora, cita.servicio_id, cita.vehiculo_id, cita.mecanico_id, cita.id, locking=True)[0]:
         return None, 'El cupo ya no está disponible', 409
     cita.estado = state; db.session.commit()

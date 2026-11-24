@@ -1,3 +1,4 @@
+import { getNotificationLink } from '@/features/notificaciones/getNotificationLink'
 import KeycapAlert from '@/components/ui/KeycapAlert'
 // TODO: futura integración con servicios de Google
 // La lógica de notificaciones está separada de cualquier integración externa de Google.
@@ -22,12 +23,7 @@ const TIPO_ICONS: Record<string, React.ElementType> = {
   sistema: Info,
 }
 
-function getNotificationLink(link: string | null) {
-  if (!link) return null
-  if (link.startsWith('/citas/')) return '/mis-citas'
-  if (link.startsWith('/recibos/') || link.startsWith('/ordenes/')) return '/mis-recibos'
-  return link
-}
+
 
 type Notificacion = {
   id: number

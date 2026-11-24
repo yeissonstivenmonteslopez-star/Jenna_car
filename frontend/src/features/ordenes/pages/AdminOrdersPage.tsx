@@ -5,7 +5,7 @@ import { useFeedback } from '@/components/ui/useFeedback'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { FileText, Plus, Trash2 } from 'lucide-react'
-import { getReciboPdfUrl } from '@/features/recibos/services/recibosService'
+import { getReciboPdf } from '@/features/recibos/services/recibosService'
 import { getOrdenes, createOrden, updateOrden, deleteOrden, enviarReciboOrden } from '@/features/recibos/services/pagosService'
 import { getAdminServicios } from '@/features/servicios/services/serviciosService'
 import { adminSearch } from '@/features/usuarios/services/usuariosService'
@@ -71,6 +71,24 @@ export default function AdminOrdersPage() {
       .catch((error) => setMessage(error instanceof Error ? error.message : 'No fue posible cargar los datos.', 'error'))
       .finally(() => setLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function openReceipt(receiptId: number) {
+    const tab = window.open('about:blank', '_blank')
+    if (!tab) {
+      setMessage('Permite ventanas emergentes para abrir el recibo.', 'warning')
+      return
+    }
+    tab.opener = null
+    try {
+      const pdf = await getReciboPdf(receiptId, { token })
+      const url = URL.createObjectURL(pdf)
+      tab.location.replace(url)
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch {
+      tab.close()
+      setMessage('No se pudo abrir el PDF del recibo.', 'error')
+    }
+  }
 
   function selectOrder(order: Order) {
     setSelectedId(order.id)
@@ -181,7 +199,7 @@ export default function AdminOrdersPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => selectOrder(order)} className="border border-red-500/50 bg-red-950/20 px-3 py-2 text-xs text-red-300 transition hover:bg-red-600 hover:text-white">Editar</button>
-                      {order.recibo?.id && <a href={getReciboPdfUrl(order.recibo.id, token)} target="_blank" rel="noopener noreferrer" className="btn-keycap" aria-label={`Generar PDF de la orden ${order.id} (abre en otra pestaña)`}><span><FileText size={18} aria-hidden="true" />Generar PDF</span></a>}
+                      {order.recibo?.id && <button type="button" onClick={() => void openReceipt(order.recibo!.id)} className="btn-keycap" aria-label={`Generar PDF de la orden ${order.id} (abre en otra pestaña)`}><span><FileText size={18} aria-hidden="true" />Generar PDF</span></button>}
                       {order.estado_aprobacion === 'aprobado' && !order.recibo?.enviado_cliente && <button type="button" onClick={() => void sendReceipt(order.id)} className="border border-emerald-500/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-800/50">Enviar recibo</button>}
                       <button type="button" onClick={() => remove(order.id)} className="border border-red-500/40 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50">Eliminar</button>
                     </div>

@@ -217,7 +217,7 @@ def test_photo_verifies_contents_and_strips_trailing_data():
 @pytest.fixture
 def publication(monkeypatch, tmp_path):
     diagnostic = NS(observaciones='Anterior', cita=NS(vehiculo=NS(usuario_id=7, placa='ABC123')))
-    work = NS(id=4, mecanico_id=10, estado='pendiente', orden=NS(estado_aprobacion='aprobado'), diagnostico=diagnostic, fecha_inicio=None, fecha_fin=None)
+    work = NS(id=4, mecanico_id=10, orden_id=3, estado='pendiente', orden=NS(estado_aprobacion='aprobado'), diagnostico=diagnostic, fecha_inicio=None, fecha_fin=None)
     monkeypatch.setattr(repairs, 'Trabajo', NS(query=query(first=work)))
     monkeypatch.setattr(repairs, 'UPLOAD_DIR', tmp_path)
     monkeypatch.setattr(repairs, 'column_exists', lambda *args: True)
@@ -237,6 +237,7 @@ def test_publication_commits_before_mail_and_retains_on_failure(publication):
     mail.side_effect = lambda *args: (events.append('mail') or ({'correo_enviado': False, 'notificacion_id': 8}, None, 200))
     data, error, status = repairs.publish(NS(id=10), 4, {'estado': 'en_proceso', 'observaciones': 'Revisión realizada'})
     assert events == ['commit', 'mail'] and status == 201 and not error
+    assert db.session.add.call_args.args[0].link == '/mis-reparaciones?orden=3'
     assert not data['correo_enviado'] and work.fecha_inicio
     assert work.diagnostico.observaciones == 'Revisión realizada'
 
@@ -285,3 +286,30 @@ def test_only_explicit_migration_connection_bypasses_guard():
     normal = NS(get_execution_options=lambda: {})
     with pytest.raises(RuntimeError):
         prevent_schema_changes(normal, None, 'ALTER TABLE citas ADD example INT', None, None, False)
+
+@pytest.mark.parametrize('operation', ['client_cancel', 'admin_state', 'admin_edit'])
+def test_attended_appointment_rejects_cancellation_without_notice(monkeypatch, operation):
+    from app.services import citas_s
+
+    cita = NS(id=7, estado='atendida', cliente_id=3, vehiculo_id=4)
+    customer = NS(id=3, rol='cliente')
+    database = MagicMock()
+    database.session.get.return_value = NS(usuario_id=customer.id)
+    notify = MagicMock()
+    monkeypatch.setattr(slots, 'Usuario', NS(id=1, query=query(first=customer)))
+    monkeypatch.setattr(slots, 'db', database)
+    monkeypatch.setattr(citas_s, 'Cita', NS(query=query(first=cita), vehiculo=MagicMock()))
+    monkeypatch.setattr(citas_s, 'db', database)
+    monkeypatch.setattr(citas_s, 'notificacion_por_usuario', notify)
+
+    if operation == 'client_cancel':
+        result = citas_s.cancel(customer, cita.id)
+    elif operation == 'admin_state':
+        result = citas_s.set_state(cita.id, 'cancelada')
+    else:
+        result = citas_s.save_admin(cita, {'estado': 'cancelada'})
+
+    assert result[2] == 409
+    assert cita.estado == 'atendida'
+    notify.assert_not_called()
+    database.session.commit.assert_not_called()

@@ -33,6 +33,6 @@ def revise(user, order_id, payload):
     notificacion_por_usuario(order.vehiculo.usuario_id,
         f'Nueva cotización de la orden #{order.id}',
         'El mecánico revisó la propuesta. Revisa el nuevo total y decide si lo apruebas.',
-        tipo='diagnostico', link='/mis-reparaciones', do_commit=False)
+        tipo='diagnostico', link=f'/mis-reparaciones?orden={order.id}', do_commit=False)
     db.session.commit()
     return {'id': order.id, 'estado_aprobacion': 'pendiente', 'total': float(total)}, None, 200

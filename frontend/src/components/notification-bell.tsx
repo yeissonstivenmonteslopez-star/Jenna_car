@@ -1,3 +1,4 @@
+import { getNotificationLink } from '@/features/notificaciones/getNotificationLink'
 // TODO: futura integración con servicios de Google
 // La lógica de notificaciones está separada de cualquier integración externa de Google.
 
@@ -102,8 +103,9 @@ export default function NotificationBell() {
     if (!notificacion.leida) {
       handleMarcarComoLeida(notificacion.id)
     }
-    if (notificacion.link) {
-      window.location.href = notificacion.link
+    const link = getNotificationLink(notificacion.link)
+    if (link) {
+      window.location.href = link
     }
     setAbierto(false)
   }

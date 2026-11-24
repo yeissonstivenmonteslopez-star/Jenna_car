@@ -7,15 +7,16 @@ import { useEffect, useRef, useState } from 'react'
 import { buildAssetUrl } from '@/services/apiClient'
 import NotificationBell from './notification-bell'
 import InternalWorkspace from './internal-workspace'
+import CustomerOnboarding from './customer-onboarding'
 
 export default function SiteShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
-  const [user, setUser] = useState<{ nombre: string; foto_perfil?: string; rol?: string } | null>(null)
+  const [user, setUser] = useState<{ id?: number; nombre: string; foto_perfil?: string; rol?: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  const authRoutes = ['/sign-in', '/login', '/register', '/forgot-password', '/reset-password', '/convenio/agendar']
+  const authRoutes = ['/sign-in', '/login', '/register', '/forgot-password', '/reset-password']
   const shouldShowAuthButton = mounted && !user && !authRoutes.includes(pathname || '/')
   const shouldShowUserMenu = mounted && user && pathname === '/'
 
@@ -101,6 +102,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       {internal ? <InternalWorkspace role={user?.rol}>{children}</InternalWorkspace> : children}
+      {mounted && user?.rol === 'usuario' && <CustomerOnboarding userId={user.id} />}
     </>
   )
 }

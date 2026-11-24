@@ -19,6 +19,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=5000 \
     HOST=0.0.0.0 \
+    APP_ENV=production \
     FLASK_DEBUG=false
 
 # Parche de seguridad para la imagen base de Debian

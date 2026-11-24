@@ -43,6 +43,8 @@ export default function MisReparacionesPage() {
   const [token] = useState(() => localStorage.getItem('jenna_car_token') || '')
   const [orders, setOrders] = useState<RepairOrder[]>([])
   const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({})
+  const selectedId = new URLSearchParams(window.location.search).get('orden')
+  const visibleRecords = selectedId ? orders.filter(item => String(item.id) === selectedId) : orders
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -66,7 +68,7 @@ export default function MisReparacionesPage() {
 
   useEffect(() => {
     if (!token) {
-      window.location.href = '/sign-in?redirect=%2Fmis-reparaciones'
+      window.location.href = `/sign-in?redirect=${encodeURIComponent('/mis-reparaciones' + window.location.search)}`
       return
     }
     void loadOrders()
@@ -146,11 +148,12 @@ export default function MisReparacionesPage() {
 
         {error && <KeycapAlert type={'error'} message={error} className="mb-4" />}
         {notice && <KeycapAlert type={'success'} message={notice} className="mb-4" />}
-        {loading ? <p role="status" className="py-8 text-sm text-white/50">Cargando reparaciones…</p> : orders.length === 0 ? (
+        {selectedId && !loading && !error && <p className="my-4 text-sm">{visibleRecords.length ? 'Viendo la reparación de la notificación.' : 'La reparación de esta notificación ya no está disponible.'} <a className="underline" href="/mis-reparaciones">Ver todas mis reparaciones</a></p>}
+        {loading ? <p role="status" className="py-8 text-sm text-white/50">Cargando reparaciones…</p> : !selectedId && orders.length === 0 ? (
           <div className="workspace-empty"><Clock3 size={28} /><h2>Todo el seguimiento, en un solo lugar</h2><p>Cuando el taller registre una reparación, aquí verás su diagnóstico y sus fotografías.</p><a href="/mis-citas" className="profile-text-link">Consultar mis citas →</a></div>
         ) : (
           <div className="grid gap-5">
-            {orders.map((order) => {
+            {visibleRecords.map((order) => {
               const hasDiagnosis = order.trabajos.some((work) => work.diagnostico)
               const canApprove = order.estado_aprobacion === 'pendiente' && !order.recibo?.enviado_cliente
                 && hasDiagnosis && order.servicios.length > 0 && order.total > 0

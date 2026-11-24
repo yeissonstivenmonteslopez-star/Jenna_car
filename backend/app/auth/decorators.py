@@ -1,9 +1,10 @@
 """Decoradores HTTP para proteger endpoints."""
 from functools import wraps
+import hmac
 import jwt
 from flask import current_app, jsonify, request
 from ..repository.usuarios_r import get as get_user
-from .jwt import decode_token
+from .jwt import decode_token, session_stamp
 from .permissions import has_role, is_active
 
 
@@ -11,7 +12,8 @@ def jwt_required(roles=None, allow_convenio=False):
     def decorator(handler):
         @wraps(handler)
         def wrapped(*args, **kwargs):
-            token = request.headers.get('Authorization', '').replace('Bearer ', '', 1).strip() or request.args.get('token', '').strip()
+            scheme, _, value = request.headers.get('Authorization', '').partition(' ')
+            token = value.strip() if scheme.lower() == 'bearer' else ''
             if not token:
                 return jsonify({'error': 'Debes iniciar sesión para continuar'}), 401
             try:
@@ -31,6 +33,8 @@ def jwt_required(roles=None, allow_convenio=False):
             user = get_user(payload.get('sub'))
             if not is_active(user):
                 return jsonify({'error': 'Usuario no encontrado o inactivo'}), 401
+            if not hmac.compare_digest(payload.get('session', ''), session_stamp(user)):
+                return jsonify({'error': 'La sesión venció. Inicia sesión nuevamente.'}), 401
             if not has_role(user, roles):
                 return jsonify({'error': 'No tienes permisos para realizar esta acción'}), 403
             request.current_user = user

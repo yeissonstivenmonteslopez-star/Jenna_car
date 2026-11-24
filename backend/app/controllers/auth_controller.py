@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from ..services import auth_s as auth_service
 
@@ -32,7 +32,10 @@ def request_password_reset():
     email = ((request.get_json(silent=True) or {}).get('email') or '').strip().lower()
     if not email:
         return jsonify({'error': 'Ingresa tu correo electrónico.'}), 400
-    data, error, status = auth_service.request_password_reset(email)
+    origin = request.remote_addr
+    if current_app.config.get('TRUST_RESET_PROXY_IP'):
+        origin = request.headers.get('X-Real-IP') or origin
+    data, error, status = auth_service.request_password_reset(email, origin or 'unknown')
     return (jsonify({'error': error}), status) if error else (jsonify(data), status)
 
 

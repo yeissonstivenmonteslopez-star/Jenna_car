@@ -14,7 +14,7 @@ EXPOSE 80
 
 FROM python:3.12-slim AS backend
 WORKDIR /app/backend
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FLASK_DEBUG=false
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FLASK_DEBUG=false APP_ENV=production
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt gunicorn==23.0.0
 COPY backend/ ./

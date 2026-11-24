@@ -8,38 +8,13 @@ import app as backend_app
 backend_app.app.config['TESTING'] = True
 
 
-def test_password_reset_falls_back_to_manual_code_when_smtp_is_missing():
-    email = 'fallback-reset-user@example.com'
-
-    with backend_app.app.app_context():
-        existing = backend_app.Usuario.query.filter_by(email=email).first()
-        if existing:
-            backend_app.PasswordResetToken.query.filter_by(usuario_id=existing.id).delete()
-            backend_app.db.session.delete(existing)
-            backend_app.db.session.commit()
-
-        usuario = backend_app.Usuario(
-            nombre='Fallback',
-            apellido='User',
-            email=email,
-            password=backend_app.generate_password_hash('fallback123'),
-            rol='usuario',
-            estado='activo',
-        )
-        backend_app.db.session.add(usuario)
-        backend_app.db.session.commit()
-
-        client = backend_app.app.test_client()
-        response = client.post('/api/auth/forgot-password', json={'email': email})
-
-        assert response.status_code == 202, response.get_data(as_text=True)
-        payload = response.get_json()
-        assert payload.get('code'), payload
-        assert 'instrucciones' in (payload.get('message') or '').lower() or 'código' in (payload.get('message') or '').lower()
-
-        backend_app.PasswordResetToken.query.filter_by(usuario_id=usuario.id).delete()
-        backend_app.db.session.delete(usuario)
-        backend_app.db.session.commit()
+def test_recovery_without_smtp_never_returns_a_code(monkeypatch):
+    from app.utils import email
+    monkeypatch.setattr(email, 'correo_configurado', lambda: False)
+    response = backend_app.app.test_client().post(
+        '/api/auth/forgot-password', json={'email': 'fallback-reset-user@example.com'})
+    assert response.status_code == 503
+    assert set(response.get_json()) == {'error'}
 
 
 def test_google_login_accepts_valid_token_and_returns_user_and_token(monkeypatch):

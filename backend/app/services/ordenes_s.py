@@ -193,7 +193,7 @@ def update(order, payload):
             f'Cotización actualizada para la orden #{order.id}',
             f'El total propuesto es {format_cop(order.total)}. Revisa los detalles y aprueba o rechaza el trabajo.',
             tipo='diagnostico',
-            link='/mis-reparaciones',
+            link=f'/mis-reparaciones?orden={order.id}',
         )
     return order_to_dict(order), None, None
 

@@ -25,6 +25,8 @@ type Cita = {
 
 export default function MisCitasPage() {
   const [citas, setCitas] = useState<Cita[]>([])
+  const selectedId = new URLSearchParams(window.location.search).get('cita')
+  const visibleRecords = selectedId ? citas.filter(item => String(item.id) === selectedId) : citas
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -32,7 +34,7 @@ export default function MisCitasPage() {
     const token = localStorage.getItem('jenna_car_token') || ''
 
     if (!token) {
-      window.location.href = '/sign-in?redirect=/mis-citas'
+      window.location.href = `/sign-in?redirect=${encodeURIComponent('/mis-citas' + window.location.search)}`
       return
     }
 
@@ -88,7 +90,8 @@ export default function MisCitasPage() {
             <KeycapAlert type={'error'} message={error} />
           ) : null}
 
-          {!error && citas.length === 0 ? (
+        {selectedId && !loading && !error && <p className="my-4 text-sm">{visibleRecords.length ? 'Viendo la cita de la notificación.' : 'La cita de esta notificación ya no está disponible.'} <a className="underline" href="/mis-citas">Ver todas mis citas</a></p>}
+          {!selectedId && !error && citas.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-red-500/25 bg-[#1a1a1a] p-8 text-center">
               <p className="text-lg font-medium text-white">Todavía no tienes citas agendadas.</p>
               <p className="mt-2 text-sm text-white/60">Elige el servicio y un horario disponible para tu vehículo.</p>
@@ -96,7 +99,7 @@ export default function MisCitasPage() {
           ) : null}
 
           <div className="grid gap-4">
-            {citas.map((cita) => (
+            {visibleRecords.map((cita) => (
               <article key={cita.id} className="rounded-2xl border border-red-500/20 bg-[#171717] p-5">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>

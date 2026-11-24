@@ -45,6 +45,7 @@ def test_fleet_booking_and_scope(tmp_path):
     response = client.post('/api/convenios/notificaciones', headers=headers[0], json={'id': inbox['data'][0]['id']})
     assert response.json['pendientes'] == 0
     app.config['PORTAL_FLOTAS_ACTIVO'] = False
+    assert client.get('/api/convenios/disponibilidad-portal').status_code == 404
     assert client.get('/api/convenios/notificaciones', headers=headers[0]).status_code == 404
     assert client.post('/api/citas', headers=headers[0], json=booking).status_code == 403
     app.config['PORTAL_FLOTAS_ACTIVO'] = True

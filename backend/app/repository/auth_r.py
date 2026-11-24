@@ -24,12 +24,18 @@ def delete_active_reset_tokens(user_id):
     PasswordResetToken.query.filter_by(usuario_id=user_id, used_at=None).delete()
 
 
+def recent_reset_token(user_id, since):
+    return PasswordResetToken.query.filter(
+        PasswordResetToken.usuario_id == user_id, PasswordResetToken.created_at >= since,
+    ).with_for_update().first()
+
+
 def latest_valid_reset_token(user_id, now):
     return PasswordResetToken.query.filter(
         PasswordResetToken.usuario_id == user_id,
         PasswordResetToken.used_at.is_(None),
         PasswordResetToken.expires_at > now,
-    ).order_by(PasswordResetToken.created_at.desc()).first()
+    ).order_by(PasswordResetToken.created_at.desc()).populate_existing().with_for_update().first()
 
 
 def commit():

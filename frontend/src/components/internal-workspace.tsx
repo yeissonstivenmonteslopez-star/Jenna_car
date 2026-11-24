@@ -7,11 +7,11 @@ import NotificationBell from './notification-bell'
 import CompanyLogo from './CompanyLogo'
 
 const clientLinks = [
-  { to: '/profile', label: 'Mi perfil', icon: UserRound },
-  { to: '/mis-citas', label: 'Mis citas', icon: CalendarDays },
-  { to: '/citas', label: 'Agendar cita', icon: CarFront },
-  { to: '/mis-reparaciones', label: 'Seguimiento', icon: Wrench },
-  { to: '/mis-recibos', label: 'Recibos y pagos', icon: ReceiptText },
+  { to: '/profile', label: 'Mi perfil', icon: UserRound, onboarding: 'profile' },
+  { to: '/mis-citas', label: 'Mis citas', icon: CalendarDays, onboarding: 'appointments' },
+  { to: '/citas', label: 'Agendar cita', icon: CarFront, onboarding: 'schedule' },
+  { to: '/mis-reparaciones', label: 'Seguimiento', icon: Wrench, onboarding: 'repairs' },
+  { to: '/mis-recibos', label: 'Recibos y pagos', icon: ReceiptText, onboarding: 'receipts' },
   { to: '/notificaciones', label: 'Notificaciones', icon: Bell },
 ]
 export default function InternalWorkspace({ children, role }: { children: ReactNode; role?: string }) {
@@ -35,7 +35,7 @@ export default function InternalWorkspace({ children, role }: { children: ReactN
     {!pathname.startsWith('/admin') && <header className="workspace-header">
       <div className="workspace-header-top"><a href="/" className="workspace-brand" aria-label="Jenna Car, inicio"><CompanyLogo /></a><div className="workspace-header-notifications"><NotificationBell /></div></div>
       <nav aria-label="Mi cuenta" className="workspace-account-nav">
-        {(role === 'mecanico' ? [{ to: '/mechanic', label: 'Mi taller', icon: Wrench }, clientLinks[0], clientLinks[5]] : clientLinks).map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'is-active' : ''}><Icon size={16} />{label}</NavLink>)}
+        {(role === 'mecanico' ? [{ to: '/mechanic', label: 'Mi taller', icon: Wrench }, clientLinks[0], clientLinks[5]] : clientLinks).map(({ to, label, icon: Icon, onboarding }) => <NavLink key={to} to={to} data-onboarding={onboarding} className={({ isActive }) => isActive ? 'is-active' : ''}><Icon size={16} />{label}</NavLink>)}
       </nav>
     </header>}
     {children}

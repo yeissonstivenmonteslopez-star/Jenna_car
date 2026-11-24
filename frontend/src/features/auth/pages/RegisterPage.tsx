@@ -1,3 +1,4 @@
+import { safeRedirect } from '../safeRedirect'
 import CompanyLogo from '@/components/CompanyLogo'
 import '../auth-design.css'
 import KeycapAlert from '@/components/ui/KeycapAlert'
@@ -25,7 +26,7 @@ export default function RegisterPage() {
       const data = await googleAuth(response.credential)
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
-      const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+      const redirect = safeRedirect(new URLSearchParams(window.location.search).get('redirect'), '/')
       window.location.href = redirect
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible crear la cuenta con Google.')
@@ -62,7 +63,7 @@ export default function RegisterPage() {
       localStorage.setItem('jenna_car_token', data.token)
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
 
-      const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+      const redirect = safeRedirect(new URLSearchParams(window.location.search).get('redirect'), '/')
       window.location.href = redirect
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible crear la cuenta.')

@@ -33,7 +33,10 @@ def database_url() -> str:
 
 
 def apply_config(app) -> None:
+    app.config['TRUST_RESET_PROXY_IP'] = os.getenv('TRUST_RESET_PROXY_IP') == '1'
     app.config['PORTAL_FLOTAS_ACTIVO'] = os.getenv('PORTAL_FLOTAS_ACTIVO', '0') == '1'
+    if is_debug() and (os.getenv('RENDER') or os.getenv('APP_ENV') == 'production'):
+        raise RuntimeError('FLASK_DEBUG debe estar desactivado en producción.')
     if os.getenv('SECRET_KEY'):
         app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
     elif is_debug():

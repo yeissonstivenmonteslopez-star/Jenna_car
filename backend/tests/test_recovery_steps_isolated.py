@@ -18,6 +18,7 @@ class RecoveryTests(unittest.TestCase):
         self.token = SimpleNamespace(code_hash='123456', attempts=0, used_at=None)
         self.repo = Mock()
         self.repo.find_by_email.return_value = self.user
+        self.repo.lock_user.return_value = self.user
         self.repo.latest_valid_reset_token.return_value = self.token
         self.scope = dict(datetime=datetime, timezone=timezone, auth_repository=self.repo,
                           verify_password=lambda stored, value: stored == value,

@@ -22,7 +22,7 @@ def disponibilidad_portal():
 
 @convenios_bp.before_request
 def verificar_portal():
-    if request.endpoint != 'convenios.disponibilidad_portal' and not current_app.config.get('PORTAL_FLOTAS_ACTIVO', False):
+    if not current_app.config.get('PORTAL_FLOTAS_ACTIVO', False):
         return jsonify(error='Recurso no disponible'), 404
 
 
