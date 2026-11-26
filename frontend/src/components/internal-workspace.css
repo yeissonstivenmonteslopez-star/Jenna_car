@@ -248,6 +248,7 @@
 .workspace-ui .profile-summary { padding-left: 118px; }
 .workspace-ui .profile-photo-status { display: block; font-size: 10px; color: var(--ws-muted); margin-top: 5px; }
 .workspace-ui .profile-camera:has(input:disabled) { cursor: wait; opacity: .6; }
+
 @media(max-width:767px) {
  .workspace-ui .profile-identity-body { padding: 22px 20px; }
  .workspace-ui .profile-avatar { width: 80px; height: 80px; }
@@ -378,6 +379,52 @@
 .workspace-ui .workspace-header-notifications .notification-trigger { color: #d4d4d8; }
 .workspace-ui .notification-trigger { min-width: 40px; min-height: 40px; border-radius: 10px; }
 @media(max-width:767px) { .workspace-ui .workspace-header-notifications { margin-right: 70px; } }
+
+/* Final mobile pass: these rules come last so small-screen fixes win over
+   shared desktop component declarations above. */
+@media (max-width: 767px) {
+  .workspace-ui { width: 100%; min-width: 0; overflow-x: clip; }
+  .workspace-ui :is(main, section, article, form, fieldset) { min-width: 0; }
+  .workspace-ui input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  .workspace-ui :is(select, textarea) { width: 100%; max-width: 100%; }
+  .workspace-ui :is(button, a) { max-width: 100%; }
+  .workspace-ui .workspace-header { padding-inline: 14px; }
+  .workspace-ui .workspace-header-top { min-height: 72px; padding-right: 54px; }
+  .workspace-ui .workspace-header-notifications { margin-right: 0; }
+  .workspace-ui .workspace-account-nav { gap: 4px; margin-inline: -14px; padding-inline: 10px; scrollbar-width: thin; }
+  .workspace-ui .workspace-account-nav a { min-height: 48px; padding-inline: 10px; }
+  .workspace-ui .admin-content { min-width: 0; }
+  .workspace-ui .admin-topbar { min-width: 0; padding-inline: 12px; }
+  .workspace-ui .admin-topbar > span { overflow-wrap: anywhere; }
+  .workspace-ui :is(.overflow-x-auto, table) { max-width: 100%; }
+  .workspace-ui table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .workspace-ui th, .workspace-ui td { padding: 10px 12px; }
+  .workspace-ui [role='dialog'] { width: min(100%, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 18px; }
+  .workspace-ui .profile-social { padding: 16px 12px 80px; }
+  .workspace-ui .profile-identity-body { padding: 18px 14px 16px; gap: 10px; grid-template-columns: 72px minmax(0, 1fr); }
+  .workspace-ui .profile-avatar { width: 72px; height: 72px; }
+  .workspace-ui .profile-avatar-wrap { margin-top: 0; }
+  .workspace-ui .profile-name { min-width: 0; }
+  .workspace-ui .profile-name h1 { font-size: clamp(20px, 6vw, 25px); }
+  .workspace-ui .profile-name p { flex-wrap: wrap; }
+  .workspace-ui .profile-identity-body > button { grid-column: 1 / -1; justify-self: stretch; }
+  .workspace-ui .profile-summary { padding: 0 14px 16px; margin: 0; gap: 12px; }
+  .workspace-ui .profile-summary div { min-width: 0; }
+  .workspace-ui .profile-tabs { padding-inline: 14px; gap: 10px; }
+  .workspace-ui .profile-tabs button { min-height: 48px; }
+  .workspace-ui .profile-columns { grid-template-columns: minmax(0, 1fr); }
+  .workspace-ui .profile-garage { grid-template-columns: minmax(0, 1fr); }
+  .workspace-ui .mechanic-page section[aria-label] { padding: 14px; }
+  .workspace-ui .workspace-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 380px) {
+  .workspace-ui .workspace-summary { grid-template-columns: minmax(0, 1fr); }
+  .workspace-ui .workspace-header-top { padding-right: 46px; }
+  .workspace-ui .profile-summary { gap: 8px; }
+  .workspace-ui .profile-summary strong { font-size: 20px; }
+  .workspace-ui .profile-panel { padding: 14px; }
+}
 @media(max-width:767px) {
   .workspace-ui .admin-topbar { padding-right: 110px; gap: 8px; }
   .workspace-ui .admin-topbar > span { min-width: 0; font-size: 11px; }

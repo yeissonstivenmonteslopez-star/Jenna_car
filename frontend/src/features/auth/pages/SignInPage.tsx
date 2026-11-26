@@ -4,11 +4,12 @@ import '../auth-design.css'
 import KeycapAlert from '@/components/ui/KeycapAlert'
 import { Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff } from 'lucide-react'
 import { googleAuth, login } from '@/features/auth/services/authService'
 import GoogleAuthButton from '@/components/ui/GoogleAuthButton'
 import { getGoogleClientId } from '@/services/apiClient'
+import Loader from '@/components/Loader'
 
 type SignedInUser = { rol?: string | null }
 
@@ -27,6 +28,7 @@ export default function SignInPage() {
 }
 
 function SignInContent() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,7 +46,7 @@ function SignInContent() {
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
       const defaultRoute = defaultRouteFor(data.user)
       const redirectTarget = safeRedirect(searchParams.get('redirect'), defaultRoute)
-      window.location.href = redirectTarget
+      navigate(redirectTarget, { replace: true })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible iniciar sesión con Google.')
     } finally {
@@ -64,7 +66,7 @@ function SignInContent() {
       localStorage.setItem('jenna_car_user', JSON.stringify(data.user))
       const defaultRoute = defaultRouteFor(data.user)
       const redirectTarget = safeRedirect(searchParams.get('redirect'), defaultRoute)
-      window.location.href = redirectTarget
+      navigate(redirectTarget, { replace: true })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible iniciar sesión.')
     } finally {
@@ -77,6 +79,7 @@ function SignInContent() {
 
   return (
     <main className="auth-page min-h-screen bg-primary text-primary-foreground">
+      {loading && <Loader text="Iniciando sesión…" showOnMobile />}
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
 
         {/* ── Panel izquierdo (hero) ── */}

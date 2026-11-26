@@ -12,9 +12,9 @@ function isDesktop() {
   return window.matchMedia(desktopQuery).matches
 }
 
-export default function Loader({ text }: { text?: string }) {
+export default function Loader({ text, showOnMobile = false }: { text?: string; showOnMobile?: boolean }) {
   const desktop = useSyncExternalStore(subscribeToViewport, isDesktop, () => false)
-  if (!desktop) return null
+  if (!desktop && !showOnMobile) return null
 
   return (
     <div

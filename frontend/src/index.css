@@ -583,6 +583,26 @@ a {
 .workspace-ui .jc-calendar-card .date[aria-pressed='true'] { border-color: var(--border-col); background: transparent; color: var(--txt); }
 .workspace-ui .jc-calendar-card .date.today { color: white; }
 
+/* Small-screen defaults shared by every web route. Desktop styling stays untouched. */
+@media (max-width: 767px) {
+  html, body, #root { width: 100%; min-width: 0; }
+  body { overflow-x: hidden; }
+  #root { overflow-x: clip; }
+  img, video, iframe { max-width: 100%; }
+  :is(input, select, textarea) { max-width: 100%; }
+  :is(button, a) { -webkit-tap-highlight-color: transparent; }
+  :is(p, h1, h2, h3, td, th, label) { overflow-wrap: anywhere; }
+
+  /* Public pages: keep the account action clear of the mobile header. */
+  .home-sign-in { min-width: 0; height: 42px; padding-inline: 12px; font-size: 13px; }
+  body:has(.home-sign-in) .home-sign-in { position: fixed; top: 14px; right: 58px; z-index: 30; }
+  [role='dialog'] { max-width: calc(100vw - 24px); }
+}
+
+@media (max-width: 380px) {
+  .home-sign-in { letter-spacing: .02em; }
+}
+
 @layer components {
   .btn-cta-pill {
     position: relative;

@@ -11,7 +11,7 @@ export default function App() {
     <BrowserRouter>
       <NavigationRefresh />
       <SiteShell>
-        <Suspense fallback={<Loader text="Cargando JENNACAR…" />}>
+        <Suspense fallback={<Loader text="Cargando JENNACAR…" showOnMobile />}>
           <AppRoutes />
         </Suspense>
       </SiteShell>

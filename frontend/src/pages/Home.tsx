@@ -216,16 +216,16 @@ async function loadBookingOptions() {
         {mobileMenuOpen && <div className="mx-4 flex flex-col gap-5 border border-primary-foreground/10 bg-primary p-6 text-xs uppercase tracking-[0.16em] text-primary-foreground md:hidden"><a href="#servicios" onClick={() => setMobileMenuOpen(false)}>Servicios</a><a href="#nosotros" onClick={() => setMobileMenuOpen(false)}>Nosotros</a><a href="#contacto" onClick={() => setMobileMenuOpen(false)}>Contacto</a><button onClick={() => { setMobileMenuOpen(false); setBookingOpen(true) }} className="border border-primary-foreground/30 py-3 text-left px-3">Agendar cita</button></div>}
       </header>
 
-      <section tabIndex={-1} id="inicio" className="relative flex min-h-[680px] items-end overflow-hidden bg-primary pb-20 pt-40 lg:min-h-[760px] lg:pb-28">
+      <section tabIndex={-1} id="inicio" className="relative flex min-h-[min(720px,100svh)] items-end overflow-hidden bg-primary pb-14 pt-32 sm:pb-20 lg:min-h-[760px] lg:pb-28">
         <img src="/jenna-car-hero.png" alt="Vehículo premium en el taller Jenna Car" className="absolute inset-0 h-full w-full object-cover opacity-75" />
         <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-primary/30" />
-        <div className="relative mx-auto w-full max-w-7xl px-6 lg:px-10">
+        <div className="relative mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="max-w-3xl">
-            <p className="mb-7 text-[10px] font-medium uppercase tracking-[0.34em] text-accent">Cuidado automotriz · Bogotá</p>
-            <h1 className="max-w-2xl font-serif text-5xl leading-[0.97] tracking-[-0.035em] text-primary-foreground sm:text-7xl lg:text-8xl">Tu vehículo.<br /><em className="text-accent">Nuestra prioridad.</em></h1>
-            <p className="mt-8 max-w-md text-sm leading-7 text-primary-foreground/65">Un nuevo estándar de confianza y excelencia para quienes entienden que conducir también es una forma de vivir.</p>
-            <div className="mt-10 flex flex-wrap items-center gap-5"><button onClick={requestBooking} className="group ml-1 flex items-center gap-5 bg-accent px-6 py-4 text-[10px] font-semibold tracking-[0.18em] text-accent-foreground transition hover:bg-accent/90">AGENDAR CITA <ArrowUpRight size={16} className="transition group-hover:translate-x-1 group-hover:-translate-y-1" /></button><a href="#servicios" className="flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-primary-foreground/65 transition hover:text-primary-foreground">VER SERVICIOS <ChevronDown size={14} /></a></div>
+            <p className="mb-5 text-[9px] font-medium uppercase tracking-[0.24em] text-accent sm:mb-7 sm:text-[10px] sm:tracking-[0.34em]">Cuidado automotriz · Bogotá</p>
+            <h1 className="max-w-2xl font-serif text-[clamp(2.65rem,11vw,4.5rem)] leading-[0.98] tracking-[-0.04em] text-primary-foreground sm:text-7xl lg:text-8xl">Tu vehículo.<br /><em className="text-accent">Nuestra prioridad.</em></h1>
+            <p className="mt-6 max-w-md text-sm leading-6 text-primary-foreground/75 sm:mt-8 sm:leading-7">Un nuevo estándar de confianza y excelencia para quienes entienden que conducir también es una forma de vivir.</p>
+            <div className="mt-8 flex flex-col items-start gap-5 min-[380px]:flex-row min-[380px]:flex-wrap min-[380px]:items-center sm:mt-10"><button onClick={requestBooking} className="group ml-1 flex min-h-12 items-center gap-4 bg-accent px-5 py-4 text-[10px] font-semibold tracking-[0.14em] text-accent-foreground transition hover:bg-accent/90 sm:gap-5 sm:px-6 sm:tracking-[0.18em]">AGENDAR CITA <ArrowUpRight size={16} className="transition group-hover:translate-x-1 group-hover:-translate-y-1" /></button><a href="#servicios" className="flex min-h-10 items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-primary-foreground/80 transition hover:text-primary-foreground">VER SERVICIOS <ChevronDown size={14} /></a></div>
           </div>
           <div className="mt-20 flex items-center gap-12 text-primary-foreground/50"><span className="font-mono text-[10px] tracking-[0.2em]">01 / 03</span><span className="h-px w-20 bg-primary-foreground/30" /><span className="text-[10px] uppercase tracking-[0.2em]">Precisión en movimiento</span></div>
         </div>
@@ -244,7 +244,7 @@ async function loadBookingOptions() {
 
       {bookingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/80 p-5 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md bg-secondary p-8 shadow-2xl">
+          <div role="dialog" aria-modal="true" className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain bg-secondary p-5 shadow-2xl sm:max-h-[90dvh] sm:p-8">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">Jenna Car</p>
