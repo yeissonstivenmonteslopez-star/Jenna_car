@@ -165,6 +165,7 @@ def request_password_reset(email, origin):
         return None, 'La recuperación de contraseña no está disponible temporalmente.', 503
     accepted = {'message': 'Si existe una cuenta con ese correo, recibirás las instrucciones.'}, None, 202
     if not allow_reset_request(email, origin):
+        current_app.logger.info('Solicitud de recuperación limitada por frecuencia')
         return accepted
     if not _reset_capacity.acquire(blocking=False):
         return None, 'Inténtalo de nuevo más tarde.', 503
@@ -180,7 +181,9 @@ def request_password_reset(email, origin):
 def _process_reset(app, email):
     try:
         with app.app_context():
+            app.logger.info('Procesando solicitud de recuperación de contraseña')
             _issue_reset(email)
+            app.logger.info('Proceso de recuperación de contraseña terminado')
     except Exception:
         app.logger.exception('Error al procesar una solicitud de recuperación')
     finally:
@@ -191,10 +194,12 @@ def _issue_reset(email):
     from ..utils.email import enviar_correo_async
     usuario = auth_repository.find_by_email(email)
     if not usuario:
+        current_app.logger.info('Recuperación omitida: no se encontró una cuenta para la dirección solicitada')
         return
     auth_repository.lock_user(usuario.id)
     now = datetime.now(timezone.utc)
     if auth_repository.recent_reset_token(usuario.id, now - timedelta(minutes=1)):
+        current_app.logger.info('Recuperación omitida: ya se generó un código durante el último minuto')
         return
     auth_repository.delete_active_reset_tokens(usuario.id)
     code = f'{secrets.randbelow(1_000_000):06d}'
@@ -221,6 +226,8 @@ def _issue_reset(email):
         auth_repository.delete_active_reset_tokens(usuario.id)
         auth_repository.commit()
         current_app.logger.error('No se entregó el código de recuperación al servidor SMTP; se invalidó el código.')
+    else:
+        current_app.logger.info('El servidor SMTP aceptó el correo de recuperación')
 
 
 def _validate_reset_code(email, code):
