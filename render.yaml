@@ -36,6 +36,8 @@ services:
         value: "0"
       - key: MAIL_HOST
         value: smtp.gmail.com
+      - key: RESEND_API_KEY
+        sync: false
       - key: MAIL_PORT
         value: "465"
       - key: MAIL_USERNAME

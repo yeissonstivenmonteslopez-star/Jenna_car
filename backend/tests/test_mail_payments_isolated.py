@@ -184,6 +184,20 @@ class IsolatedTests(unittest.TestCase):
             self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Test', '<p>Hola</p>'))
             server.starttls.assert_not_called()
 
+    def test_resend_api_sends_over_https_without_smtp_credentials(self):
+        os.environ.update(RESEND_API_KEY='re_test_key', MAIL_FROM='Jenna <onboarding@resend.dev>')
+        response = MagicMock()
+        response.status = 200
+        response.__enter__.return_value = response
+        with patch.object(mail.urllib.request, 'urlopen', return_value=response) as urlopen, \
+                patch.object(mail.smtplib, 'SMTP') as smtp:
+            self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Recovery', '<p>Code</p>'))
+            request = urlopen.call_args.args[0]
+            self.assertEqual(request.full_url, 'https://api.resend.com/emails')
+            self.assertEqual(request.get_header('Authorization'), 'Bearer re_test_key')
+            self.assertIn(b'target@gmail.com', request.data)
+            smtp.assert_not_called()
+
     def test_missing_checkout_configuration_does_not_access_db(self):
         self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': 1})[2], 503)
         extensions.db.session.get.assert_not_called()

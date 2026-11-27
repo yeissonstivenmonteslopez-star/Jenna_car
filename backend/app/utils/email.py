@@ -1,9 +1,12 @@
 """SMTP delivery shared by notifications and password recovery."""
 import logging
+import json
 import os
 import smtplib
 import ssl
 import threading
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
 from html import escape
@@ -35,23 +38,53 @@ def mail_settings():
         'sender': os.getenv('MAIL_FROM') or username,
         'tls': os.getenv('MAIL_USE_TLS', 'true').lower() in {'1', 'true', 'yes'},
         'ssl': os.getenv('MAIL_USE_SSL', 'false').lower() in {'1', 'true', 'yes'},
+        'resend_api_key': os.getenv('RESEND_API_KEY', '').strip(),
     }
 
 
 def correo_configurado():
     try:
         settings = mail_settings()
-        return bool(settings['host'] and settings['username'] and settings['password'] and settings['sender'])
+        api_ready = bool(settings['resend_api_key'] and settings['sender'])
+        smtp_ready = bool(settings['host'] and settings['username'] and settings['password'] and settings['sender'])
+        return api_ready or smtp_ready
     except ValueError:
         return False
 
 
 def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
-    """Deliver synchronously and report SMTP acceptance, not inbox delivery."""
+    """Deliver synchronously by HTTPS API or SMTP; report provider acceptance."""
     if not correo_configurado():
         logger.error('Configuración SMTP incompleta o inválida')
         return False
     settings = mail_settings()
+    html = branded_html(asunto, mensaje_html)
+    if settings['resend_api_key']:
+        request = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=json.dumps({
+                'from': settings['sender'],
+                'to': [destinatario],
+                'subject': asunto,
+                'html': html,
+            }).encode('utf-8'),
+            headers={
+                'Authorization': f"Bearer {settings['resend_api_key']}",
+                'Content-Type': 'application/json',
+            },
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                if 200 <= response.status < 300:
+                    logger.info('Proveedor HTTPS aceptó el correo (proveedor=Resend, status=%s)', response.status)
+                    return True
+                logger.error('Proveedor HTTPS rechazó el correo (proveedor=Resend, status=%s)', response.status)
+                return False
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            status = getattr(getattr(error, 'code', None), 'value', None) or getattr(error, 'code', None)
+            logger.error('Fallo al enviar correo por API HTTPS (proveedor=Resend, status=%s, error=%s)', status, error)
+            return False
     msg = EmailMessage()
     msg['Subject'] = asunto
     msg['From'] = settings['sender']

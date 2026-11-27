@@ -47,10 +47,13 @@ Después de cualquiera de esos casos, `db upgrade` aplica las migraciones futura
 
 El correo admite `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`,
 `MAIL_FROM`, `MAIL_USE_TLS` y `MAIL_USE_SSL`. Las variables anteriores
-`SMTP_EMAIL` y `SMTP_PASSWORD` siguen funcionando como alternativa.
-Para Gmail configura `MAIL_HOST=smtp.gmail.com`, puerto 587 y TLS, con una
-contraseña de aplicación de Google. La recuperación devuelve 503 si SMTP
-rechaza el envío; las notificaciones se entregan en segundo plano.
+`SMTP_EMAIL` y `SMTP_PASSWORD` siguen funcionando como alternativa. En Render,
+usa la API HTTPS de Resend: define `RESEND_API_KEY` y `MAIL_FROM` con un
+remitente verificado en Resend. Esto evita los puertos SMTP 465/587, que Render
+bloquea en sus servicios Free y Starter. Fuera de Render puedes usar Gmail con
+contraseña de aplicación y SSL en el puerto 465. La recuperación invalida el
+código si el proveedor rechaza el envío; las notificaciones se entregan en
+segundo plano.
 
 Los pagos usan Mercado Pago Checkout Pro: el cliente crea una preferencia
 con `POST /api/pagos` y continúa en la URL de la pasarela. Configura las cuatro
