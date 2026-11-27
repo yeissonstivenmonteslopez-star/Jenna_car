@@ -198,6 +198,13 @@ class IsolatedTests(unittest.TestCase):
             self.assertIn(b'target@gmail.com', request.data)
             smtp.assert_not_called()
 
+    def test_render_does_not_retry_blocked_gmail_smtp(self):
+        self.smtp()
+        with patch.dict(os.environ, {'RENDER': 'true'}), \
+                patch.object(mail.smtplib, 'SMTP') as smtp:
+            self.assertFalse(mail.enviar_correo_async('target@gmail.com', 'Test', '<p>Hola</p>'))
+            smtp.assert_not_called()
+
     def test_missing_checkout_configuration_does_not_access_db(self):
         self.assertEqual(service.create(SimpleNamespace(id=7), {'recibo_id': 1})[2], 503)
         extensions.db.session.get.assert_not_called()

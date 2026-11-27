@@ -1,6 +1,6 @@
 """SMTP delivery shared by notifications and password recovery."""
-import logging
 import json
+import logging
 import os
 import smtplib
 import ssl
@@ -81,10 +81,19 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
                     return True
                 logger.error('Proveedor HTTPS rechazó el correo (proveedor=Resend, status=%s)', response.status)
                 return False
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
-            status = getattr(getattr(error, 'code', None), 'value', None) or getattr(error, 'code', None)
-            logger.error('Fallo al enviar correo por API HTTPS (proveedor=Resend, status=%s, error=%s)', status, error)
+        except urllib.error.HTTPError as error:
+            # The provider response explains actionable issues (for example,
+            # an unverified sender). Never log response headers or API key.
+            detail = error.read(2048).decode('utf-8', errors='replace')
+            logger.error('Proveedor HTTPS rechazó el correo (proveedor=Resend, status=%s, detalle=%s)',
+                         error.code, detail)
             return False
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            logger.error('Fallo al enviar correo por API HTTPS (proveedor=Resend, error=%s)', error)
+            return False
+    if os.getenv('RENDER') and settings['host'].lower() in {'smtp.gmail.com', 'smtp.googlemail.com'}:
+        logger.error('Gmail SMTP no es accesible desde Render; configura RESEND_API_KEY y MAIL_FROM para enviar por HTTPS')
+        return False
     msg = EmailMessage()
     msg['Subject'] = asunto
     msg['From'] = settings['sender']
