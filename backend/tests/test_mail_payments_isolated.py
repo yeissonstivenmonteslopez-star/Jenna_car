@@ -224,6 +224,27 @@ class IsolatedTests(unittest.TestCase):
             self.assertIn(b'raw', gmail_request.data)
             smtp.assert_not_called()
 
+    def test_gmail_api_sender_does_not_depend_on_mail_from(self):
+        os.environ.update(
+            GMAIL_API_CLIENT_ID='client-id',
+            GMAIL_API_CLIENT_SECRET='client-secret',
+            GMAIL_API_REFRESH_TOKEN='refresh-token',
+            GMAIL_API_SENDER='sender@gmail.com',
+            MAIL_FROM='old-resend-sender@example.com',
+        )
+        token_response = MagicMock()
+        token_response.__enter__.return_value = token_response
+        token_response.read.return_value = b'{"access_token":"access-token"}'
+        send_response = MagicMock()
+        send_response.__enter__.return_value = send_response
+        send_response.status = 200
+        with patch.object(mail.urllib.request, 'urlopen', side_effect=[token_response, send_response]) as urlopen:
+            self.assertTrue(mail.correo_configurado())
+            self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Recovery', '<p>Code</p>'))
+            message_raw = json.loads(urlopen.call_args_list[1].args[0].data)['raw']
+            raw_bytes = mail.base64.urlsafe_b64decode(message_raw.encode('ascii'))
+            self.assertIn(b'From: sender@gmail.com', raw_bytes)
+
     def test_render_does_not_retry_blocked_gmail_smtp(self):
         self.smtp()
         with patch.dict(os.environ, {'RENDER': 'true'}), \

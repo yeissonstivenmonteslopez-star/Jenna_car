@@ -52,7 +52,8 @@ def correo_configurado():
         settings = mail_settings()
         api_ready = bool(settings['resend_api_key'] and settings['sender'])
         gmail_ready = bool(settings['gmail_client_id'] and settings['gmail_client_secret']
-                           and settings['gmail_refresh_token'] and settings['sender'])
+                           and settings['gmail_refresh_token']
+                           and os.getenv('GMAIL_API_SENDER', '').strip())
         smtp_ready = bool(settings['host'] and settings['username'] and settings['password'] and settings['sender'])
         return api_ready or gmail_ready or smtp_ready
     except ValueError:
@@ -69,7 +70,7 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
     gmail_oauth_ready = bool(settings['gmail_client_id'] and settings['gmail_client_secret']
                              and settings['gmail_refresh_token'])
     gmail_api_sender = os.getenv('GMAIL_API_SENDER', '').strip().lower()
-    if gmail_oauth_ready and gmail_api_sender and settings['sender'].lower() == gmail_api_sender:
+    if gmail_oauth_ready and gmail_api_sender:
         try:
             token_request = urllib.request.Request(
                 'https://oauth2.googleapis.com/token',
@@ -87,7 +88,7 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
 
             msg = EmailMessage()
             msg['Subject'] = asunto
-            msg['From'] = settings['sender']
+            msg['From'] = gmail_api_sender
             msg['To'] = destinatario
             msg.set_content('Abre este mensaje en un cliente compatible con HTML para consultar su contenido.')
             msg.add_alternative(html, subtype='html')
