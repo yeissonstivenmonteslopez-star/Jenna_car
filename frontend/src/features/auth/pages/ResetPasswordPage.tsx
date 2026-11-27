@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
           </form>
         ) : (
           <form key="code" onSubmit={validateCode} className="mt-8 grid gap-5">
-            <p className="text-sm text-primary-foreground/60">Ingresa el código de 6 dígitos enviado a tu correo.</p>
+            <p className="text-sm text-primary-foreground/60">Si hay una cuenta asociada a <strong className="break-all text-white">{email}</strong>, recibirás un código de 6 dígitos. Puede tardar unos minutos; revisa también la carpeta de spam.</p>
             <label className="grid gap-2 text-xs">Código de recuperación
               <input autoFocus name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} className={inputClass} />
             </label>

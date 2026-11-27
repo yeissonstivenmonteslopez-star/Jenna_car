@@ -76,7 +76,7 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
             server.login(settings['username'], settings['password'])
             return not server.send_message(msg)
     except (OSError, smtplib.SMTPException):
-        logger.error('No se pudo entregar el correo al servidor SMTP')
+        logger.exception('No se pudo entregar correo por SMTP (host=%s, port=%s)', settings['host'], settings['port'])
         return False
 
 

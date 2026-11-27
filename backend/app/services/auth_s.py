@@ -218,7 +218,9 @@ def _issue_reset(email):
     </div>
     """
     if not enviar_correo_async(email, "Código de recuperación de contraseña", mensaje_html):
-        current_app.logger.warning('El correo de recuperación no pudo entregarse.')
+        auth_repository.delete_active_reset_tokens(usuario.id)
+        auth_repository.commit()
+        current_app.logger.error('No se entregó el código de recuperación al servidor SMTP; se invalidó el código.')
 
 
 def _validate_reset_code(email, code):
