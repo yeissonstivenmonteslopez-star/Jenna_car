@@ -1,17 +1,40 @@
 import KeycapAlert from '@/components/ui/KeycapAlert'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { resetPassword, verifyResetCode } from '@/features/auth/services/authService'
+import { forgotPassword, resetPassword, verifyResetCode } from '@/features/auth/services/authService'
+
+const RESEND_WAIT_SECONDS = 4 * 60
+const MAX_RESENDS = 2
+
+function getResetRequestState(email: string) {
+  try {
+    const saved = sessionStorage.getItem(`password-reset:${email.toLowerCase()}`)
+    if (saved) return JSON.parse(saved) as { sentAt: number; resends: number }
+  } catch {
+    // Continue with a fresh local cooldown if storage is unavailable.
+  }
+  return { sentAt: Date.now(), resends: 0 }
+}
 
 export default function ResetPasswordPage() {
   const location = useLocation()
   const email = location.state?.email || new URLSearchParams(location.search).get('email') || ''
+  const [requestState, setRequestState] = useState(() => getResetRequestState(email))
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, RESEND_WAIT_SECONDS - Math.floor((Date.now() - requestState.sentAt) / 1000)))
   const [code, setCode] = useState('')
   const [verified, setVerified] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [pending, setPending] = useState(false)
+  const [resendNotice, setResendNotice] = useState('')
+
+  useEffect(() => {
+    const updateCountdown = () => setSecondsLeft(Math.max(0, RESEND_WAIT_SECONDS - Math.floor((Date.now() - requestState.sentAt) / 1000)))
+    updateCountdown()
+    const timer = window.setInterval(updateCountdown, 1000)
+    return () => window.clearInterval(timer)
+  }, [requestState.sentAt])
 
   if (!email) return <Navigate to="/forgot-password" replace />
 
@@ -41,6 +64,7 @@ export default function ResetPasswordPage() {
     setPending(true)
     try {
       await resetPassword({ email, code: code.trim(), password })
+      sessionStorage.removeItem(`password-reset:${email.toLowerCase()}`)
       setSuccess(true)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible actualizar la contraseña.')
@@ -48,6 +72,28 @@ export default function ResetPasswordPage() {
       setPending(false)
     }
   }
+
+  async function resendCode() {
+    if (pending || secondsLeft > 0 || requestState.resends >= MAX_RESENDS) return
+    setPending(true)
+    setError('')
+    setResendNotice('')
+    try {
+      await forgotPassword(email)
+      const nextState = { sentAt: Date.now(), resends: requestState.resends + 1 }
+      sessionStorage.setItem(`password-reset:${email.toLowerCase()}`, JSON.stringify(nextState))
+      setRequestState(nextState)
+      setSecondsLeft(RESEND_WAIT_SECONDS)
+      setCode('')
+      setResendNotice('Solicitud de reenvío enviada al mismo correo.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'No fue posible reenviar el código.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
 
   const inputClass = 'bg-field p-4 text-white outline-none focus:ring-2 focus:ring-accent'
   const buttonClass = 'bg-accent p-4 text-xs font-semibold tracking-[0.18em] text-accent-foreground disabled:opacity-50'
@@ -77,7 +123,16 @@ export default function ResetPasswordPage() {
               <input autoFocus name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} className={inputClass} />
             </label>
             <button disabled={pending} className={buttonClass}>{pending ? 'VALIDANDO…' : 'VALIDAR CÓDIGO'}</button>
-            <a href="/forgot-password" className="text-center text-sm text-accent underline">Solicitar otro código</a>
+            <div className="grid gap-2 text-center">
+              {requestState.resends < MAX_RESENDS ? (
+                <button type="button" onClick={resendCode} disabled={pending || secondsLeft > 0} className="text-sm text-accent underline disabled:cursor-not-allowed disabled:opacity-50">
+                  {pending ? 'ENVIANDO…' : secondsLeft > 0 ? `Reenviar código en ${countdown}` : 'Reenviar código al mismo correo'}
+                </button>
+              ) : (
+                <p className="text-sm text-primary-foreground/55">Se alcanzó el máximo de 3 envíos permitidos en una hora para este correo.</p>
+              )}
+              {resendNotice && <p role="status" className="text-xs text-primary-foreground/60">{resendNotice}</p>}
+            </div>
           </form>
         )}
         {error && <KeycapAlert type={'error'} message={error} className="mt-5" />}

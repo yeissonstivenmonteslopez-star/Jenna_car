@@ -25,11 +25,12 @@ def allow_reset_request(email, origin):
         connection.execute('CREATE TABLE IF NOT EXISTS requests (bucket TEXT, issued INTEGER)')
         connection.execute('CREATE INDEX IF NOT EXISTS by_bucket ON requests(bucket, issued)')
         connection.execute('DELETE FROM requests WHERE issued <= ?', (now - 3600,))
-        for key, maximum in ((origin_key, 30), (email_key, 5)):
+        # At most three recovery emails per address each hour, with four minutes between them.
+        for key, maximum in ((origin_key, 30), (email_key, 3)):
             count, latest = connection.execute(
                 'SELECT COUNT(*), MAX(issued) FROM requests WHERE bucket = ?', (key,)
             ).fetchone()
-            if count >= maximum or (key == email_key and latest is not None and now - latest < 60):
+            if count >= maximum or (key == email_key and latest is not None and now - latest < 240):
                 return False
         connection.executemany('INSERT INTO requests VALUES (?, ?)', [(origin_key, now), (email_key, now)])
     return True

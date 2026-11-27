@@ -198,8 +198,8 @@ def _issue_reset(email):
         return
     auth_repository.lock_user(usuario.id)
     now = datetime.now(timezone.utc)
-    if auth_repository.recent_reset_token(usuario.id, now - timedelta(minutes=1)):
-        current_app.logger.info('Recuperación omitida: ya se generó un código durante el último minuto')
+    if auth_repository.recent_reset_token(usuario.id, now - timedelta(minutes=4)):
+        current_app.logger.info('Recuperación omitida: ya se generó un código durante los últimos cuatro minutos')
         return
     auth_repository.delete_active_reset_tokens(usuario.id)
     code = f'{secrets.randbelow(1_000_000):06d}'

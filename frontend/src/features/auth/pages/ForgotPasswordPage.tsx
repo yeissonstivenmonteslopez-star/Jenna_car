@@ -15,8 +15,10 @@ export default function ForgotPasswordPage() {
     const email = new FormData(event.currentTarget).get('email')
 
     try {
-      await forgotPassword(String(email))
-      navigate('/reset-password', { state: { email: String(email).trim() } })
+      const normalizedEmail = String(email).trim()
+      await forgotPassword(normalizedEmail)
+      sessionStorage.setItem(`password-reset:${normalizedEmail.toLowerCase()}`, JSON.stringify({ sentAt: Date.now(), resends: 0 }))
+      navigate('/reset-password', { state: { email: normalizedEmail } })
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible generar el código.')
     } finally {
