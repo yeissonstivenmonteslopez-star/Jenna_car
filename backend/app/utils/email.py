@@ -148,7 +148,14 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
             logger.error('Fallo al enviar correo por API HTTPS (proveedor=Resend, error=%s)', error)
             return False
     if os.getenv('RENDER') and settings['host'].lower() in {'smtp.gmail.com', 'smtp.googlemail.com'}:
-        logger.error('Gmail SMTP no es accesible desde Render; configura Gmail API OAuth o un proveedor HTTPS')
+        required = ('GMAIL_API_CLIENT_ID', 'GMAIL_API_CLIENT_SECRET',
+                    'GMAIL_API_REFRESH_TOKEN', 'GMAIL_API_SENDER')
+        missing = [name for name in required if not os.getenv(name, '').strip()]
+        logger.error(
+            'Gmail SMTP no es accesible desde Render; Gmail API no se activó. '
+            'Variables Gmail API sin configurar: %s',
+            ', '.join(missing) if missing else 'ninguna; verifica que Render haya desplegado la versión más reciente',
+        )
         return False
     msg = EmailMessage()
     msg['Subject'] = asunto
