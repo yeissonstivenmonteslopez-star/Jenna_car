@@ -60,6 +60,24 @@ def correo_configurado():
         return False
 
 
+def _crear_mensaje(destinatario, asunto, mensaje_html, remitente, imagenes=()):
+    """Construye el mensaje común, con logo e imágenes CID para todos los proveedores."""
+    msg = EmailMessage()
+    msg['Subject'] = asunto
+    msg['From'] = remitente
+    msg['To'] = destinatario
+    msg.set_content('Abre este mensaje en un cliente compatible con HTML para consultar su contenido.')
+    msg.add_alternative(branded_html(asunto, mensaje_html), subtype='html')
+    html_part = msg.get_payload()[-1]
+    if LOGO_PATH.exists():
+        html_part.add_related(LOGO_PATH.read_bytes(), maintype='image', subtype='png',
+                              cid='<jenna-logo>', disposition='inline', filename='jena-car.png')
+    for cid, data, subtype in imagenes:
+        html_part.add_related(data, maintype='image', subtype=subtype,
+                              cid=f'<{cid}>', disposition='inline', filename=f'{cid}.{subtype}')
+    return msg
+
+
 def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
     """Deliver synchronously by HTTPS API or SMTP; report provider acceptance."""
     if not correo_configurado():
@@ -86,12 +104,7 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
             with urllib.request.urlopen(token_request, timeout=15) as response:
                 access_token = json.loads(response.read().decode('utf-8'))['access_token']
 
-            msg = EmailMessage()
-            msg['Subject'] = asunto
-            msg['From'] = gmail_api_sender
-            msg['To'] = destinatario
-            msg.set_content('Abre este mensaje en un cliente compatible con HTML para consultar su contenido.')
-            msg.add_alternative(html, subtype='html')
+            msg = _crear_mensaje(destinatario, asunto, mensaje_html, gmail_api_sender, imagenes)
             mime_bytes = msg.as_bytes()
             gmail_request = urllib.request.Request(
                 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
@@ -157,18 +170,7 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
             ', '.join(missing) if missing else 'ninguna; verifica que Render haya desplegado la versión más reciente',
         )
         return False
-    msg = EmailMessage()
-    msg['Subject'] = asunto
-    msg['From'] = settings['sender']
-    msg['To'] = destinatario
-    msg.set_content('Abre este mensaje en un cliente compatible con HTML para consultar su contenido.')
-    msg.add_alternative(branded_html(asunto, mensaje_html), subtype='html')
-    html_part = msg.get_payload()[-1]
-    html_part.add_related(LOGO_PATH.read_bytes(), maintype='image', subtype='png',
-                          cid='<jenna-logo>', disposition='inline', filename='jena-car.png')
-    for cid, data, subtype in imagenes:
-        html_part.add_related(data, maintype='image', subtype=subtype,
-                              cid=f'<{cid}>', disposition='inline', filename=f'{cid}.{subtype}')
+    msg = _crear_mensaje(destinatario, asunto, mensaje_html, settings['sender'], imagenes)
     try:
         context = ssl.create_default_context()
         modes = [(settings['port'], settings['ssl'], settings['tls'])]
