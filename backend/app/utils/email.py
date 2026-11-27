@@ -66,15 +66,24 @@ def enviar_correo_async(destinatario, asunto, mensaje_html, imagenes=()):
                               cid=f'<{cid}>', disposition='inline', filename=f'{cid}.{subtype}')
     try:
         context = ssl.create_default_context()
-        transport = smtplib.SMTP_SSL if settings['ssl'] else smtplib.SMTP
-        options = {'timeout': 15}
-        if settings['ssl']:
-            options['context'] = context
-        with transport(settings['host'], settings['port'], **options) as server:
-            if settings['tls'] and not settings['ssl']:
-                server.starttls(context=context)
-            server.login(settings['username'], settings['password'])
-            return not server.send_message(msg)
+        modes = [(settings['port'], settings['ssl'], settings['tls'])]
+        if settings['port'] == 587 and settings['tls'] and not settings['ssl']:
+            modes.append((465, True, False))
+        for index, (port, use_ssl, use_tls) in enumerate(modes):
+            transport = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+            options = {'timeout': 15}
+            if use_ssl:
+                options['context'] = context
+            try:
+                with transport(settings['host'], port, **options) as server:
+                    if use_tls and not use_ssl:
+                        server.starttls(context=context)
+                    server.login(settings['username'], settings['password'])
+                    return not server.send_message(msg)
+            except OSError:
+                if index + 1 >= len(modes):
+                    raise
+                logger.warning('SMTP no accesible en puerto 587; intentando SSL en puerto 465')
     except (OSError, smtplib.SMTPException):
         logger.exception('No se pudo entregar correo por SMTP (host=%s, port=%s)', settings['host'], settings['port'])
         return False

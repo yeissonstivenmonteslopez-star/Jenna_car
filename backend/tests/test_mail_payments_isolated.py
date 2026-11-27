@@ -144,6 +144,17 @@ class IsolatedTests(unittest.TestCase):
             server.login.assert_called_once_with('sender@gmail.com', 'app-password')
             self.assertEqual(server.send_message.call_args.args[0]['To'], 'target@gmail.com')
 
+    def test_blocked_starttls_port_falls_back_to_gmail_ssl(self):
+        self.smtp()
+        tls_context = mail.ssl.create_default_context()
+        with patch.object(mail.smtplib, 'SMTP', side_effect=OSError(101, 'Network is unreachable')) as smtp, \
+                patch.object(mail.smtplib, 'SMTP_SSL') as smtp_ssl:
+            server = smtp_ssl.return_value.__enter__.return_value
+            server.send_message.return_value = {}
+            self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Test', '<p>Hola</p>'))
+            smtp.assert_called_once_with('smtp.gmail.com', 587, timeout=15)
+            smtp_ssl.assert_called_once_with('smtp.gmail.com', 465, timeout=15, context=tls_context)
+
     def test_smtp_failure_reported(self):
         self.smtp()
         with patch.object(mail.smtplib, 'SMTP', side_effect=smtplib.SMTPAuthenticationError(535, b'rejected')):
