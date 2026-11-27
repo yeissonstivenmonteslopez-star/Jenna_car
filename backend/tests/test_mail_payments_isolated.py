@@ -1,6 +1,7 @@
 """Isolated checks: no application import, database engine, SMTP or HTTP traffic."""
 import importlib.util
 import os
+import json
 from pathlib import Path
 import smtplib
 import sys
@@ -196,6 +197,31 @@ class IsolatedTests(unittest.TestCase):
             self.assertEqual(request.full_url, 'https://api.resend.com/emails')
             self.assertEqual(request.get_header('Authorization'), 'Bearer re_test_key')
             self.assertIn(b'target@gmail.com', request.data)
+            smtp.assert_not_called()
+
+    def test_gmail_api_uses_oauth_refresh_token_and_sender(self):
+        os.environ.update(
+            GMAIL_API_CLIENT_ID='client-id',
+            GMAIL_API_CLIENT_SECRET='client-secret',
+            GMAIL_API_REFRESH_TOKEN='refresh-token',
+            GMAIL_API_SENDER='sender@gmail.com',
+            MAIL_FROM='sender@gmail.com',
+        )
+        token_response = MagicMock()
+        token_response.__enter__.return_value = token_response
+        token_response.read.return_value = b'{"access_token":"access-token"}'
+        send_response = MagicMock()
+        send_response.__enter__.return_value = send_response
+        send_response.status = 200
+        with patch.object(mail.urllib.request, 'urlopen', side_effect=[token_response, send_response]) as urlopen, \
+                patch.object(mail.smtplib, 'SMTP') as smtp:
+            self.assertTrue(mail.enviar_correo_async('target@gmail.com', 'Recovery', '<p>Code</p>'))
+            token_request = urlopen.call_args_list[0].args[0]
+            self.assertEqual(token_request.full_url, 'https://oauth2.googleapis.com/token')
+            gmail_request = urlopen.call_args_list[1].args[0]
+            self.assertEqual(gmail_request.full_url, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send')
+            self.assertEqual(gmail_request.get_header('Authorization'), 'Bearer access-token')
+            self.assertIn(b'raw', gmail_request.data)
             smtp.assert_not_called()
 
     def test_render_does_not_retry_blocked_gmail_smtp(self):

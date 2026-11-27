@@ -55,6 +55,13 @@ contraseña de aplicación y SSL en el puerto 465. La recuperación invalida el
 código si el proveedor rechaza el envío; las notificaciones se entregan en
 segundo plano.
 
+También se puede enviar desde una cuenta Gmail propia por Gmail API HTTPS sin
+dominio propio. Configura `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
+`GMAIL_API_REFRESH_TOKEN` obtenidos mediante OAuth con el permiso
+`https://www.googleapis.com/auth/gmail.send`, y `GMAIL_API_SENDER` con el mismo
+correo autorizado. Google Sign-In (`GOOGLE_CLIENT_IDS`) no reemplaza estas
+credenciales de envío.
+
 Los pagos usan Mercado Pago Checkout Pro: el cliente crea una preferencia
 con `POST /api/pagos` y continúa en la URL de la pasarela. Configura las cuatro
 variables `MERCADOPAGO_*` de `.env.example`, incluyendo el secreto de Webhooks
